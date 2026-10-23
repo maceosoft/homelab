@@ -1,28 +1,28 @@
 ---
 - name: Cluster groups existentes
   ansible.builtin.command: incus cluster group list --format csv
-  register: incus_groups_list
+  register: incus_cluster_groups_list
   changed_when: false
 
 - name: Crear cluster groups
   ansible.builtin.command: "incus cluster group create {{ item }}"
   loop: "{{ incus_cluster_all_groups | default([]) | unique }}"
-  register: group_create
-  changed_when: group_create.rc == 0
-  failed_when: group_create.rc != 0 and ('already exists' not in (group_create.stderr | default('')))
-  when: item not in (incus_groups_list.stdout | default(''))
+  register: incus_cluster_group_create
+  changed_when: incus_cluster_group_create.rc == 0
+  failed_when: incus_cluster_group_create.rc != 0 and ('already exists' not in (incus_cluster_group_create.stderr | default('')))
+  when: item not in (incus_cluster_groups_list.stdout | default(''))
 
 - name: Asignar cluster groups a miembros
   ansible.builtin.command: >-
     incus cluster group assign {{ item.key }} {{ item.value | join(',') }}
   loop: "{{ incus_cluster_group_assignments | dict2items }}"
-  register: group_assign
-  changed_when: "'Updated cluster groups' in (group_assign.stdout | default('')) or group_assign.rc == 0"
+  register: incus_cluster_group_assign
+  changed_when: "'Updated cluster groups' in (incus_cluster_group_assign.stdout | default('')) or incus_cluster_group_assign.rc == 0"
   failed_when: false
 
 - name: Scheduler manual (nodos con incus_scheduler_manual)
   ansible.builtin.command: "incus cluster set {{ item }} scheduler.instance manual"
   loop: "{{ incus_cluster_manual_scheduler_hosts | default([]) }}"
-  register: scheduler_set
-  changed_when: scheduler_set.rc == 0
+  register: incus_cluster_scheduler_set
+  changed_when: incus_cluster_scheduler_set.rc == 0
   failed_when: false

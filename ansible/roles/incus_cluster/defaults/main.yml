@@ -1,10 +1,13 @@
 ---
 incus_cluster_phase: bootstrap  # bootstrap | join | post (playbook lo sobreescribe)
 incus_cluster_leader: invincible
-incus_storage_driver: dir
-incus_storage_pool: local
-incus_storage_path: /var/lib/incus/storage-pools/local
-incus_storage_min_free_gb: 20
-incus_bridge: br0
+# Variables públicas con su nombre histórico (sin el prefijo del rol, a propósito): las configuran
+# group_vars/incus_cluster, host_vars/oliver y el rol incus_ovn, y la documentación las nombra así.
+# Renombrarlas rompería esas configuraciones.
+incus_storage_driver: dir  # noqa: var-naming[no-role-prefix]
+incus_storage_pool: local  # noqa: var-naming[no-role-prefix]
+incus_storage_path: /var/lib/incus/storage-pools/local  # noqa: var-naming[no-role-prefix]
+incus_storage_min_free_gb: 20  # noqa: var-naming[no-role-prefix]
+incus_bridge: br0  # noqa: var-naming[no-role-prefix]
 incus_cluster_groups: []
-incus_scheduler_manual: false
+incus_scheduler_manual: false  # noqa: var-naming[no-role-prefix]

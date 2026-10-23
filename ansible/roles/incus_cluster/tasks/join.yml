@@ -2,7 +2,7 @@
 - name: Miembros actuales del clúster (desde leader)
   ansible.builtin.command: incus cluster list --format csv
   delegate_to: "{{ incus_cluster_leader }}"
-  register: leader_cluster_list
+  register: incus_cluster_leader_cluster_list
   changed_when: false
   failed_when: false
   run_once: true
@@ -10,18 +10,18 @@
 - name: Generar token de join en el leader
   ansible.builtin.command: "incus cluster add {{ inventory_hostname }}"
   delegate_to: "{{ incus_cluster_leader }}"
-  register: cluster_add
-  changed_when: cluster_add.rc == 0
+  register: incus_cluster_add
+  changed_when: incus_cluster_add.rc == 0
   when:
-    - not incus_node_clustered
-    - inventory_hostname not in (leader_cluster_list.stdout | default(''))
+    - not incus_cluster_node_clustered
+    - inventory_hostname not in (incus_cluster_leader_cluster_list.stdout | default(''))
     - not ansible_check_mode
 
 # set_fact necesita el valor ahora (la tarea siguiente lo usa): un handler correría al final.
 - name: Guardar token de join
   ansible.builtin.set_fact:
-    join_token: "{{ cluster_add.stdout_lines[-1] | trim }}"
-  when: cluster_add is changed  # noqa: no-handler
+    incus_cluster_join_token: "{{ incus_cluster_add.stdout_lines[-1] | trim }}"
+  when: incus_cluster_add is changed  # noqa: no-handler
 
 - name: Renderizar preseed join
   ansible.builtin.template:
@@ -29,8 +29,8 @@
     dest: /tmp/incus-preseed-join.yml
     mode: "0600"
   when:
-    - not incus_node_clustered
-    - join_token is defined
+    - not incus_cluster_node_clustered
+    - incus_cluster_join_token is defined
 
 - name: Unir nodo al clúster Incus (preseed)
   ansible.builtin.shell: |
@@ -38,11 +38,11 @@
     cat /tmp/incus-preseed-join.yml | incus admin init --preseed
   args:
     executable: /bin/bash
-  register: incus_join
-  changed_when: incus_join.rc == 0
+  register: incus_cluster_join
+  changed_when: incus_cluster_join.rc == 0
   when:
-    - not incus_node_clustered
-    - join_token is defined
+    - not incus_cluster_node_clustered
+    - incus_cluster_join_token is defined
     - not ansible_check_mode
 
 - name: Eliminar preseed join temporal
@@ -58,5 +58,5 @@
     delay: 3
     timeout: 120
   when:
-    - join_token is defined
+    - incus_cluster_join_token is defined
     - not ansible_check_mode

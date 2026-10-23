@@ -2,14 +2,14 @@
 - name: Comprobar que Incus está instalado
   ansible.builtin.stat:
     path: /usr/bin/incus
-  register: incus_bin
+  register: incus_cluster_bin
 
 - name: Fallar si falta el paquete Incus
   ansible.builtin.fail:
     msg: >-
       Incus no está instalado en {{ inventory_hostname }}.
       Ejecuta playbook-bootstrap.yml (rol incus_install) primero.
-  when: not incus_bin.stat.exists
+  when: not incus_cluster_bin.stat.exists
 
 - name: Espacio libre en filesystem del pool
   # incus_storage_path (o su carpeta padre) todavia no existe antes del
@@ -22,7 +22,7 @@
     df -BG --output=avail "$p"
   args:
     executable: /bin/bash
-  register: incus_df
+  register: incus_cluster_df
   changed_when: false
   check_mode: false
   when: incus_storage_device is not defined
@@ -30,10 +30,10 @@
 - name: Validar espacio mínimo para storage
   ansible.builtin.assert:
     that:
-      - (incus_df.stdout_lines[-1] | regex_replace('G', '') | int) >= incus_storage_min_free_gb
+      - (incus_cluster_df.stdout_lines[-1] | regex_replace('G', '') | int) >= incus_storage_min_free_gb
     fail_msg: >-
       Menos de {{ incus_storage_min_free_gb }} GB libres para {{ incus_storage_path }}
-      ({{ incus_df.stdout_lines[-1] }}). Libera espacio o ajusta incus_storage_path.
+      ({{ incus_cluster_df.stdout_lines[-1] }}). Libera espacio o ajusta incus_storage_path.
   when:
     - not ansible_check_mode
     - incus_storage_device is not defined
@@ -41,7 +41,7 @@
 - name: Verificar que el dispositivo de storage existe (si se definió incus_storage_device)
   ansible.builtin.stat:
     path: "{{ incus_storage_device }}"
-  register: incus_storage_device_stat
+  register: incus_cluster_storage_device_stat
   when: incus_storage_device is defined
 
 - name: Fallar si el dispositivo de storage no existe
@@ -51,7 +51,7 @@
       {{ inventory_hostname }}. Confirmar con `lsblk`/`blkid` antes de asignarlo.
   when:
     - incus_storage_device is defined
-    - not incus_storage_device_stat.stat.exists
+    - not incus_cluster_storage_device_stat.stat.exists
 
 - name: Estado del clúster Incus
   ansible.builtin.command: incus cluster list --format csv
@@ -61,7 +61,7 @@
 
 - name: Marcar si el nodo ya está en el clúster
   ansible.builtin.set_fact:
-    incus_node_clustered: >-
+    incus_cluster_node_clustered: >-
       {{
         incus_cluster_list.rc == 0
         and inventory_hostname in (incus_cluster_list.stdout | default(''))

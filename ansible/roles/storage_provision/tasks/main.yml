@@ -16,7 +16,7 @@
 
 - name: Verificar si el disco ya tiene un filesystem (idempotencia)
   ansible.builtin.command: "blkid {{ item.device }}"
-  register: blkid_check
+  register: storage_provision_blkid_check
   loop: "{{ storage_provision_disks }}"
   changed_when: false
   failed_when: false
@@ -25,7 +25,7 @@
   community.general.filesystem:
     fstype: "{{ item.item.filesystem }}"
     dev: "{{ item.item.device }}"
-  loop: "{{ blkid_check.results }}"
+  loop: "{{ storage_provision_blkid_check.results }}"
   when: item.rc != 0
 
 - name: Crear el punto de montaje
@@ -37,7 +37,7 @@
 
 - name: Obtener UUID del disco para fstab
   ansible.builtin.command: "blkid -s UUID -o value {{ item.device }}"
-  register: disk_uuid
+  register: storage_provision_disk_uuid
   loop: "{{ storage_provision_disks }}"
   changed_when: false
 
@@ -47,7 +47,7 @@
     src: "UUID={{ item.stdout }}"
     fstype: "{{ item.item.filesystem }}"
     state: mounted
-  loop: "{{ disk_uuid.results }}"
+  loop: "{{ storage_provision_disk_uuid.results }}"
 
 - name: Wirear a Longhorn (anotar el nodo K8s)
   ansible.builtin.command: >-
@@ -63,8 +63,8 @@
     incus storage create {{ item.incus_pool_name }} dir source={{ item.mount_path }}
   loop: "{{ storage_provision_disks }}"
   when: item.consumer == 'incus'
-  register: incus_pool_create
+  register: storage_provision_incus_pool_create
   failed_when:
-    - incus_pool_create.rc != 0
-    - "'already exists' not in incus_pool_create.stderr"
-  changed_when: incus_pool_create.rc == 0
+    - storage_provision_incus_pool_create.rc != 0
+    - "'already exists' not in storage_provision_incus_pool_create.stderr"
+  changed_when: storage_provision_incus_pool_create.rc == 0

@@ -1,7 +1,7 @@
 ---
 - name: Calcular TLS SANs efectivos del server
   ansible.builtin.set_fact:
-    k3s_effective_tls_sans: >-
+    k3s_server_effective_tls_sans: >-
       {{
         [ansible_host, inventory_hostname]
         + ([k3s_install.kube_vip.address] if k3s_install.kube_vip.enabled else [])
@@ -9,7 +9,7 @@
         + k3s_server_tls_sans | default([])
       | unique | list
       }}
-    k3s_effective_api_host: >-
+    k3s_server_effective_api_host: >-
       {{ k3s_install.kube_vip.address if k3s_install.kube_vip.enabled else ansible_host }}
 
 # Igual que en k3s_agent: se necesita el código de salida de systemctl is-active.
@@ -32,7 +32,7 @@
       --flannel-backend {{ 'none' if (k3s_install.core.cni | default('flannel')) != 'flannel' else k3s_install.core.flannel_backend }} \
       {% if (k3s_install.core.cni | default('flannel')) != 'flannel' %}--disable-network-policy {% endif %}\
       {% if k3s_install.core.embedded_registry %}--embedded-registry {% endif %}\
-      {% for san in k3s_effective_tls_sans %}--tls-san {{ san }} {% endfor %}" sh -
+      {% for san in k3s_server_effective_tls_sans %}--tls-san {{ san }} {% endfor %}" sh -
   args:
     executable: /bin/bash
     creates: /etc/rancher/k3s/k3s.yaml
@@ -41,7 +41,7 @@
 - name: Esperar API server
   ansible.builtin.wait_for:
     port: 6443
-    host: "{{ k3s_effective_api_host }}"
+    host: "{{ k3s_server_effective_api_host }}"
     delay: 5
     timeout: 120
   when:
@@ -51,11 +51,13 @@
 - name: Leer token de union para workers
   ansible.builtin.slurp:
     src: /var/lib/rancher/k3s/server/node-token
-  register: k3s_node_token
+  register: k3s_server_node_token
   when: not ansible_check_mode
 
-- name: Publicar token para plays siguientes
+# k3s_token es un contrato entre roles: lo lee k3s_agent (hostvars del server) y también se puede
+# pasar con -e k3s_token=...; el README del agente y las guías lo nombran así. No se renombra.
+- name: Publicar token para plays siguientes  # noqa: var-naming[no-role-prefix]
   ansible.builtin.set_fact:
-    k3s_token: "{{ k3s_node_token.content | b64decode | trim }}"
-  when: k3s_node_token is defined and k3s_node_token.content is defined
+    k3s_token: "{{ k3s_server_node_token.content | b64decode | trim }}"
+  when: k3s_server_node_token is defined and k3s_server_node_token.content is defined
   no_log: true

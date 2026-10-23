@@ -2,18 +2,18 @@
 - name: Leer kubeconfig del server
   ansible.builtin.slurp:
     src: /etc/rancher/k3s/k3s.yaml
-  register: k3s_kubeconfig_raw
+  register: k3s_fetch_kubeconfig_raw
   when: inventory_hostname == groups['k3s_server'][0]
 
 - name: Escribir kubeconfig local con server URL efectiva
   ansible.builtin.copy:
     content: >-
-      {{ k3s_kubeconfig_raw.content | b64decode
+      {{ k3s_fetch_kubeconfig_raw.content | b64decode
          | regex_replace('server: https://.*:6443', 'server: ' + k3s_api_url) }}
     dest: "{{ k3s_install.fetch_kubeconfig.dest }}"
     mode: "0600"
   delegate_to: localhost
   become: false
   when:
-    - k3s_kubeconfig_raw.content is defined
+    - k3s_fetch_kubeconfig_raw.content is defined
     - not ansible_check_mode
