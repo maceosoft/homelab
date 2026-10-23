@@ -539,7 +539,7 @@ La zona `homelab.local` trae:
 |---|---|
 | `incus.homelab.local` | invincible (`192.168.20.6`) |
 | `invincible.homelab.local`, `oliver.homelab.local`, `deborah.homelab.local` | cada servidor, con su IP fija (`192.168.20.6`, `.7` y `.5`) |
-| `argocd.homelab.local`, `vcluster.homelab.local`, `api.homelab.local` | el Gateway: `gateway_ip` = `192.168.23.200` (primera IP del pool de MetalLB) |
+| `argocd.homelab.local`, `vcluster.homelab.local`, `api.homelab.local`, `grafana.homelab.local` | el Gateway: `gateway_ip` = `192.168.23.200` (primera IP del pool de MetalLB) |
 
 No hay comodín: cada nombre es un registro explícito en
 [`db.homelab.local.j2`](https://github.com/symintel/homelab/blob/main/ansible/roles/bind_dns/templates/db.homelab.local.j2).
@@ -561,7 +561,7 @@ Tu estación tiene que usar `192.168.20.5` como DNS. Si no puedes, el respaldo e
 `/etc/hosts`:
 
 ```
-192.168.23.200  argocd.homelab.local vcluster.homelab.local api.homelab.local
+192.168.23.200  argocd.homelab.local vcluster.homelab.local api.homelab.local grafana.homelab.local
 192.168.20.6    incus.homelab.local invincible.homelab.local
 192.168.20.7    oliver.homelab.local
 192.168.20.5    deborah.homelab.local
@@ -603,6 +603,7 @@ Espera `Healthy` en `k3s-upgrade` ([system-upgrade-controller](https://github.co
 | Runner ARC | `arc-runners` Healthy; runner listado en *symintel → Settings → Actions → Runners* ([4.11](#411-arc-y-pipeline-de-opentofu)) |
 | Pipeline OpenTofu | Primer `tofu apply` de `infra` en verde; existe `terraform/tfstate-default-github` ([4.11](#411-arc-y-pipeline-de-opentofu)) |
 | SSH con Dex *(opcional)* | `opkssh login` y `ssh devops@oliver.homelab.local` entran ([4.12](#412-ssh-a-los-hosts-con-dex-opcional)) |
+| Monitoreo *(opcional)* | Grafana abre, el panel de nodos muestra temperaturas y una alerta de prueba llega a Discord ([4.13](#413-monitoreo-y-alertas-opcional)) |
 
 Checklist global (URLs, `/etc/hosts`, nodos): **[Resumen del HomeLab](resumen-homelab.md)**.
 
@@ -775,6 +776,164 @@ No toca `authorized_keys` ni el hardening. La CA del HomeLab se conserva; para q
 | `Permission denied`; en `/var/log/opkssh.log`: `lookup … no such host` | Igual que la primera fila | DNS del nodo |
 | `x509: certificate signed by unknown authority` en el nodo | El nodo no confía en la CA del HomeLab | `curl -s -o /dev/null -w "%{http_code} ssl_verify=%{ssl_verify_result}\n" https://argocd.homelab.local/api/dex/.well-known/openid-configuration` debe dar `200 ssl_verify=0` |
 | Nadie entra con SSO y Dex no responde | Dex vive en K3s sobre estos mismos nodos | Entra con la llave de emergencia de `authorized_keys` |
+
+## 4.13 — Monitoreo y alertas (opcional)
+
+Da visibilidad de los tres nodos (temperatura, memoria, disco, estado de Kubernetes y de la plataforma) y avisa por
+Discord solo de lo que requiere atención. Usa [VictoriaMetrics](https://docs.victoriametrics.com/) para las métricas y
+las alertas, Alertmanager para enrutarlas y [Grafana](https://grafana.com/docs/grafana/latest/) para los paneles. Qué
+significa cada alerta y qué hacer: [Monitoreo y alertas](../operacion/monitoreo.md).
+
+**Requisitos.**
+
+- Longhorn `Healthy` ([4.4](#44-wave-1-pool-metallb-gateway-longhorn)): el volumen de métricas usa la clase `longhorn`, la misma que la caché de ARC.
+- El Gateway y el DNS de `homelab.local` ([4.8](#48-dns-de-homelablocal)): Grafana se publica en `grafana.homelab.local`.
+- El clúster con salida a internet: tras cada despliegue, un Job descarga de GitHub los paneles y reglas estándar.
+- Una cuenta de [healthchecks.io](https://healthchecks.io/) (el plan gratuito basta) y un servidor de Discord.
+
+### Cómo funciona
+
+```mermaid
+flowchart LR
+  subgraph fuentes [Fuentes]
+    NE[node-exporter\nen los 3 nodos]
+    KS[kube-state-metrics]
+    PL[cert-manager\nLonghorn · ArgoCD]
+  end
+  AG[vmagent]
+  DB[(vmsingle\nvolumen Longhorn)]
+  AL[vmalert]
+  AM[Alertmanager]
+  GF[Grafana]
+  DC[Discord\ncríticas · avisos]
+  HC[healthchecks.io]
+  NE --> AG
+  KS --> AG
+  PL --> AG
+  AG --> DB
+  DB --> AL
+  DB --> GF
+  AL --> AM
+  AM -->|critical / warning| DC
+  AM -->|Watchdog cada 5 min| HC
+  HC -.->|si el ping deja de llegar| DC
+```
+
+El ping a healthchecks.io es lo que avisa si **todo** el clúster cae: `deborah` es el único control plane, así que un monitoreo
+que vive en el clúster no podría avisar de su propia caída. La alerta `Watchdog` siempre está activa y Alertmanager la envía
+cada 5 minutos a healthchecks.io (un *dead man's switch*); si el ping deja de llegar, healthchecks.io avisa por su cuenta.
+
+### Pasos
+
+Haz los pasos 1 a 5 **antes** de activar la app en GitOps (paso 6): ArgoCD necesita que el namespace y los Secrets existan.
+
+1. **Discord** (a mano, sin bot: solo webhooks). Crea un rol y una categoría privada con dos canales, `alertas-criticas` y
+   `alertas-avisos`, y un webhook por canal. Paso a paso, con los nombres exactos de los menús:
+   [Discord y healthchecks.io — Parte 1](../symintel/discord-healthchecks.md#parte-1-discord). Tu servidor puede tener personas
+   ajenas a infraestructura, así que no uses un canal existente.
+
+2. **healthchecks.io.** Crea una cuenta y un check (`Period` de 5 minutos, `Grace Time` de 10), copia su **ping URL** y conéctalo a
+   `alertas-criticas` con su integración de Discord:
+   [Parte 2](../symintel/discord-healthchecks.md#parte-2-healthchecksio).
+
+3. **1Password** (bóveda `HomeLab`). Tres items, como **Nota segura** y con los campos **fuera de cualquier sección**. El título del
+   item y el nombre de cada campo tienen que ser exactos, porque el script los busca por nombre:
+
+    | Item | Campo | Contenido |
+    |---|---|---|
+    | `discord-webhooks` | `critical` | Webhook de `alertas-criticas` |
+    | | `warnings` | Webhook de `alertas-avisos` |
+    | `healthchecks-ping` | `url` | Ping URL del check |
+    | `grafana-admin` | `password` | Contraseña del administrador de Grafana |
+    | | `username` | *(opcional)* usuario; por defecto `admin` |
+
+    Cómo crearlos y comprobarlos: [Parte 3](../symintel/discord-healthchecks.md#parte-3-guardarlo-en-1password).
+
+4. **Secrets en el clúster.** Necesita la app de 1Password desbloqueada (*Integrate with other apps*) y el kubeconfig del homelab,
+   como el resto de [secretos de plataforma](../symintel/github.md). Son opcionales: si no existe ninguno de los tres items el script no hace nada; si existe
+   alguno, exige los tres. Comprueba primero y aplica después (desde `ansible/`):
+
+    ```bash
+    python3 scripts/apply_platform_secrets.py --check
+    ansible-playbook -i inventory.ini playbook-platform-secrets.yml --check
+    ansible-playbook -i inventory.ini playbook-platform-secrets.yml
+    ```
+
+    Crea el namespace `monitoring` (con `pod-security enforce=privileged`, porque `node-exporter` usa el disco y la red del
+    nodo) y los Secrets `discord-webhooks`, `healthchecks-ping` y `grafana-admin`. El script rechaza una URL de Discord que
+    no tenga el formato `https://discord.com/api/webhooks/<id>/<token>`, para no mandar alertas a otro destino.
+
+5. **DNS.** Añade el registro `grafana` y aplícalo:
+
+    ```bash
+    ansible-playbook -i inventory.ini playbook-bind-dns.yml
+    dig @192.168.20.5 grafana.homelab.local +short   # 192.168.23.200
+    ```
+
+6. **Activar en GitOps.** `victoria-metrics` (ola 2) y `victoria-metrics-config` (ola 3, sus reglas y la ruta de Grafana) ya
+   están en la lista de [`root-appset.yaml`](https://github.com/symintel/gitops/blob/main/bootstrap/root-appset.yaml).
+   Fusiona ese cambio en `main` del repo `gitops` y **después aplica el ApplicationSet**: el `homelab-root` del clúster se creó
+   a mano con `kubectl apply` y ArgoCD no lo actualiza solo desde git, así que sin este comando no pasa nada.
+
+    ```bash
+    kubectl apply -f gitops/bootstrap/root-appset.yaml
+    kubectl get applications -n argocd | grep victoria
+    kubectl get pods -n monitoring -o wide
+    kubectl top pods -n monitoring
+    ```
+
+    El consumo esperado es de **~1 a 1,5 GB** en total (estimación; confírmalo con `kubectl top`). `vmsingle`, `vmagent`,
+    `vmalert`, Alertmanager y Grafana prefieren `invincible` y nunca van a `oliver` (el nodo ligero); `node-exporter` corre en los tres.
+
+7. **Probar de punta a punta.** Entra a [`https://grafana.homelab.local`](https://grafana.homelab.local) con `admin` y la
+   contraseña de 1Password, y comprueba que el panel de nodos muestra las temperaturas. Luego manda una alerta de prueba:
+
+    ```bash
+    kubectl -n monitoring port-forward svc/vmalertmanager-vm-victoria-metrics-k8s-stack 9093:9093 &
+    curl -s -XPOST localhost:9093/api/v2/alerts -H 'Content-Type: application/json' -d \
+      '[{"labels":{"alertname":"PruebaManual","severity":"warning","nodename":"prueba"},"annotations":{"summary":"Alerta de prueba: si la ves, Discord funciona."}}]'
+    ```
+
+    Debe llegar a `alertas-avisos` (cambia `severity` a `critical` para probar `alertas-criticas`). Si el Service no se llama
+    así, busca el nombre con `kubectl -n monitoring get svc | grep alertmanager`. Para probar el ping, crea un silencio de
+    30 minutos para `alertname=Watchdog` en la interfaz de Alertmanager (*Silences*): el ping se corta y healthchecks.io avisa
+    a los ~15 minutos; al expirar el silencio, se recupera.
+
+### Qué vigila
+
+| Alerta | Cuándo | Severidad |
+|---|---|---|
+| `TemperaturaAlta` / `TemperaturaCritica` | `deborah` desde 75 / 85 °C (el SoC reduce velocidad en esos puntos); `invincible` y `oliver` desde 80 / 90 °C (límite del fabricante: 100 °C) | aviso / crítica |
+| `NodoNoListo` | un nodo deja de estar Ready más de 2 minutos | crítica |
+| `ServicioBaseSinReplicas` | ArgoCD, Kong o cert-manager sin ninguna réplica | crítica |
+| `CertificadoPorVencer` | un certificado vence en menos de 14 días / 3 días | aviso / crítica |
+| `LonghornVolumenDegradado` / `Fallido` | un volumen pierde una réplica / queda sin réplicas | crítica |
+| `ArgoCDAppNoSana` / `Desincronizada` | una app lleva más de 15 / 30 minutos fuera de `Healthy` / `Synced` | aviso |
+| Disco, memoria, reloj y pods | reglas por defecto del chart | aviso / crítica |
+
+Los umbrales de temperatura salen de los puntos de disparo que el propio hardware publica en `/sys`. Las reglas están en
+[`monitoring/config/rules`](https://github.com/symintel/gitops/tree/main/monitoring/config/rules) y tienen pruebas en
+[`monitoring/tests`](https://github.com/symintel/gitops/tree/main/monitoring/tests) (`monitoring/tests/run.sh`, con Docker): si cambias un
+umbral, actualiza la prueba.
+
+### Deshacer
+
+Quita `victoria-metrics` y `victoria-metrics-config` de la lista de `root-appset.yaml`, fusiona el cambio y vuelve a aplicarlo
+(`kubectl apply -f gitops/bootstrap/root-appset.yaml`): la raíz borra las Applications, pero **los recursos quedan en el clúster**
+(la convención de este repo). Para borrar también el historial de métricas y los Secrets,
+elimina el namespace: `kubectl delete namespace monitoring` (destructivo: se pierde el volumen de métricas).
+
+### Si falla
+
+| Síntoma | Causa probable | Qué revisar |
+|---|---|---|
+| `victoria-metrics` no sincroniza: *namespace "monitoring" not found* | Falta el paso 4 | `kubectl get ns monitoring`; corre `playbook-platform-secrets.yml` |
+| `node-exporter` rechazado: *violates PodSecurity* | El namespace no tiene la etiqueta `privileged` | `kubectl get ns monitoring --show-labels`; vuelve a correr el paso 4 |
+| `vmsingle` en `Pending` | El volumen `longhorn` no se crea | `kubectl -n monitoring describe pvc`; estado de Longhorn ([4.4](#44-wave-1-pool-metallb-gateway-longhorn)) |
+| No llegan alertas a Discord | Alertmanager no lee el webhook | `kubectl -n monitoring logs` del Alertmanager (busca `discord`) y que existan los archivos en `/etc/alertmanager-secrets/` |
+| Grafana sin paneles | El Job de descarga no llegó a GitHub | `kubectl -n monitoring get jobs` y sus logs; salida a internet del clúster |
+| `grafana.homelab.local` no abre | Falta el registro DNS o la ruta | paso 5; `kubectl -n monitoring get httproute` |
+| `TargetDown` de etcd, scheduler o controller-manager | Se activaron los monitores de K3s | Deben estar `enabled: false` en [`values-vm-stack.yaml`](https://github.com/symintel/gitops/blob/main/monitoring/values-vm-stack.yaml) |
 
 ---
 

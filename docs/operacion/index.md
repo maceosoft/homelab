@@ -11,6 +11,7 @@ pasos en orden, cómo verificar y qué revisar si algo falla.
 |---|---|---|
 | [URLs y accesos de los productos](urls-y-accesos.md) | Saber dónde está cada herramienta, cómo se entra y si responde | Navegador, `kubectl` |
 | [Entrar por SSH a los servidores](acceso-ssh.md) | Entrar a `invincible`, `oliver` o `deborah` con tu cuenta de GitHub | Tu estación (`opkssh`, `ssh`) |
+| [Monitoreo y alertas](monitoreo.md) | Ver temperaturas y uso de los nodos, entender un aviso de Discord, silenciar una alerta | Grafana, `kubectl` |
 | [Agregar un repo](agregar-repo.md) | Cada proyecto nuevo en la org `symintel` | 1Password + PR en `infra` |
 | [Agregar un nodo](agregar-nodo.md) | Sumar un equipo al clúster Incus y K3s | Ansible (`homelab`) |
 | [Sacar o reemplazar un nodo](sacar-nodo.md) | Retirar un equipo o cambiarlo por otro | `kubectl`, Incus y Ansible |

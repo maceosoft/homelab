@@ -69,6 +69,7 @@ Sync **auto** = la sincroniza `homelab-root` (si está descomentada en `root-app
 |---|---|---|
 | **`argocd-route`** | [Gateway API](https://gateway-api.sigs.k8s.io/) | `HTTPRoute`: UI en [`https://argocd.homelab.local`](https://argocd.homelab.local). |
 | **`argocd/config/`** (`argocd`) | [Dex](https://dexidp.io/docs/) | Connector GitHub + staticClients vCluster e Incus UI. |
+| **`victoria-metrics`** *(opcional)* | [VictoriaMetrics](https://docs.victoriametrics.com/helm/victoria-metrics-k8s-stack/) | Monitoreo: métricas, Alertmanager (alertas a Discord) y Grafana en [`https://grafana.homelab.local`](https://grafana.homelab.local). Necesita los Secrets de `playbook-platform-secrets.yml` antes de activarla ([4.13](../implementacion/fase-4-gitops.md#413-monitoreo-y-alertas-opcional)). |
 | [`argocd/secrets/`](https://github.com/symintel/gitops/tree/main/argocd/secrets) | [1Password SDK](https://github.com/1Password/onepassword-sdk-python) | OAuth desde app local |
 
 **Cómo se ve.** La UI de ArgoCD en [`https://argocd.homelab.local`](https://argocd.homelab.local) pide iniciar sesión con GitHub (Dex):
@@ -86,6 +87,7 @@ La aplicación raíz `homelab-root` agrupa todas las demás: en su vista de árb
 | Application | Producto | Para qué sirve |
 |---|---|---|
 | **`k3s-upgrade`** | [system-upgrade-controller](https://github.com/rancher/system-upgrade-controller) | Upgrades K3s escalonados. |
+| **`victoria-metrics-config`** *(opcional)* | [VictoriaMetrics](https://docs.victoriametrics.com/operator/) | Reglas de alerta (`VMRule`), scrapes de cert-manager, Longhorn y ArgoCD, y la `HTTPRoute` de Grafana. Va después de `victoria-metrics` porque sus CRD los instala ese chart. |
 
 ### Sync manual (tú decides cuándo)
 
@@ -110,6 +112,7 @@ La aplicación raíz `homelab-root` agrupa todas las demás: en su vista de árb
 | [`storage/`](https://github.com/symintel/gitops/tree/main/storage) | StorageClasses vía `homelab-storage`. |
 | [`metallb/`](https://github.com/symintel/gitops/tree/main/metallb) | Pool + L2Advertisement. |
 | [`k3s-upgrade/`](https://github.com/symintel/gitops/tree/main/k3s-upgrade) | CRs `Plan` SUC. |
+| [`monitoring/`](https://github.com/symintel/gitops/tree/main/monitoring) | Values del chart de VictoriaMetrics, reglas, scrapes, ruta de Grafana y pruebas de las reglas (`victoria-metrics` y `victoria-metrics-config`). |
 | [`vcluster/values/platform.yaml`](https://github.com/symintel/gitops/blob/main/vcluster/values/platform.yaml) | Helm values Platform + OIDC Dex. |
 | [`capn/clusters/`](https://github.com/symintel/gitops/tree/main/capn/clusters) | Clusters generados con `clusterctl`. |
 | [`cni/calico/`](https://github.com/symintel/gitops/tree/main/cni/calico) | Installation CR Calico (`calico-config` Application). |

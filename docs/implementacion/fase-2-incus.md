@@ -197,7 +197,7 @@ Ansible instala `incus-ui-canonical` y `core.https_address` en **invincible**
 (Dex) en [Fase 4](fase-4-gitops.md#incus-ui-oidc).
 
 1. Añade `incus.homelab.local` en `/etc/hosts` (bloque completo en
-   [Resumen del HomeLab](resumen-homelab.md#etchosts-en-tu-estacion-de-trabajo)).
+   [Resumen del HomeLab](resumen-homelab.md#dns-en-tu-estacion-de-trabajo)).
 2. Abre [`https://incus.homelab.local:8443`](https://incus.homelab.local:8443)
 3. Acepta el certificado autofirmado
 4. Genera/importa un **certificado de cliente**

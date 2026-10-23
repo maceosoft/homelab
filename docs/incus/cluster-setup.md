@@ -218,7 +218,7 @@ un contenedor: la sirve el daemon de Incus en `core.https_address`.
     ```
 
 `/etc/hosts` en tu estación — bloque completo en
-[Resumen del HomeLab](../implementacion/resumen-homelab.md#etchosts-en-tu-estacion-de-trabajo):
+[Resumen del HomeLab](../implementacion/resumen-homelab.md#dns-en-tu-estacion-de-trabajo):
 
 Acceso inicial: [`https://incus.homelab.local:8443`](https://incus.homelab.local:8443) → certificado de cliente.
 

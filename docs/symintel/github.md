@@ -70,6 +70,9 @@ export ONEPASSWORD_ACCOUNT_NAME="Mi Cuenta"  # tu cuenta
 | `symintel-argocd` | Nota segura | `app_id`, `installation_id`, `private_key` | ArgoCD lee `symintel/gitops` (`argocd/repo-gitops`) |
 | `sealed-secrets` | Nota segura | `certificate`, `private_key` *(opcional hasta la Fase 6)* | Llave de cifrado de Sealed Secrets: sobrevive si reinstalas K3s |
 | `symintel-dex` | Nota segura | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` (+ `VCLUSTER_CLIENT_SECRET`, que genera el playbook) | Dex (login con GitHub) |
+| `discord-webhooks` | Nota segura | `critical`, `warnings`: URL de un webhook de Discord por canal *(opcional: monitoreo)* | Alertmanager envía las alertas ([4.13](../implementacion/fase-4-gitops.md#413-monitoreo-y-alertas-opcional)). Cómo crearlos: [Discord y healthchecks.io](discord-healthchecks.md#parte-1-discord) |
+| `healthchecks-ping` | Nota segura | `url`: ping URL del check de healthchecks.io *(opcional: monitoreo)* | Alertmanager le manda un ping cada 5 minutos para avisar que el monitoreo sigue vivo. Cómo crearla: [Discord y healthchecks.io](discord-healthchecks.md#parte-2-healthchecksio) |
+| `grafana-admin` | Nota segura | `password` y, si quieres, `username` (por defecto `admin`) *(opcional: monitoreo)* | Administrador de Grafana |
 | `ftp-<repo>` | Nota segura | `dev_host`, `dev_user`, `dev_password`, `dev_remote_dir`, `prod_host`, `prod_user`, `prod_password`, `prod_remote_dir` | OpenTofu → secrets FTP de `<repo>` (`TF_VAR_ftp`) |
 
 ### Cómo crear un item con campos propios
@@ -357,6 +360,7 @@ crea los namespaces `argocd`, `arc-runners` (PSS `baseline`) y `terraform`
 | `symintel-terraform-app` | `arc-runners` | `TF_VAR_github_app_id`, `TF_VAR_github_app_installation_id`, `TF_VAR_github_app_private_key` |
 | `tofu-vars` | `arc-runners` | `TF_VAR_ftp` (todos los items `ftp-<repo>`) |
 | `sealed-secrets-key-homelab` | `kube-system` | Par de llaves de Sealed Secrets (item `sealed-secrets`, si existe) |
+| `discord-webhooks`, `healthchecks-ping`, `grafana-admin` | `monitoring` | Webhooks de Discord, ping URL de healthchecks.io y contraseña de Grafana (los items del mismo nombre; solo si existen los tres). El namespace se crea con PSS `privileged`, porque `node-exporter` usa el disco y la red del nodo |
 
 !!! note "Un solo runner"
     Es un HomeLab: el único scale set (`arc-runners`, grupo Default) corre CI (integración continua),
@@ -429,4 +433,5 @@ Paso a paso completo: [Operación — Rotar credenciales](../operacion/rotar-cre
 | Private key de una GitHub App | Genera una nueva en GitHub, reemplaza `private_key` en 1Password, re-corre `playbook-platform-secrets.yml` y borra la vieja en GitHub |
 | Private key de `symintel-argocd` | Igual que las otras Apps: nueva llave en GitHub, reemplaza `private_key`, re-corre el playbook y borra la vieja |
 | Credenciales FTP | Edita `ftp-<repo>`, re-corre el playbook y lanza el pipeline de `infra` |
+| Webhook de Discord, ping URL de healthchecks.io o contraseña de Grafana | Cambia el campo en su item, re-corre `playbook-platform-secrets.yml` y sigue [Operación — Rotar credenciales](../operacion/rotar-credenciales.md#monitoreo-webhooks-de-discord-ping-de-healthchecksio-y-grafana) |
 | Client secret de Dex | Nuevo secret en la OAuth App, actualiza `GITHUB_CLIENT_SECRET` y corre `playbook-dex-oauth-secrets.yml` |
