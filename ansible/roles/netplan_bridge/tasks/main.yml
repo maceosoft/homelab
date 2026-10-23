@@ -146,7 +146,6 @@
   async: 15
   poll: 0
   failed_when: false
-  ignore_errors: true
   ignore_unreachable: true
   when:
     - not ansible_check_mode
@@ -172,7 +171,7 @@
   when:
     - not ansible_check_mode
     - netplan_config is changed
-  ignore_errors: true
+  failed_when: false
   ignore_unreachable: true
 
 - name: Esperar SSH en la IP destino tras netplan apply

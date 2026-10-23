@@ -17,10 +17,11 @@
     - inventory_hostname not in (leader_cluster_list.stdout | default(''))
     - not ansible_check_mode
 
+# set_fact necesita el valor ahora (la tarea siguiente lo usa): un handler correría al final.
 - name: Guardar token de join
   ansible.builtin.set_fact:
     join_token: "{{ cluster_add.stdout_lines[-1] | trim }}"
-  when: cluster_add is changed
+  when: cluster_add is changed  # noqa: no-handler
 
 - name: Renderizar preseed join
   ansible.builtin.template:

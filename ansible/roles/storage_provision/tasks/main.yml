@@ -22,7 +22,7 @@
   failed_when: false
 
 - name: Formatear el disco (solo si no tiene filesystem ya)
-  ansible.builtin.filesystem:
+  community.general.filesystem:
     fstype: "{{ item.item.filesystem }}"
     dev: "{{ item.item.device }}"
   loop: "{{ blkid_check.results }}"

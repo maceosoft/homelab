@@ -12,7 +12,7 @@
     mode: "0644"
   when: kube_vip_kubectl.rc == 0
 
-- name: kubectl apply RBAC kube-vip
+- name: Aplicar el RBAC de kube-vip con kubectl
   ansible.builtin.command: k3s kubectl apply -f /tmp/kube-vip-rbac.yaml
   register: kube_vip_rbac_apply
   changed_when: "'created' in kube_vip_rbac_apply.stdout or 'configured' in kube_vip_rbac_apply.stdout"

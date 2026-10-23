@@ -11,7 +11,8 @@
     # Ansible ignora en silencio "-e k3s_install.core.cni=canal": crea una variable con puntos en
     # el nombre y no modifica el diccionario k3s_install (se instalaría el CNI por defecto, sin
     # aviso). Aquí se detecta y se corta antes de tocar los nodos.
-    - name: Validar las variables pasadas con -e
+    # run_once a propósito: basta validarlo una vez (estrategia lineal, la de por defecto).
+    - name: Validar las variables pasadas con -e  # noqa: run-once[task]
       ansible.builtin.assert:
         that:
           - >-
@@ -47,7 +48,7 @@
       when: (k3s_install.core.cni | default('flannel')) != 'flannel'
   tags: [cni, core]
 
-- name: kube-vip VIP control-plane (sin Service LoadBalancer)
+- name: Kube-vip VIP del control-plane (sin Service LoadBalancer)
   hosts: k3s_server
   become: true
   roles:

@@ -59,7 +59,7 @@
       ansible.builtin.user:
         name: "{{ bootstrap_admin_user }}"
         groups: sudo
-        append: yes
+        append: true
 
     - name: Configurar acceso sudo sin contraseña ni TTY para el usuario administrador
       ansible.builtin.copy:
