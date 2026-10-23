@@ -59,16 +59,18 @@
             state: absent
           register: opkssh_dropin_removed
 
+        # No son handlers a propósito: sshd se valida y se recarga ANTES de borrar el binario
+        # y las cuentas de los pasos siguientes; un handler correría al final del play.
         - name: Validar sshd
           ansible.builtin.command: sshd -t
           changed_when: false
-          when: opkssh_dropin_removed is changed
+          when: opkssh_dropin_removed is changed  # noqa: no-handler
 
         - name: Recargar sshd
           ansible.builtin.systemd:
             name: ssh
             state: reloaded
-          when: opkssh_dropin_removed is changed
+          when: opkssh_dropin_removed is changed  # noqa: no-handler
 
         - name: Quitar sudoers de la cuenta compartida
           ansible.builtin.file:

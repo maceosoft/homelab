@@ -13,7 +13,8 @@
   hosts: incus_cluster
   gather_facts: false
   tasks:
-    - name: Pausa de seguridad -- esto borra el cluster K3s completo
+    # run_once a propósito: se pregunta una sola vez para todo el grupo (estrategia lineal, la de por defecto).
+    - name: Pausa de seguridad -- esto borra el cluster K3s completo  # noqa: run-once[task]
       ansible.builtin.pause:
         prompt: >-
           Se va a desinstalar K3s (server y agents) en TODOS los nodos de

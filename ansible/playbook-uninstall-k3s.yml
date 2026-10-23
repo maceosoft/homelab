@@ -17,13 +17,14 @@
     # 1. DESINSTALAR AGENTS EN LOS WORKERS
     # ----------------------------------------------------
     - name: Verificar si existe el script de desinstalación del Agent
-      stat:
+      ansible.builtin.stat:
         path: /usr/local/bin/k3s-agent-uninstall.sh
       register: k3s_agent_uninstall_bin
       when: inventory_hostname != control_plane_host
 
     - name: Ejecutar script de desinstalación de K3s Agent
-      command: /usr/local/bin/k3s-agent-uninstall.sh
+      ansible.builtin.command: /usr/local/bin/k3s-agent-uninstall.sh
+      changed_when: true
       when:
         - inventory_hostname != control_plane_host
         - k3s_agent_uninstall_bin.stat.exists
@@ -32,13 +33,14 @@
     # 2. DESINSTALAR SERVER EN EL CONTROL PLANE
     # ----------------------------------------------------
     - name: Verificar si existe el script de desinstalación del Server
-      stat:
+      ansible.builtin.stat:
         path: /usr/local/bin/k3s-uninstall.sh
       register: k3s_server_uninstall_bin
       when: inventory_hostname == control_plane_host
 
     - name: Ejecutar script de desinstalación de K3s Server
-      command: /usr/local/bin/k3s-uninstall.sh
+      ansible.builtin.command: /usr/local/bin/k3s-uninstall.sh
+      changed_when: true
       when:
         - inventory_hostname == control_plane_host
         - k3s_server_uninstall_bin.stat.exists
@@ -47,7 +49,7 @@
     # 3. LIMPIEZA ADICIONAL (Directorios residuales)
     # ----------------------------------------------------
     - name: Eliminar directorios de configuración de K3s residuales
-      file:
+      ansible.builtin.file:
         path: "{{ item }}"
         state: absent
       loop:

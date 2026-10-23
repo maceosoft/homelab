@@ -14,12 +14,12 @@
 
 - name: Verificar arquitectura detectada
   ansible.builtin.command: uname -m
-  register: incus_arch
+  register: incus_install_arch
   changed_when: false
 
 - name: Mostrar arquitectura del nodo
   ansible.builtin.debug:
-    msg: "Nodo {{ inventory_hostname }} -> arquitectura {{ incus_arch.stdout }}"
+    msg: "Nodo {{ inventory_hostname }} -> arquitectura {{ incus_install_arch.stdout }}"
 
 - name: Nota sobre bridge br0
   ansible.builtin.debug:

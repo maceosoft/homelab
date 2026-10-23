@@ -1,7 +1,7 @@
 cluster:
   enabled: true
   server_address: {{ static_ip }}:8443
-  cluster_token: "{{ join_token }}"
+  cluster_token: "{{ incus_cluster_join_token }}"
   member_config:
     - entity: storage-pool
       name: {{ incus_storage_pool }}

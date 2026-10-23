@@ -19,7 +19,7 @@
     owner: root
     group: root
     mode: "0644"
-  register: nm_unmanaged
+  register: wifi_failover_nm_unmanaged
 
 - name: Configurar NetworkManager sin gestion de DNS
   ansible.builtin.template:
@@ -28,18 +28,18 @@
     owner: root
     group: root
     mode: "0644"
-  register: nm_dns_none
+  register: wifi_failover_nm_dns_none
 
 - name: Reiniciar NetworkManager si cambio alguna config
   ansible.builtin.systemd:
     name: NetworkManager
     state: restarted
     enabled: true
-  when: nm_unmanaged is changed or nm_dns_none is changed
+  when: wifi_failover_nm_unmanaged is changed or wifi_failover_nm_dns_none is changed
 
 - name: Verificar si el perfil wifi de respaldo ya existe
   ansible.builtin.command: "nmcli -t -f NAME connection show"
-  register: nm_connections
+  register: wifi_failover_nm_connections
   changed_when: false
 
 - name: Crear perfil de conexion wifi de respaldo (metrica mas alta que el cable)
@@ -49,6 +49,6 @@
     wifi-sec.key-mgmt wpa-psk wifi-sec.psk {{ wifi_psk }}
     connection.autoconnect yes
     ipv4.route-metric 700 ipv6.route-metric 700
-  when: "'homelab-backup' not in nm_connections.stdout_lines"
+  when: "'homelab-backup' not in wifi_failover_nm_connections.stdout_lines"
   no_log: true
   changed_when: true

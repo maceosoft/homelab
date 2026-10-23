@@ -4,7 +4,7 @@
     src: preseed-bootstrap.yml.j2
     dest: /tmp/incus-preseed-bootstrap.yml
     mode: "0600"
-  when: not incus_node_clustered
+  when: not incus_cluster_node_clustered
 
 - name: Bootstrap del clúster Incus (preseed)
   ansible.builtin.shell: |
@@ -12,10 +12,10 @@
     cat /tmp/incus-preseed-bootstrap.yml | incus admin init --preseed
   args:
     executable: /bin/bash
-  register: incus_bootstrap
-  changed_when: incus_bootstrap.rc == 0
+  register: incus_cluster_bootstrap
+  changed_when: incus_cluster_bootstrap.rc == 0
   when:
-    - not incus_node_clustered
+    - not incus_cluster_node_clustered
     - not ansible_check_mode
 
 - name: Eliminar preseed bootstrap temporal
@@ -31,5 +31,5 @@
     delay: 3
     timeout: 120
   when:
-    - not incus_node_clustered
+    - not incus_cluster_node_clustered
     - not ansible_check_mode
