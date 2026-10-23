@@ -54,7 +54,12 @@ jobs:
         run: ansible-lint ansible/
 
       - name: Syntax-check playbooks
+        env:
+          # ansible.cfg pide ~/.vault_pass_homelab, que solo existe en el equipo del operador. En el repo no
+          # hay nada cifrado con vault, así que basta un archivo de relleno para que Ansible arranque.
+          ANSIBLE_VAULT_PASSWORD_FILE: ${{ runner.temp }}/vault_pass_ci
         run: |
+          printf 'ci\n' > "$ANSIBLE_VAULT_PASSWORD_FILE"
           cd ansible
           for pb in playbook-*.yml; do
             ansible-playbook --syntax-check -i inventory.ini "$pb"
