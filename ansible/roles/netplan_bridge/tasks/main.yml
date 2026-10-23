@@ -3,13 +3,13 @@
 
 - name: Confirmar interfaz fisica real antes de tocar la red
   ansible.builtin.command: ip -br link
-  register: ip_links
+  register: netplan_bridge_ip_links
   changed_when: false
   check_mode: false
 
 - name: Mostrar interfaces detectadas
   ansible.builtin.debug:
-    msg: "{{ inventory_hostname }} -> interfaces: {{ ip_links.stdout_lines }}"
+    msg: "{{ inventory_hostname }} -> interfaces: {{ netplan_bridge_ip_links.stdout_lines }}"
 
 - name: Eliminar systemd-resolved
   ansible.builtin.apt:
@@ -86,7 +86,7 @@
       /etc/network/interfaces /etc/network/interfaces.d/ 2>/dev/null || true
   args:
     executable: /bin/bash
-  register: ifupdown_iface
+  register: netplan_bridge_ifupdown_iface
   changed_when: false
 
 - name: Respaldo de /etc/network/interfaces
@@ -97,7 +97,7 @@
     mode: "0644"
     force: false
   when:
-    - ifupdown_iface.stdout | length > 0
+    - netplan_bridge_ifupdown_iface.stdout | length > 0
     - not ansible_check_mode
 
 - name: Quitar configuracion ifupdown de la interfaz fisica (conflicto con netplan)
@@ -111,7 +111,7 @@
       source /etc/network/interfaces.d/*
     mode: "0644"
   when:
-    - ifupdown_iface.stdout | length > 0
+    - netplan_bridge_ifupdown_iface.stdout | length > 0
     - not ansible_check_mode
 
 - name: Desactivar ifupdown en interfaces.d para la NIC fisica
@@ -136,7 +136,7 @@
     owner: root
     group: root
     mode: "0600"
-  register: netplan_config
+  register: netplan_bridge_config
 
 - name: Detener ifupdown (evita conflicto con netplan/systemd-networkd)
   ansible.builtin.systemd:
@@ -146,11 +146,10 @@
   async: 15
   poll: 0
   failed_when: false
-  ignore_errors: true
   ignore_unreachable: true
   when:
     - not ansible_check_mode
-    - netplan_config is changed
+    - netplan_bridge_config is changed
 
 # Igual que arriba: parar ifupdown puede tirar la interfaz fisica (via
 # ifdown -a en el ExecStop del unit) y cortar la sesion SSH actual ANTES
@@ -163,7 +162,7 @@
     seconds: 3
   when:
     - not ansible_check_mode
-    - netplan_config is changed
+    - netplan_bridge_config is changed
 
 - name: Aplicar netplan
   ansible.builtin.command: netplan apply
@@ -171,8 +170,8 @@
   poll: 0
   when:
     - not ansible_check_mode
-    - netplan_config is changed
-  ignore_errors: true
+    - netplan_bridge_config is changed
+  failed_when: false
   ignore_unreachable: true
 
 - name: Esperar SSH en la IP destino tras netplan apply
@@ -185,7 +184,7 @@
   become: false
   when:
     - not ansible_check_mode
-    - netplan_config is changed
+    - netplan_bridge_config is changed
 
 - name: Reconectar usando la IP fija en el resto del playbook
   ansible.builtin.add_host:
@@ -194,21 +193,21 @@
   changed_when: false
   when:
     - not ansible_check_mode
-    - netplan_config is changed
+    - netplan_bridge_config is changed
 
 - name: Resetear conexion SSH tras cambio de IP
   ansible.builtin.meta: reset_connection
   when:
     - not ansible_check_mode
-    - netplan_config is changed
+    - netplan_bridge_config is changed
 
 - name: Verificar IP en br0
   ansible.builtin.command: ip -br addr show br0
-  register: br0_addr
+  register: netplan_bridge_br0_addr
   changed_when: false
   when: not ansible_check_mode
 
 - name: Mostrar br0
   ansible.builtin.debug:
-    msg: "{{ inventory_hostname }} br0: {{ br0_addr.stdout }}"
+    msg: "{{ inventory_hostname }} br0: {{ netplan_bridge_br0_addr.stdout }}"
   when: not ansible_check_mode

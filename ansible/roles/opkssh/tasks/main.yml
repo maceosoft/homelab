@@ -115,7 +115,7 @@
     append: true
     create_home: true
 
-- name: sudo sin contraseña para la cuenta compartida (no tiene contraseña)
+- name: Permitir sudo sin contraseña a la cuenta compartida (no tiene contraseña)
   ansible.builtin.copy:
     dest: "/etc/sudoers.d/{{ opkssh_login_user }}"
     content: "{{ opkssh_login_user }} ALL=(ALL) NOPASSWD:ALL\n"

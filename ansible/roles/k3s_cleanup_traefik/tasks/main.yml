@@ -1,25 +1,25 @@
 ---
 - name: Comprobar acceso kubectl en server
   ansible.builtin.command: k3s kubectl get nodes
-  register: kubectl_nodes
+  register: k3s_cleanup_traefik_kubectl_nodes
   changed_when: false
   failed_when: false
 
 - name: Eliminar HelmCharts de Traefik residual
   ansible.builtin.command: >-
     k3s kubectl delete helmchart traefik traefik-crd -n kube-system --ignore-not-found
-  when: kubectl_nodes.rc == 0
+  when: k3s_cleanup_traefik_kubectl_nodes.rc == 0
   changed_when: false
 
 - name: Eliminar Service traefik residual
   ansible.builtin.command: >-
     k3s kubectl delete svc traefik -n kube-system --ignore-not-found
-  when: kubectl_nodes.rc == 0
+  when: k3s_cleanup_traefik_kubectl_nodes.rc == 0
   changed_when: false
 
 - name: Eliminar pods svclb-traefik residual
   ansible.builtin.command: >-
     k3s kubectl delete pods -n kube-system -l app=svclb-traefik --ignore-not-found
-  when: kubectl_nodes.rc == 0
-  register: svclb_delete
-  changed_when: "'deleted' in svclb_delete.stdout"
+  when: k3s_cleanup_traefik_kubectl_nodes.rc == 0
+  register: k3s_cleanup_traefik_svclb_delete
+  changed_when: "'deleted' in k3s_cleanup_traefik_svclb_delete.stdout"

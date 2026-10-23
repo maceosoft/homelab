@@ -1,7 +1,7 @@
 ---
 - name: Comprobar acceso kubectl en server
   ansible.builtin.command: k3s kubectl get nodes
-  register: kube_vip_kubectl
+  register: k3s_kube_vip_kubectl
   changed_when: false
   failed_when: false
 
@@ -10,26 +10,26 @@
     src: kube-vip-rbac.yaml.j2
     dest: /tmp/kube-vip-rbac.yaml
     mode: "0644"
-  when: kube_vip_kubectl.rc == 0
+  when: k3s_kube_vip_kubectl.rc == 0
 
-- name: kubectl apply RBAC kube-vip
+- name: Aplicar el RBAC de kube-vip con kubectl
   ansible.builtin.command: k3s kubectl apply -f /tmp/kube-vip-rbac.yaml
-  register: kube_vip_rbac_apply
-  changed_when: "'created' in kube_vip_rbac_apply.stdout or 'configured' in kube_vip_rbac_apply.stdout"
-  when: kube_vip_kubectl.rc == 0
+  register: k3s_kube_vip_rbac_apply
+  changed_when: "'created' in k3s_kube_vip_rbac_apply.stdout or 'configured' in k3s_kube_vip_rbac_apply.stdout"
+  when: k3s_kube_vip_kubectl.rc == 0
 
 - name: Generar manifest DaemonSet kube-vip
   ansible.builtin.template:
     src: kube-vip-daemonset.yaml.j2
     dest: /tmp/kube-vip-daemonset.yaml
     mode: "0600"
-  when: kube_vip_kubectl.rc == 0
+  when: k3s_kube_vip_kubectl.rc == 0
 
 - name: Leer manifest kube-vip renderizado
   ansible.builtin.slurp:
     src: /tmp/kube-vip-daemonset.yaml
-  register: kube_vip_manifest_slurp
-  when: kube_vip_kubectl.rc == 0
+  register: k3s_kube_vip_manifest_slurp
+  when: k3s_kube_vip_kubectl.rc == 0
 
 - name: Assert kube-vip no gestiona Service LoadBalancer
   ansible.builtin.assert:
@@ -42,16 +42,16 @@
     fail_msg: >-
       Manifest kube-vip invalido: svc_enable debe ser false y no debe haber flags de Service LB.
   vars:
-    kube_vip_manifest: "{{ kube_vip_manifest_slurp.content | b64decode }}"
+    kube_vip_manifest: "{{ k3s_kube_vip_manifest_slurp.content | b64decode }}"
   when:
-    - kube_vip_kubectl.rc == 0
-    - kube_vip_manifest_slurp.content is defined
+    - k3s_kube_vip_kubectl.rc == 0
+    - k3s_kube_vip_manifest_slurp.content is defined
 
 - name: Aplicar DaemonSet kube-vip
   ansible.builtin.command: k3s kubectl apply -f /tmp/kube-vip-daemonset.yaml
-  register: kube_vip_ds_apply
-  changed_when: "'created' in kube_vip_ds_apply.stdout or 'configured' in kube_vip_ds_apply.stdout"
-  when: kube_vip_kubectl.rc == 0
+  register: k3s_kube_vip_ds_apply
+  changed_when: "'created' in k3s_kube_vip_ds_apply.stdout or 'configured' in k3s_kube_vip_ds_apply.stdout"
+  when: k3s_kube_vip_kubectl.rc == 0
 
 - name: Esperar API en VIP
   ansible.builtin.wait_for:
@@ -63,4 +63,4 @@
   become: false
   when:
     - not ansible_check_mode
-    - kube_vip_kubectl.rc == 0
+    - k3s_kube_vip_kubectl.rc == 0

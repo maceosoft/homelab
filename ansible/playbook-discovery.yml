@@ -129,6 +129,7 @@
 
     - name: Detectar velocidad de interfaces de red
       ansible.builtin.shell: |
+        set -o pipefail
         for i in $(ls /sys/class/net/ | grep -Ev '^(lo|docker|veth|br-|cni|virbr)'); do
           speed=$(cat /sys/class/net/$i/speed 2>/dev/null || echo "NA")
           echo "${i}:${speed}Mbps"
@@ -405,7 +406,8 @@
           # casi siempre es un lector SD/USB vacio mal reportado por
           # /sys/block, no un disco real -- se marca aparte para revisar a
           # mano en vez de recomendarlo como libre con confianza.
-          size_class=$(awk -v s="$size_gb" -v max="{{ discovery_disk_implausible_gb }}" 'BEGIN{gsub("GB","",s); n=s+0; if (n<1) print "chico"; else if (n>max) print "implausible"; else print "normal"}')
+          size_class=$(awk -v s="$size_gb" -v max="{{ discovery_disk_implausible_gb }}" \
+            'BEGIN{gsub("GB","",s); n=s+0; if (n<1) print "chico"; else if (n>max) print "implausible"; else print "normal"}')
           if [ "$used" = "si" ]; then
             echo "${dev}|en_uso|${size_gb}"
           elif [ "$size_class" = "chico" ]; then
@@ -505,7 +507,8 @@
           modulos_kernel: "{{ kmods_raw.stdout | default('NA') }}"
           firewall: "{{ firewall_raw.stdout | default('NA') }}"
 
-    - name: Asegurar que exista el directorio de reportes en el controlador
+    # run_once a propósito: el directorio se crea una sola vez (estrategia lineal, la de por defecto).
+    - name: Asegurar que exista el directorio de reportes en el controlador  # noqa: run-once[task]
       ansible.builtin.file:
         path: ./reports
         state: directory
@@ -518,6 +521,7 @@
       ansible.builtin.template:
         src: templates/node_report.md.j2
         dest: "./reports/{{ inventory_hostname }}.md"
+        mode: "0644"
       delegate_to: localhost
       become: false
 
@@ -535,5 +539,6 @@
       ansible.builtin.template:
         src: templates/summary.md.j2
         dest: ./reports/summary.md
+        mode: "0644"
       delegate_to: localhost
       become: false

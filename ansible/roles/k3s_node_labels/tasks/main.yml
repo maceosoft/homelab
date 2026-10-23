@@ -1,13 +1,13 @@
 ---
 - name: Comprobar acceso kubectl en server
   ansible.builtin.command: k3s kubectl get nodes
-  register: labels_kubectl
+  register: k3s_node_labels_kubectl
   changed_when: false
   failed_when: false
 
 - name: Construir lista de etiquetas por nodo
   ansible.builtin.set_fact:
-    k3s_label_pairs: >-
+    k3s_node_labels_label_pairs: >-
       {%- set pairs = [] -%}
       {%- for host in groups['incus_cluster'] -%}
       {%- for key, val in hostvars[host].k3s_node_labels | default({}) | dictsort -%}
@@ -20,10 +20,10 @@
   ansible.builtin.command: >-
     k3s kubectl label node {{ item.node }}
     {{ item.key }}={{ item.value }} --overwrite
-  loop: "{{ k3s_label_pairs }}"
+  loop: "{{ k3s_node_labels_label_pairs }}"
   loop_control:
     label: "{{ item.node }} {{ item.key }}"
   when:
-    - labels_kubectl.rc == 0
-    - k3s_label_pairs | length > 0
+    - k3s_node_labels_kubectl.rc == 0
+    - k3s_node_labels_label_pairs | length > 0
   changed_when: false
