@@ -10,6 +10,9 @@ GitOps, y que no pueden vivir en git:
   arc-runners/tofu-vars                    TF_VAR_ftp (credenciales FTP por repo)
   arc-runners/argocd-ci                    ARGOCD_AUTH_TOKEN (opcional: diff del pipeline de gitops)
   kube-system/sealed-secrets-key-homelab   llave de Sealed Secrets (opcional, ver abajo)
+  monitoring/discord-webhooks              webhooks de Discord de Alertmanager (opcional: monitoreo)
+  monitoring/healthchecks-ping             ping URL de healthchecks.io (opcional: monitoreo)
+  monitoring/grafana-admin                 usuario y contraseña de admin de Grafana (opcional: monitoreo)
   namespace terraform                      state de OpenTofu (lo escribe el runner)
 
 El único scale set (arc-runners, desplegado por ArgoCD desde symintel/gitops)
@@ -22,6 +25,9 @@ docs/symintel/github.md:
   sealed-secrets        (opcional) certificate, private_key: el par de Sealed Secrets
   symintel-arc-runners  app_id, installation_id, private_key
   symintel-terraform    app_id, installation_id, private_key
+  discord-webhooks      (opcional, monitoreo) critical, warnings: URL de un webhook de Discord por canal
+  healthchecks-ping     (opcional, monitoreo) url: ping URL del check de healthchecks.io
+  grafana-admin         (opcional, monitoreo) password y, si quieres, username (default: admin)
   ftp-<repo>            (uno por repo con deploy) dev_host, dev_user,
                         dev_password, dev_remote_dir, prod_host, prod_user,
                         prod_password, prod_remote_dir
@@ -63,6 +69,15 @@ SEALED_NAMESPACE = "kube-system"
 SEALED_SECRET_NAME = "sealed-secrets-key-homelab"
 SEALED_LABEL = "sealedsecrets.bitnami.com/sealed-secrets-key"
 FTP_FIELDS = ("host", "user", "password", "remote_dir")
+# Monitoreo (opcional): VictoriaMetrics + Alertmanager + Grafana en el namespace "monitoring". Si no existe
+# ninguno de los tres items, no se configura nada; si existe alguno, tienen que estar completos los tres.
+# El namespace es "privileged" porque node-exporter usa hostPath/hostNetwork.
+MONITORING_NAMESPACE = "monitoring"
+DISCORD_ITEM = "discord-webhooks"
+HEARTBEAT_ITEM = "healthchecks-ping"
+GRAFANA_ITEM = "grafana-admin"
+# Un webhook de Discord con otro destino mandaría las alertas a un tercero: se valida el formato.
+DISCORD_WEBHOOK_RE = re.compile(r"^https://(?:discord|discordapp)\.com/api/webhooks/\d+/[A-Za-z0-9_-]+$")
 
 
 def normalize_pem(value: str) -> str:
@@ -82,8 +97,9 @@ async def resolve(client, ref: str) -> str:
         raise RuntimeError(f"{ref}: {exc} (revisa con --check)") from exc
 
 
-def namespace(name: str, *, baseline: bool = False) -> dict:
-    labels = {"pod-security.kubernetes.io/enforce": "baseline"} if baseline else {}
+def namespace(name: str, *, baseline: bool = False, privileged: bool = False) -> dict:
+    level = "privileged" if privileged else "baseline" if baseline else None
+    labels = {"pod-security.kubernetes.io/enforce": level} if level else {}
     return {"apiVersion": "v1", "kind": "Namespace", "metadata": {"name": name, "labels": labels}}
 
 
@@ -144,6 +160,35 @@ async def read_app(client, item: str) -> dict[str, str]:
         "installation_id": (await resolve(client, f"{ref}/installation_id")).strip(),
         "private_key": check_pem(normalize_pem(await resolve(client, f"{ref}/private_key")), f"{ref}/private_key"),
     }
+
+
+async def read_monitoring(client) -> dict[str, str] | None:
+    """Valores del monitoreo, o None si no hay ningún item (opcional). Error si están incompletos o mal formados."""
+    ref = lambda item, field: f"op://{VAULT_NAME}/{item}/{field}"  # noqa: E731
+    wanted = {
+        "critical": ref(DISCORD_ITEM, "critical"),
+        "warnings": ref(DISCORD_ITEM, "warnings"),
+        "url": ref(HEARTBEAT_ITEM, "url"),
+        "password": ref(GRAFANA_ITEM, "password"),
+    }
+    values = {k: (await read_optional(client, r)).strip() for k, r in wanted.items()}
+    if not any(values.values()):
+        return None
+    missing = [wanted[k] for k, v in values.items() if not v]
+    if missing:
+        raise RuntimeError(
+            "Monitoreo incompleto en 1Password: faltan " + ", ".join(missing) + " (hacen falta los tres items; revisa con --check)."
+        )
+    for key in ("critical", "warnings"):
+        if not DISCORD_WEBHOOK_RE.match(values[key]):
+            raise RuntimeError(
+                f"{wanted[key]}: no parece un webhook de Discord (https://discord.com/api/webhooks/<id>/<token>). "
+                "No se aplica para no enviar alertas a otro destino."
+            )
+    if not values["url"].startswith("https://"):
+        raise RuntimeError(f"{wanted['url']}: la ping URL de healthchecks.io tiene que empezar con https://")
+    values["username"] = (await read_optional(client, ref(GRAFANA_ITEM, "username"))).strip() or "admin"
+    return values
 
 
 async def read_ftp(client) -> dict[str, dict]:
@@ -237,6 +282,22 @@ async def build_manifests() -> list[dict]:
         raise RuntimeError(f"El item {SEALED_ITEM!r} tiene solo uno de los campos: hacen falta 'certificate' y 'private_key'.")
     else:
         print(f"Aviso: sin item {SEALED_ITEM!r} en 1Password: Sealed Secrets generará su propia llave (se pierde si reinstalas K3s).", file=sys.stderr)
+
+    monitoring = await read_monitoring(client)
+    if monitoring:
+        manifests.append(namespace(MONITORING_NAMESPACE, privileged=True))
+        manifests.append(
+            secret(MONITORING_NAMESPACE, "discord-webhooks", {"critical": monitoring["critical"], "warnings": monitoring["warnings"]})
+        )
+        manifests.append(secret(MONITORING_NAMESPACE, "healthchecks-ping", {"url": monitoring["url"]}))
+        manifests.append(
+            secret(MONITORING_NAMESPACE, "grafana-admin", {"admin-user": monitoring["username"], "admin-password": monitoring["password"]})
+        )
+    else:
+        print(
+            f"Aviso: sin items {DISCORD_ITEM!r}, {HEARTBEAT_ITEM!r} y {GRAFANA_ITEM!r} en 1Password: el monitoreo no se configura.",
+            file=sys.stderr,
+        )
     return manifests
 
 
@@ -319,6 +380,29 @@ async def check() -> int:
                 ok = False
     else:
         print(f"  · sin item {SEALED_ITEM} (opcional: Sealed Secrets generará su propia llave)")
+    # Opcional: monitoreo (los tres items juntos).
+    monitoring_fields = {DISCORD_ITEM: ("critical", "warnings"), HEARTBEAT_ITEM: ("url",), GRAFANA_ITEM: ("password",)}
+    present = [t for t in monitoring_fields if t in by_title]
+    if not present:
+        print(f"  · sin items de monitoreo ({', '.join(monitoring_fields)}): opcional, no se configura")
+    else:
+        for title, names in monitoring_fields.items():
+            if title not in by_title:
+                print(f"  ✗ {title}: NO EXISTE el item (el monitoreo necesita los tres)")
+                ok = False
+                continue
+            item = await client.items.get(vault_id, by_title[title].id)
+            found = {f.title: f.value for f in item.fields}
+            print(f"  {title}  (monitoreo)")
+            for name in names:
+                value = (found.get(name) or "").strip()
+                good = bool(value)
+                if good and title == DISCORD_ITEM:
+                    good = bool(DISCORD_WEBHOOK_RE.match(value))
+                    print(f"    {'✓' if good else '✗'} {name}" + ("" if good else " (no parece un webhook de Discord)"))
+                else:
+                    print(f"    {'✓' if good else '✗'} {name}" + ("" if good else " (falta o está vacío)"))
+                ok = ok and good
     return 0 if ok else 1
 
 
@@ -340,7 +424,8 @@ async def main() -> int:
     subprocess.run(["kubectl", "apply", "-f", "-"], input=json.dumps(doc), text=True, check=True)
     tofu_vars = next(m for m in manifests if m["metadata"]["name"] == "tofu-vars")
     ftp_repos = sorted(json.loads(tofu_vars["stringData"]["TF_VAR_ftp"]))
-    print(f"Secretos de plataforma aplicados (FTP para: {', '.join(ftp_repos) or 'ninguno'}).")
+    monitoring_note = "; monitoreo configurado" if any(m["metadata"]["name"] == "discord-webhooks" for m in manifests) else ""
+    print(f"Secretos de plataforma aplicados (FTP para: {', '.join(ftp_repos) or 'ninguno'}{monitoring_note}).")
     return 0
 
 
