@@ -56,7 +56,7 @@ flowchart TB
 
 - **[Netplan](https://netplan.io/)** — Configuración declarativa de red en Debian; Fase 1.
 - **[Ansible](https://docs.ansible.com/)** — Aplica netplan de forma idempotente vía `playbook-set-static-ip.yml`.
-- Rol: [`netplan_bridge`](https://github.com/symintel/homelab/blob/main/ansible/roles/netplan_bridge/README.md)
+- Rol: [`netplan_bridge`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/netplan_bridge/README.md)
 
 Profundización: [Red — ejemplos netplan](../networking/index.md)
 
@@ -175,7 +175,7 @@ Dos cosas que deja `playbook-set-static-ip.yml` y de las que dependen fases post
   (ver [4.8](fase-4-gitops.md#48-dns-de-homelablocal)).
 
 Comprueba en cada nodo: `cat /etc/resolv.conf` y `getent hosts oliver.homelab.local`. Detalle:
-[`ansible/roles/bind_dns/README.md`](https://github.com/symintel/homelab/blob/main/ansible/roles/bind_dns/README.md).
+[`ansible/roles/bind_dns/README.md`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/bind_dns/README.md).
 
 ## Hardening (recomendado antes de seguir)
 
@@ -190,11 +190,11 @@ ansible-playbook -i inventory.ini playbook-hardening.yml
 ```
 
 Detalle:
-[`ansible/roles/host_hardening/README.md`](https://github.com/symintel/homelab/blob/main/ansible/roles/host_hardening/README.md).
+[`ansible/roles/host_hardening/README.md`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/host_hardening/README.md).
 
 ## Siguiente
 
 **[→ Fase 2 — Incus](fase-2-incus.md)**
 
 Orden completo de bootstrap (incluye hardening, BIND, WiFi):
-[`ansible/bootstrap/README.md`](https://github.com/symintel/homelab/blob/main/ansible/bootstrap/README.md).
+[`ansible/bootstrap/README.md`](https://github.com/maceosoft/homelab/blob/main/ansible/bootstrap/README.md).

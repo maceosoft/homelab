@@ -86,7 +86,7 @@ Profundización: [Opciones del playbook](../k3s/playbook-options.md) · [Catálo
 === "Recomendado (Ansible)"
 
     Las opciones del playbook se activan en
-    [`group_vars/incus_cluster/k3s_install.yml`](https://github.com/symintel/homelab/blob/main/ansible/group_vars/incus_cluster/k3s_install.yml),
+    [`group_vars/incus_cluster/k3s_install.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/group_vars/incus_cluster/k3s_install.yml),
     no por línea de comandos. Hoy vienen activadas ArgoCD
     (`gitops_argocd`), las etiquetas de nodos (`node_labels`) y el kubeconfig
     local (`fetch_kubeconfig`), con CNI (Container Network Interface) Calico.

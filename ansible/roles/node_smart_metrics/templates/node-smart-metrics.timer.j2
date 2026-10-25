@@ -1,0 +1,11 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Leer la salud de los discos cada {{ node_smart_metrics_interval }}
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec={{ node_smart_metrics_interval }}
+RandomizedDelaySec=2min
+
+[Install]
+WantedBy=timers.target

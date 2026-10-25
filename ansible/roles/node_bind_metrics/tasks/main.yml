@@ -1,0 +1,49 @@
+---
+# Solo consulta a BIND y escribe métricas: no toca su configuración ni lo reinicia.
+# Necesita `dig` (paquete bind9-dnsutils), que ya viene con BIND en deborah.
+
+- name: Comprobar que dig está instalado
+  ansible.builtin.stat:
+    path: /usr/bin/dig
+  register: node_bind_metrics_dig
+
+- name: Parar si falta dig
+  ansible.builtin.assert:
+    that: node_bind_metrics_dig.stat.exists
+    fail_msg: Falta dig (paquete bind9-dnsutils); el rol bind_dns lo instala junto con BIND.
+
+- name: Crear la carpeta del textfile collector de node-exporter
+  ansible.builtin.file:
+    path: "{{ node_bind_metrics_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Instalar el script que escribe las métricas de BIND
+  ansible.builtin.copy:
+    src: node-bind-metrics.sh
+    dest: /usr/local/bin/node-bind-metrics
+    owner: root
+    group: root
+    mode: "0755"
+  notify: Escribir las métricas de BIND ahora
+
+- name: Instalar el servicio y el temporizador de systemd
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - node-bind-metrics.service
+    - node-bind-metrics.timer
+  notify: Escribir las métricas de BIND ahora
+
+- name: Habilitar el temporizador
+  ansible.builtin.systemd:
+    name: node-bind-metrics.timer
+    enabled: true
+    state: started
+    daemon_reload: true

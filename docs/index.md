@@ -75,7 +75,7 @@ audio. Elige tu nivel, pulsa el botón y pega la pregunta en el chat.
 
 - [**Cómo se usa y qué herramientas gratuitas hay**](aprende.md)
 - [Abrir el cuaderno de NotebookLM](https://notebooklm.google/){ data-notebook-link="1" } (necesitas una cuenta de Google)
-- Si usas otro asistente: [`llms-full.txt`](https://homelab.symintelligent.com/llms-full.txt) trae toda la guía en texto plano.
+- Si usas otro asistente: [`llms-full.txt`](https://homelab.maceo.cl/llms-full.txt) trae toda la guía en texto plano.
 
 ## Hardware
 

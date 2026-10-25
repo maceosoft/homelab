@@ -39,7 +39,7 @@ ella y cita de dónde sale cada respuesta, así que es difícil que se invente c
 
 El botón siempre **copia la pregunta**, así que puedes pegarla en cualquier asistente de IA gratuito (ChatGPT, Claude,
 Gemini…). Esos asistentes no conocen esta documentación por sí solos: dales el texto completo con
-[`llms-full.txt`](https://homelab.symintelligent.com/llms-full.txt) (pega el enlace o adjunta el archivo) y
+[`llms-full.txt`](https://homelab.maceo.cl/llms-full.txt) (pega el enlace o adjunta el archivo) y
 pídeles que respondan solo con él.
 
 Hay otra opción gratuita de Google, la Gem [Learning coach](https://gemini.google.com/gem/learning-coach) de Gemini:
@@ -97,5 +97,5 @@ guíame con las secciones de fallos de la documentación.
 El cuaderno sirve para trabajar en clase: cada estudiante usa su propia cuenta y su propio límite diario. Los bloques
 **Aprende esta fase** se pueden usar como ejercicios guiados, y el [glosario](glosario.md) como apoyo. Si quieres
 armar tu propio cuaderno o tutor, usa el texto completo de la guía en
-[`llms-full.txt`](https://homelab.symintelligent.com/llms-full.txt) (el resumen está en
-[`llms.txt`](https://homelab.symintelligent.com/llms.txt)).
+[`llms-full.txt`](https://homelab.maceo.cl/llms-full.txt) (el resumen está en
+[`llms.txt`](https://homelab.maceo.cl/llms.txt)).

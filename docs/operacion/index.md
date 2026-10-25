@@ -11,17 +11,22 @@ pasos en orden, cómo verificar y qué revisar si algo falla.
 |---|---|---|
 | [URLs y accesos de los productos](urls-y-accesos.md) | Saber dónde está cada herramienta, cómo se entra y si responde | Navegador, `kubectl` |
 | [Entrar por SSH a los servidores](acceso-ssh.md) | Entrar a `invincible`, `oliver` o `deborah` con tu cuenta de GitHub | Tu estación (`opkssh`, `ssh`) |
-| [Agregar un repo](agregar-repo.md) | Cada proyecto nuevo en la org `symintel` | 1Password + PR en `infra` |
+| [Monitoreo y alertas](monitoreo.md) | Ver temperaturas y uso de los nodos, entender un aviso de Discord, silenciar una alerta | Grafana, `kubectl` |
+| [Agregar un repo](agregar-repo.md) | Cada proyecto nuevo en la org `maceosoft` | 1Password + PR en `infra` |
 | [Agregar un nodo](agregar-nodo.md) | Sumar un equipo al clúster Incus y K3s | Ansible (`homelab`) |
 | [Sacar o reemplazar un nodo](sacar-nodo.md) | Retirar un equipo o cambiarlo por otro | `kubectl`, Incus y Ansible |
 | [Agregar un disco a un nodo](agregar-disco.md) | Más almacenamiento para Longhorn o Incus | Ansible (`homelab`) |
 | [Backups y snapshots de Incus](backups-incus.md) | Programar respaldos o recuperar una instancia | Incus |
 | [Actualizar K3s](actualizar-k3s.md) | Revisar las actualizaciones automáticas o fijar una versión | GitOps + Ansible |
+| [Parchear los nodos](parchear-nodos.md) | Instalar parches de seguridad de Debian cuando el monitoreo avisa | Ansible + `apt` |
 | [Actualizar ArgoCD](actualizar-argocd.md) | Se actualiza solo a la última versión; primera actualización, fijar una versión, qué hacer si falla | GitOps + Ansible |
 | [Cambiar el controlador de Gateway](cambiar-gateway.md) | Cambiar entre Kong, Traefik y NGINX; TLS de `*.homelab.local` | GitOps + `kubectl` |
 | [Actualizar Debian en deborah (12 → 13)](actualizar-debian-deborah.md) | Pasar el control plane a Debian 13, con respaldo y compuerta de arranque | Ansible (`homelab`) |
 | [Calico (CNI) con ArgoCD](actualizar-calico.md) | Cómo ArgoCD administra y actualiza la red de los pods | GitOps + `kubectl` |
 | [Caché de los runners (ARC)](cache-arc.md) | Qué se cachea entre jobs, cómo verificarla, limpiarla o vaciarla | `kubectl` + GitOps |
+| [Salud de los discos y del DNS](salud-de-discos.md) | Qué hacer cuando salta una alerta de SMART, de desgaste de la eMMC o de BIND | Ansible (`homelab`) + nodos |
+| [Certificado de métricas de Incus](certificado-metricas-incus.md) | Qué es el certificado cliente de solo lectura que usa el monitoreo y cómo registrarlo en Incus | `kubectl` + Ansible (`homelab`) |
+| [Avisos de versiones nuevas (Renovate)](actualizaciones-de-productos.md) | Qué productos tienen versión nueva, avisos en Discord y cómo atender cada PR | GitHub + Discord + GitOps |
 | [Rotar credenciales](rotar-credenciales.md) | Periódicamente, o si una credencial se filtró | 1Password + playbooks |
 | [Pipeline de gitops](pipeline-gitops.md) | Qué valida cada PR de `gitops`; activar el diff de ArgoCD (una vez) | GitHub Actions + 1Password |
 

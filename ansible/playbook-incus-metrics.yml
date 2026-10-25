@@ -1,0 +1,96 @@
+---
+# Registra en Incus el certificado cliente de tipo "metrics" que usa vmagent para leer /1.0/metrics (puerto 8443 de
+# cada nodo). El certificado lo emite cert-manager (Certificate "incus-metrics" en el namespace monitoring, en el repo
+# gitops, firmado por el ClusterIssuer homelab-ca) y queda en el Secret monitoring/incus-metrics: la llave privada no
+# sale del clúster. Aquí solo se lee la parte pública (tls.crt). Guía: docs/implementacion/fase-4-gitops.md
+# (4.13, "Métricas de Incus").
+#
+#   cd ansible
+#   ansible-playbook -i inventory.ini playbook-incus-metrics.yml
+#
+# Idempotente: si el certificado ya está en el almacén de confianza de Incus, no hace nada. El certificado es de solo
+# lectura de métricas: no permite administrar Incus. Corre después de que ArgoCD haya creado el Certificate.
+- name: Leer el certificado público de métricas desde el clúster
+  hosts: localhost
+  connection: local
+  # Corre en la estación del operador: sin sudo (ansible.cfg tiene become=True).
+  become: false
+  gather_facts: false
+  vars:
+    platform_kubeconfig: "{{ lookup('env', 'HOME') }}/.kube/homelab-k3s.yaml"
+  environment:
+    KUBECONFIG: "{{ platform_kubeconfig }}"
+  tasks:
+    - name: Certificado público (tls.crt del Secret monitoring/incus-metrics)
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - -n
+          - monitoring
+          - get
+          - secret
+          - incus-metrics
+          - -o
+          - jsonpath={.data.tls\.crt}
+      register: incus_metrics_cert_b64
+      changed_when: false
+      check_mode: false
+
+    - name: Comprobar que lo leído es un certificado
+      ansible.builtin.assert:
+        that:
+          - "'BEGIN CERTIFICATE' in (incus_metrics_cert_b64.stdout | b64decode)"
+        fail_msg: >-
+          No se pudo leer monitoring/incus-metrics. ¿ArgoCD ya creó el Certificate? Revisa
+          `kubectl -n monitoring get certificate incus-metrics` (tiene que estar Ready).
+        quiet: true
+
+- name: Registrar el certificado de métricas en el clúster Incus
+  hosts: invincible
+  become: true
+  gather_facts: false
+  vars:
+    incus_metrics_cert_pem: "{{ hostvars['localhost'].incus_metrics_cert_b64.stdout | b64decode }}"
+  tasks:
+    - name: Fichero temporal con el certificado
+      ansible.builtin.tempfile:
+        state: file
+        suffix: .crt
+      register: incus_metrics_cert_file
+      changed_when: false
+      check_mode: false
+
+    - name: Escribir el certificado
+      ansible.builtin.copy:
+        content: "{{ incus_metrics_cert_pem }}"
+        dest: "{{ incus_metrics_cert_file.path }}"
+        mode: "0600"
+      changed_when: false
+      check_mode: false
+
+    - name: Huella del certificado
+      ansible.builtin.command: openssl x509 -in {{ incus_metrics_cert_file.path }} -noout -fingerprint -sha256
+      register: incus_metrics_fp
+      changed_when: false
+      check_mode: false
+
+    - name: Certificados ya confiados por Incus
+      ansible.builtin.command: incus config trust list --format json
+      register: incus_trust
+      changed_when: false
+      check_mode: false
+
+    - name: Registrar el certificado (tipo metrics)
+      ansible.builtin.command: >-
+        incus config trust add-certificate {{ incus_metrics_cert_file.path }} --type=metrics --name=vmagent
+      changed_when: true
+      when: >-
+        (incus_metrics_fp.stdout | regex_replace('^.*Fingerprint=', '') | replace(':', '') | lower)
+        not in (incus_trust.stdout | from_json | map(attribute='fingerprint') | list)
+
+    - name: Borrar el fichero temporal
+      ansible.builtin.file:
+        path: "{{ incus_metrics_cert_file.path }}"
+        state: absent
+      changed_when: false
+      check_mode: false

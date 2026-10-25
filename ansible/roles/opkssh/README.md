@@ -2,8 +2,8 @@
 
 Acceso SSH a los hosts (`invincible`, `oliver`, `deborah`) con la identidad de
 Dex: el usuario hace login con GitHub y entra si es del team `devops` de la org
-`symintel`. Instalación y administración: [4.12 — SSH a los hosts con Dex](https://homelab.symintelligent.com/implementacion/fase-4-gitops/#412-ssh-a-los-hosts-con-dex-opcional).
-Uso (quien solo quiere entrar): [Entrar por SSH a los servidores](https://homelab.symintelligent.com/operacion/acceso-ssh/).
+`maceosoft`. Instalación y administración: [4.12 — SSH a los hosts con Dex](https://homelab.maceo.cl/implementacion/fase-4-gitops/#412-ssh-a-los-hosts-con-dex-opcional).
+Uso (quien solo quiere entrar): [Entrar por SSH a los servidores](https://homelab.maceo.cl/operacion/acceso-ssh/).
 
 Es **aditivo**: no toca `authorized_keys` ni `99-hardening.conf` de
 [`host_hardening`](../host_hardening/README.md), así que la llave de emergencia
@@ -17,7 +17,7 @@ sigue funcionando.
 3. `/etc/opk/providers`: solo Dex (no hereda Google, Microsoft, etc.).
 4. Policy plugin (`/etc/opk/policy.d/devops-team.yml` + `/etc/opk/devops-team.sh`):
    entra a la cuenta Linux `devops` quien traiga en el token el grupo
-   `symintel:devops` (el team de GitHub, vía Dex). `/etc/opk/auth_id` queda sin
+   `maceosoft:devops` (el team de GitHub, vía Dex). `/etc/opk/auth_id` queda sin
    reglas. opkssh no puede comparar en `auth_id` grupos que contienen `:`.
 5. Crea la cuenta compartida `devops` (grupo `sudo`, sin contraseña, `sudo` sin
    clave porque no tiene contraseña).

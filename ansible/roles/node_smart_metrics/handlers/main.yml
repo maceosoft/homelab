@@ -1,0 +1,6 @@
+---
+- name: Escribir las métricas de discos ahora
+  ansible.builtin.systemd:
+    name: node-smart-metrics.service
+    state: started
+  when: not ansible_check_mode

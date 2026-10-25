@@ -59,9 +59,9 @@ flowchart TB
 - **[Incus](https://linuxcontainers.org/incus/docs/main/)** — Virtualización LXC/VM; Fase 2.
 - **[Zabbly Incus stable](https://github.com/zabbly/incus-stable)** — Paquetes Debian; Fase 2.
 - **[Ansible](https://docs.ansible.com/)** — Instala paquete, bootstrap, join, groups, UI (interfaz de usuario).
-- Roles: [`incus_install`](https://github.com/symintel/homelab/blob/main/ansible/roles/incus_install/README.md),
-  [`incus_cluster`](https://github.com/symintel/homelab/blob/main/ansible/roles/incus_cluster/README.md),
-  [`incus_ui`](https://github.com/symintel/homelab/blob/main/ansible/roles/incus_ui/README.md)
+- Roles: [`incus_install`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/incus_install/README.md),
+  [`incus_cluster`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/incus_cluster/README.md),
+  [`incus_ui`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/incus_ui/README.md)
 
 Profundización: [Clúster Incus](../incus/cluster-setup.md)
 
@@ -74,7 +74,7 @@ Profundización: [Clúster Incus](../incus/cluster-setup.md)
 ## Requisitos de almacenamiento
 
 Default HomeLab: driver **`dir`** (directorio en el filesystem del SO, sin disco
-dedicado). Variables en [`group_vars/incus_cluster/vars.yml`](https://github.com/symintel/homelab/blob/main/ansible/group_vars/incus_cluster/vars.yml).
+dedicado). Variables en [`group_vars/incus_cluster/vars.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/group_vars/incus_cluster/vars.yml).
 
 | Aspecto | Valor / requisito |
 |---|---|
@@ -197,7 +197,7 @@ Ansible instala `incus-ui-canonical` y `core.https_address` en **invincible**
 (Dex) en [Fase 4](fase-4-gitops.md#incus-ui-oidc).
 
 1. Añade `incus.homelab.local` en `/etc/hosts` (bloque completo en
-   [Resumen del HomeLab](resumen-homelab.md#etchosts-en-tu-estacion-de-trabajo)).
+   [Resumen del HomeLab](resumen-homelab.md#dns-en-tu-estacion-de-trabajo)).
 2. Abre [`https://incus.homelab.local:8443`](https://incus.homelab.local:8443)
 3. Acepta el certificado autofirmado
 4. Genera/importa un **certificado de cliente**
@@ -205,7 +205,7 @@ Ansible instala `incus-ui-canonical` y `core.https_address` en **invincible**
 !!! note "OIDC con Dex"
     El login SSO (GitHub vía Dex) se configura en
     **[Fase 4 — Incus UI OIDC](fase-4-gitops.md#incus-ui-oidc)**.
-    Solo entra el team `devops` de `symintel` (filtro de Dex) y, con la configuración por defecto
+    Solo entra el team `devops` de `maceosoft` (filtro de Dex) y, con la configuración por defecto
     de Incus, esos usuarios OIDC (OpenID Connect) tienen acceso completo.
 
 Profundización: [Clúster Incus — UI](../incus/cluster-setup.md#ui-de-administracion)

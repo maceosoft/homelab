@@ -6,13 +6,17 @@ charts de Helm, los providers de OpenTofu y las herramientas del pipeline de `gi
 Para evitarlo, los runners montan un volumen compartido en `/cache` que sobrevive
 entre jobs, excepto el *tool cache* de `setup-python`/`setup-node` (ver abajo).
 
+!!! note "Una caché por organización"
+    Cada scale set tiene su propia caché: `arc-cache` de 20 GiB en `arc-runners` (org `maceosoft`) y otra de 10 GiB en
+    `arc-runners-symintel` (org antigua). Todo lo que sigue vale para las dos; los comandos se corren en el namespace que corresponda.
+
 ## Cómo está armado
 
 | Pieza | Dónde | Qué hace |
 |---|---|---|
-| PVC `arc-cache` | [`gitops/arc/cache/pvc.yaml`](https://github.com/symintel/gitops/blob/main/arc/cache/pvc.yaml) | 20 Gi, `ReadWriteMany` (RWX: varios pods a la vez, en nodos distintos), StorageClass `longhorn` (se sirve por NFS) |
-| Montaje y variables | [`gitops/arc/values-scaleset.yaml`](https://github.com/symintel/gitops/blob/main/arc/values-scaleset.yaml) | Monta el volumen en `/cache` y apunta las cachés de cada herramienta ahí; un `initContainer` deja las carpetas con el usuario del runner |
-| Limpieza | [`gitops/arc/cache/prune-cronjob.yaml`](https://github.com/symintel/gitops/blob/main/arc/cache/prune-cronjob.yaml) | CronJob semanal (domingo 04:00) que borra archivos sin tocar hace más de 30 días de pip, npm, Helm y XDG, y muestra el uso |
+| PVC `arc-cache` | [`gitops/arc/cache/pvc.yaml`](https://github.com/maceosoft/gitops/blob/main/arc/cache/pvc.yaml) | 20 Gi, `ReadWriteMany` (RWX: varios pods a la vez, en nodos distintos), StorageClass `longhorn` (se sirve por NFS) |
+| Montaje y variables | [`gitops/arc/values-scaleset.yaml`](https://github.com/maceosoft/gitops/blob/main/arc/values-scaleset.yaml) | Monta el volumen en `/cache` y apunta las cachés de cada herramienta ahí; un `initContainer` deja las carpetas con el usuario del runner |
+| Limpieza | [`gitops/arc/cache/prune-cronjob.yaml`](https://github.com/maceosoft/gitops/blob/main/arc/cache/prune-cronjob.yaml) | CronJob semanal (domingo 04:00) que borra archivos sin tocar hace más de 30 días de pip, npm, Helm y XDG, y muestra el uso |
 
 Qué se guarda y dónde:
 
@@ -46,7 +50,7 @@ cache, pip, npm) no se puede verificar así.
 !!! warning "Riesgo: caché compartida con un repo público"
     El scale set atiende también a repos públicos (por ejemplo `homelab`). Un PR de un
     fork podría dejar en la caché un paquete alterado que después use un job de un
-    repo privado. Mitigación: en la org `symintel`, *Settings → Actions → General →
+    repo privado. Mitigación: en la org `maceosoft`, *Settings → Actions → General →
     Fork pull request workflows*, exige **aprobación para todos los colaboradores
     externos**. Si no necesitas que `homelab` sea público, hacerlo privado elimina el
     riesgo.

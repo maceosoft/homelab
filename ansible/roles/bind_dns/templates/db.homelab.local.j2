@@ -20,4 +20,5 @@ incus   IN      A       {{ hostvars[incus_cluster_leader].static_ip }}
 argocd  IN      A       {{ gateway_ip }}
 vcluster IN     A       {{ gateway_ip }}
 api     IN      A       {{ gateway_ip }}
+grafana IN      A       {{ gateway_ip }}
 ; No hay comodín: cada nombre nuevo (HTTPRoute) necesita su propio registro aquí.

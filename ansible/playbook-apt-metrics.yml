@@ -1,0 +1,16 @@
+---
+# Publica los paquetes pendientes y el reinicio pendiente de cada nodo como métricas, para que el monitoreo
+# avise por Discord. Ver roles/node_apt_metrics/README.md.
+#
+# Solo escribe métricas: NO instala ni actualiza paquetes. Refresca las listas de apt (apt-get update).
+#
+#   ansible-playbook -i inventory.ini playbook-apt-metrics.yml --check --diff
+#   ansible-playbook -i inventory.ini playbook-apt-metrics.yml
+#
+# Es seguro correrlo en los tres nodos a la vez: no reinicia nada.
+
+- name: Métricas de paquetes pendientes en los nodos
+  hosts: incus_cluster
+  become: true
+  roles:
+    - node_apt_metrics

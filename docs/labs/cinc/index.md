@@ -12,7 +12,7 @@ incus snapshot create cinc-lab-x86 clean-cinc
 incus snapshot create cinc-lab-arm clean-cinc   # restaurar con: incus snapshot restore <vm> clean-cinc
 ```
 
-Cookbooks en [`cinc-lab/cookbooks/`](https://github.com/symintel/homelab/tree/main/cinc-lab/cookbooks).
+Cookbooks en [`cinc-lab/cookbooks/`](https://github.com/maceosoft/homelab/tree/main/cinc-lab/cookbooks).
 
 Evaluado también: instalar Cinc/Chef como config-management del HomeLab
 entero — descartado a favor de **Ansible** (agentless, YAML, menor curva)

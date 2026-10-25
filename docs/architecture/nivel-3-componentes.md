@@ -25,7 +25,7 @@ config:
 ---
 flowchart LR
     operador(["<span style='color:#fff'><b>Operador HomeLab</b><br/><small>[Person]</small><br/>kubectl / ArgoCD UI</span>"])
-    git["<span style='color:#fff'><b>Git remoto</b><br/><small>[Software System]</small><br/>symintel/gitops</span>"]
+    git["<span style='color:#fff'><b>Git remoto</b><br/><small>[Software System]</small><br/>maceosoft/gitops</span>"]
 
     subgraph k3s_mgmt["K3s Management"]
         direction LR
@@ -257,6 +257,74 @@ flowchart TB
     style vms fill:none,stroke:#aaa,stroke-dasharray:2 3
 ```
 
+
+## 3.6 — Monitoreo
+
+Pila de observabilidad del namespace `monitoring`, desplegada por Argo CD. **VictoriaMetrics** (base de datos de
+métricas compatible con Prometheus) guarda las series; **vmagent** las recoge (scrape) cada 30 segundos de los nodos,
+de la plataforma y de Incus; **vmalert** evalúa las reglas y **Alertmanager** envía los avisos a Discord. Las **sondas**
+las ejecuta **blackbox-exporter** (HTTP y DNS vistos desde dentro del clúster). En cada nodo, **node-exporter** publica
+CPU, memoria y temperaturas, y además lee los **textfile collectors**: archivos `.prom` que unos temporizadores
+(`systemd timers`) escriben en el nodo con los parches pendientes de apt y el estado del DNS (BIND); el rol de SMART
+queda preparado en el repo.
+
+```mermaid
+---
+title: Componentes — Monitoreo (C4 Nivel 3)
+config:
+  flowchart:
+    wrappingWidth: 280
+---
+flowchart LR
+    operador(["<span style='color:#fff'><b>Operador HomeLab</b><br/><small>[Person]</small><br/>Grafana vía SSO (Dex)</span>"])
+    discord["<span style='color:#fff'><b>Discord</b><br/><small>[Software System]</small><br/>alertas-criticas / alertas-avisos</span>"]
+    healthchecks["<span style='color:#fff'><b>healthchecks.io</b><br/><small>[Software System]</small><br/>Dead man's switch</span>"]
+    incus["<span style='color:#fff'><b>Incus Cluster</b><br/><small>[Container: Incus]</small><br/>/1.0/metrics en :8443 de cada nodo</span>"]
+    plat["<span style='color:#fff'><b>Plataforma</b><br/><small>[Container: K3s Management]</small><br/>Argo CD, Longhorn, cert-manager, Kong, MetalLB, Calico</span>"]
+    web["<span style='color:#fff'><b>Endpoints del HomeLab</b><br/><small>[Software System]</small><br/>argocd, grafana y DNS (BIND) en homelab.local</span>"]
+
+    subgraph monitoreo["Monitoreo (namespace monitoring)"]
+        direction TB
+        vmagent["<span style='color:#000'><b>vmagent</b><br/><small>[Component: scraper]</small><br/>Recoge métricas cada 30 s</span>"]
+        vmsingle["<span style='color:#000'><b>VictoriaMetrics (vmsingle)</b><br/><small>[Component: base de series temporales]</small><br/>Almacena las series (PVC Longhorn)</span>"]
+        vmalert["<span style='color:#000'><b>vmalert</b><br/><small>[Component: rules]</small><br/>Evalúa reglas de alerta</span>"]
+        alertmanager["<span style='color:#000'><b>Alertmanager</b><br/><small>[Component: notifier]</small><br/>Agrupa, enruta y repite avisos</span>"]
+        grafana["<span style='color:#000'><b>Grafana</b><br/><small>[Component: UI]</small><br/>Paneles; SSO con Dex</span>"]
+        blackbox["<span style='color:#000'><b>blackbox-exporter</b><br/><small>[Component: probes]</small><br/>Sondas HTTP, redirección y DNS (VMProbe)</span>"]
+        subgraph nodos["En cada nodo (invincible, oliver, deborah)"]
+            direction TB
+            nodeexp["<span style='color:#000'><b>node-exporter</b><br/><small>[Component: DaemonSet]</small><br/>CPU, memoria, disco, temperaturas</span>"]
+            textfile["<span style='color:#000'><b>Textfile collectors</b><br/><small>[Component: systemd timers]</small><br/>Parches de apt y estado del DNS (.prom)</span>"]
+        end
+    end
+
+    textfile -->|"Escribe archivos .prom<br/><small>[/var/lib/node_exporter/textfile]</small>"| nodeexp
+    vmagent -->|"Scrape<br/><small>[HTTP :9100]</small>"| nodeexp
+    vmagent -->|"Scrape<br/><small>[ServiceMonitor]</small>"| plat
+    vmagent -->|"Scrape<br/><small>[HTTPS :8443, certificado cliente metrics]</small>"| incus
+    vmagent -->|"Scrape<br/><small>[/probe]</small>"| blackbox
+    blackbox -->|"Sondea<br/><small>[HTTP / DNS]</small>"| web
+    vmagent -->|"Escribe<br/><small>[remote write]</small>"| vmsingle
+    vmalert -->|"Consulta<br/><small>[consulta de métricas]</small>"| vmsingle
+    vmalert -->|"Dispara alertas<br/><small>[HTTP]</small>"| alertmanager
+    grafana -->|"Consulta<br/><small>[consulta de métricas]</small>"| vmsingle
+    alertmanager -->|"Avisos<br/><small>[webhook HTTPS]</small>"| discord
+    alertmanager -->|"Ping Watchdog cada 5 min<br/><small>[HTTPS]</small>"| healthchecks
+    healthchecks -.->|"Avisa si el ping se corta<br/><small>[Discord]</small>"| discord
+    operador -->|"Consulta<br/><small>[HTTPS]</small>"| grafana
+
+    classDef person fill:#08427B,stroke:#073B6F,color:#fff
+    classDef system fill:#1168BD,stroke:#0B4884,color:#fff
+    classDef container fill:#438DD5,stroke:#3C7FC0,color:#fff
+    classDef component fill:#85BBF0,stroke:#78A8D8,color:#000
+    classDef external fill:#999999,stroke:#8A8A8A,color:#fff
+    class operador person
+    class discord,healthchecks,web external
+    class incus,plat container
+    class vmagent,vmsingle,vmalert,alertmanager,grafana,blackbox,nodeexp,textfile component
+    style monitoreo fill:none,stroke:#888,stroke-dasharray:6 4
+    style nodos fill:none,stroke:#aaa,stroke-dasharray:2 3
+```
 
 ## Siguiente
 

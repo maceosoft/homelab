@@ -1,8 +1,8 @@
 # Procedimiento — Agregar un repo
 
-Procedimiento **de rutina**: se repite cada vez que la org `symintel` necesita
+Procedimiento **de rutina**: se repite cada vez que la org `maceosoft` necesita
 un repo nuevo. Lo crea el pipeline de OpenTofu del repo
-[`symintel/infra`](https://github.com/symintel/infra); tú agregas la
+[`maceosoft/infra`](https://github.com/maceosoft/infra); tú agregas la
 entrada en el mapa de repos y, si el proyecto despliega a cPanel por FTP (File Transfer Protocol),
 sus credenciales en 1Password.
 
@@ -10,13 +10,13 @@ sus credenciales en 1Password.
     - La plataforma base ya funciona: [Fase 4 — 4.11](../implementacion/fase-4-gitops.md#411-arc-y-pipeline-de-opentofu)
       completada (el pipeline `tofu` de `infra` corre en verde).
     - La app de 1Password desbloqueada y `ONEPASSWORD_ACCOUNT_NAME` con el
-      nombre de tu cuenta ([detalle](../symintel/github.md#items-en-1password)).
+      nombre de tu cuenta ([detalle](../maceosoft/github.md#items-en-1password)).
 
 ## 1. Define el repo
 
 | Dato | Ejemplo | Para qué |
 |---|---|---|
-| Nombre | `web-clientes` | Nombre del repo en `symintel` |
+| Nombre | `web-clientes` | Nombre del repo en `maceosoft` |
 | Descripción | `Sitio de clientes` | Descripción en GitHub |
 | Stack | `node` o `php` | Qué workflow de CI de `core-pipelines` usa |
 | ¿Despliega por FTP a cPanel? | sí / no | Si es sí, crea los environments `dev` y `prod` con sus credenciales |
@@ -25,14 +25,14 @@ sus credenciales en 1Password.
 
 Crea el item **`ftp-<repo>`** (por ejemplo `ftp-web-clientes`) en la bóveda
 `HomeLab`, tipo Nota segura, con estos 8 campos
-([cómo crear un item](../symintel/github.md#como-crear-un-item-con-campos-propios)):
+([cómo crear un item](../maceosoft/github.md#como-crear-un-item-con-campos-propios)):
 
 | Campo | Tipo | Ejemplo |
 |---|---|---|
 | `dev_host` | Texto | `dev.tu-cpanel.example.com` |
 | `dev_user` | Texto | `usuario_dev` |
 | `dev_password` | Contraseña | |
-| `dev_remote_dir` | Texto | `/home/usuario/dev.symintel.example.com` |
+| `dev_remote_dir` | Texto | `/home/usuario/dev.maceosoft.example.com` |
 | `prod_host` | Texto | `tu-cpanel.example.com` |
 | `prod_user` | Texto | `usuario_prod` |
 | `prod_password` | Contraseña | |
@@ -55,7 +55,7 @@ ansible-playbook -i inventory.ini playbook-platform-secrets.yml
 ## 3. Agrega el repo al mapa (PR en `infra`)
 
 En el repo `infra`, agrega una entrada a `local.repos` en
-[`github/repos.tf`](https://github.com/symintel/infra/blob/main/github/repos.tf):
+[`github/repos.tf`](https://github.com/maceosoft/infra/blob/main/github/repos.tf):
 
 ```hcl
 locals {
@@ -86,7 +86,7 @@ tienes en tu máquina:
 cd <carpeta-del-proyecto>
 git init -b main            # si todavía no es un repo git
 git add -A && git commit -m "Primer commit"
-git remote add origin https://github.com/symintel/<repo>.git
+git remote add origin https://github.com/maceosoft/<repo>.git
 git pull origin main --allow-unrelated-histories
 git push -u origin main     # como owner de la org puedes pushear directo a main
 ```
@@ -108,13 +108,13 @@ on:
 
 jobs:
   ci:
-    uses: symintel/core-pipelines/.github/workflows/ci-node.yml@main
+    uses: maceosoft/core-pipelines/.github/workflows/ci-node.yml@main
     secrets: inherit
 
   deploy-dev:
     needs: ci
     if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
-    uses: symintel/core-pipelines/.github/workflows/deploy-ftp.yml@main
+    uses: maceosoft/core-pipelines/.github/workflows/deploy-ftp.yml@main
     with:
       stack: node
       environment: dev
@@ -123,7 +123,7 @@ jobs:
   deploy-prod:
     needs: ci
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    uses: symintel/core-pipelines/.github/workflows/deploy-ftp.yml@main
+    uses: maceosoft/core-pipelines/.github/workflows/deploy-ftp.yml@main
     with:
       stack: node
       environment: prod
@@ -133,7 +133,7 @@ jobs:
 Para PHP usa `ci-php.yml` y `stack: php`. El nombre del job (`ci-cd`) es el
 check que exige la protección de `main` si pusiste
 `required_status_check = "ci-cd"`. Cuando `core-pipelines` pase a usar el tag
-`v1`, cambia `@main` por `@v1` ([versionado](https://github.com/symintel/core-pipelines#versionado)).
+`v1`, cambia `@main` por `@v1` ([versionado](https://github.com/maceosoft/core-pipelines#versionado)).
 
 ## 6. Verifica
 
@@ -150,6 +150,6 @@ En GitHub, en el repo nuevo:
 | Síntoma | Revisar |
 |---|---|
 | El `plan` de `infra` falla con *deploy = true requiere credenciales ftp* | Falta el item `ftp-<repo>` o no re-corriste `playbook-platform-secrets.yml` (paso 2) |
-| `--check` marca campos con ✗ | Nombres exactos de los 8 campos, sin sección ([detalle](../symintel/github.md#como-crear-un-item-con-campos-propios)) |
+| `--check` marca campos con ✗ | Nombres exactos de los 8 campos, sin sección ([detalle](../maceosoft/github.md#como-crear-un-item-con-campos-propios)) |
 | El `git push` a `main` es rechazado | Solo los owners de la org pueden saltarse la protección de `main`; si no, sube el código por PR |
 | El deploy falla al conectar | Datos del item `ftp-<repo>` y `ftp_protocol` en `repos.tf`; tras corregir el item, repite el paso 2 y relanza el pipeline de `infra` |

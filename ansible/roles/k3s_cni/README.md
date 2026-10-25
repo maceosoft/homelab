@@ -31,7 +31,7 @@ Instala el **CNI externo** tras el server K3s cuando `k3s_install.core.cni` no e
 **Calico**: este rol solo hace el bootstrap (ArgoCD necesita red de pods para arrancar). Una vez
 que ArgoCD sigue el `Installation` (Applications `calico-operator` y `calico-config`), el rol
 lo detecta y **omite** Calico. Alternativas GitOps: `canal`, `cilium`
-(sync manual) en [`gitops`](https://github.com/symintel/gitops/tree/main/argocd/apps).
+(sync manual) en [`gitops`](https://github.com/maceosoft/gitops/tree/main/argocd/apps).
 
 ## Verificar
 

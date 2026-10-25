@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Prueba lectura 1Password SDK (DesktopAuth, app local).
 
-Lee los secretos de Dex del ítem symintel-dex (bóveda HomeLab):
-  op://HomeLab/symintel-dex/GITHUB_CLIENT_ID
+Lee los secretos de Dex del ítem maceosoft-dex (bóveda HomeLab):
+  op://HomeLab/maceosoft-dex/GITHUB_CLIENT_ID
 
 Uso:
   export ONEPASSWORD_ACCOUNT_NAME="Mi Cuenta"   # si tu cuenta no se llama Personal
