@@ -3,7 +3,7 @@
 ## Objetivo
 
 Desplegar la plataforma completa vía **Argo CD** desde
-[`gitops/`](https://github.com/symintel/gitops): storage, MetalLB, Gateway API, Dex +
+[`gitops/`](https://github.com/maceosoft/gitops): storage, MetalLB, Gateway API, Dex +
 GitHub OAuth, y waves de operaciones.
 
 ## Qué aprendes
@@ -103,7 +103,7 @@ Profundización: [Catálogo GitOps](../gitops/index.md) · [Storage](../storage/
 
 - [ ] [Fase 3 — K3s](fase-3-k3s.md) completada (`argocd-server` Running).
 - [ ] `kubectl` configurado en tu estación.
-- [ ] [Fase 0 — GitHub y 1Password](fase-0-preparacion.md#github-y-1password-org-symintel-manual-una-sola-vez)
+- [ ] [Fase 0 — GitHub y 1Password](fase-0-preparacion.md#github-y-1password-org-maceosoft-manual-una-sola-vez)
       completado (Apps, repos e items de 1Password).
 - [ ] En el router, el rango **`192.168.23.200–192.168.23.220`** fuera del
       DHCP (reservado): es el pool de MetalLB para los servicios
@@ -181,8 +181,8 @@ kubectl get nodes
 
 Un único apply manual; a partir de aquí Argo CD gestiona el resto (auto).
 
-**Primero, los secretos de plataforma.** `symintel/gitops` es privado: sin
-las credenciales de la App `symintel-argocd`, ArgoCD no puede leer el repo. El playbook los lee de
+**Primero, los secretos de plataforma.** `maceosoft/gitops` es privado: sin
+las credenciales de la App `maceosoft-argocd`, ArgoCD no puede leer el repo. El playbook los lee de
 1Password y los deja en el clúster. Igual que en la Fase 0, la app de
 1Password tiene que estar desbloqueada y `ONEPASSWORD_ACCOUNT_NAME` con el
 nombre de tu cuenta (el de la barra lateral de la app).
@@ -196,14 +196,14 @@ cd ..
 
 | Secret | Namespace | Para qué |
 |---|---|---|
-| `repo-gitops` | `argocd` | App `symintel-argocd` para `https://github.com/symintel/gitops.git` |
+| `repo-gitops` | `argocd` | App `maceosoft-argocd` para `https://github.com/maceosoft/gitops.git` |
 | `arc-runners-github-app` | `arc-runners` | Registro del runner de ARC |
-| `symintel-terraform-app`, `tofu-vars` | `arc-runners` | Credenciales de OpenTofu (`TF_VAR_*`) para el pipeline |
+| `terraform-app`, `tofu-vars` | `arc-runners` | Credenciales de OpenTofu (`TF_VAR_*`) para el pipeline |
 
 También crea el namespace `terraform`, donde OpenTofu guarda su state. Usa
 siempre `~/.kube/homelab-k3s.yaml`, no el contexto actual de `kubectl`. Es
 idempotente: re-córrelo cuando rotes algo en 1Password. Detalle:
-[Plataforma symintel — GitHub](../symintel/github.md#paso-3-cluster-y-secretos-de-plataforma).
+[Plataforma maceosoft — GitHub](../maceosoft/github.md#paso-3-cluster-y-secretos-de-plataforma).
 
 **Después, el ApplicationSet de bootstrap:**
 
@@ -211,7 +211,7 @@ idempotente: re-córrelo cuando rotes algo en 1Password. Detalle:
 kubectl apply -f gitops/bootstrap/root-appset.yaml
 ```
 
-[`bootstrap/root-appset.yaml`](https://github.com/symintel/gitops/blob/main/bootstrap/root-appset.yaml)
+[`bootstrap/root-appset.yaml`](https://github.com/maceosoft/gitops/blob/main/bootstrap/root-appset.yaml)
 genera una Application raíz, `homelab-root`, con las apps que están
 **descomentadas** en su lista `apps`. Al principio solo está `argocd` (ArgoCD administrándose a sí mismo)
 (Dex, RBAC y el health check que necesitan las olas), para ir probando cada
@@ -339,23 +339,23 @@ Los valores sensibles **no van en git**. Guárdalos en 1Password e inyecta
 `argocd-secret`.
 
 !!! note "OAuth App ya creada en la Fase 0"
-    Si seguiste la [Fase 0](fase-0-preparacion.md#github-y-1password-org-symintel-manual-una-sola-vez),
-    la OAuth App `Symintel Dex` y sus campos `GITHUB_*` ya existen: solo
+    Si seguiste la [Fase 0](fase-0-preparacion.md#github-y-1password-org-maceosoft-manual-una-sola-vez),
+    la OAuth App `Maceosoft Dex` y sus campos `GITHUB_*` ya existen: solo
     falta correr el playbook de más abajo.
 
-**GitHub OAuth App** en la **org `symintel`** ([symintel → Settings → Developer settings → OAuth Apps → New OAuth App](https://github.com/organizations/symintel/settings/applications/new)).
+**GitHub OAuth App** en la **org `maceosoft`** ([maceosoft → Settings → Developer settings → OAuth Apps → New OAuth App](https://github.com/organizations/maceosoft/settings/applications/new)).
 Creada en la org, Dex puede leer sus teams sin aprobarla como app de terceros:
 
 | Campo GitHub | Valor |
 |---|---|
-| Application name | `Symintel Dex` (o similar) |
+| Application name | `Maceosoft Dex` (o similar) |
 | Homepage URL | `https://argocd.homelab.local` |
 | Redirect URIs | `https://argocd.homelab.local/api/dex/callback` (solo esta) |
 
 **Homepage URL** es informativa; el campo crítico es **Redirect URIs** (en versiones anteriores de GitHub se llamaba *Authorization callback URL*): tiene que ser exactamente la URL de arriba.
 
 Ítems 1Password (cuenta **personal**, bóveda **`HomeLab`** por defecto): ver
-[`argocd/secrets/1password.md`](https://github.com/symintel/gitops/blob/main/argocd/secrets/1password.md).
+[`argocd/secrets/1password.md`](https://github.com/maceosoft/gitops/blob/main/argocd/secrets/1password.md).
 
 Probar lectura (mismo módulo que el apply):
 
@@ -384,8 +384,8 @@ python3 gitops/argocd/secrets/apply-from-1password.py.example
 kubectl rollout restart deployment argocd-dex-server -n argocd
 ```
 
-Connector **GitHub** (solo el team `devops` de la org `symintel`) y staticClients **vCluster** e **Incus UI**
-en [`dex.config`](https://github.com/symintel/gitops/blob/main/argocd/config/dex.config).
+Connector **GitHub** (solo el team `devops` de la org `maceosoft`) y staticClients **vCluster** e **Incus UI**
+en [`dex.config`](https://github.com/maceosoft/gitops/blob/main/argocd/config/dex.config).
 
 `VCLUSTER_CLIENT_SECRET` **no** viene de GitHub.
 Ansible lo genera en 1Password si falta y lo aplica según destino. Incus **no usa secreto**:
@@ -431,7 +431,7 @@ curl -s -o /dev/null -w "%{http_code} -> %{redirect_url}\n" http://argocd.homela
 |---|---|---|
 | GitHub responde **404** y la URL trae `client_id=.github.clientId` | Faltan las claves `dex.*` en `argocd-secret`: Dex no pudo sustituir `$dex.github.clientId` | Corre el playbook de arriba (`--tags argocd`) y vuelve a probar |
 | GitHub dice **redirect_uri mismatch** | *Redirect URIs* de la OAuth App distinto | Debe ser exactamente `https://argocd.homelab.local/api/dex/callback` |
-| El login termina bien pero ArgoCD **no muestra Applications** | Tu cuenta no está en el team `devops` de `symintel` | Agrégala al team; el claim `groups` es `symintel:devops` |
+| El login termina bien pero ArgoCD **no muestra Applications** | Tu cuenta no está en el team `devops` de `maceosoft` | Agrégala al team; el claim `groups` es `maceosoft:devops` |
 | `invalid_client` o `bad credentials` | `GITHUB_CLIENT_SECRET` incorrecto o rotado | Actualiza el campo en 1Password y vuelve a correr el playbook |
 
 ### Incus UI OIDC
@@ -442,7 +442,7 @@ Requisitos: UI instalada en [Fase 2](fase-2-incus.md#ui-de-administracion),
 Incus (7.x) solo conoce cinco claves OIDC: `oidc.issuer`, `oidc.client.id`, `oidc.audience`,
 `oidc.claim` y `oidc.scopes`. **No** tiene `oidc.client.secret`, ni `oidc.groups.claim`, ni el
 comando `incus auth` (esas son de LXD). Por eso en Dex el cliente `incus-ui` es **público**
-(`public: true`, PKCE, sin secreto): está en [`dex.config`](https://github.com/symintel/gitops/blob/main/argocd/config/dex.config).
+(`public: true`, PKCE, sin secreto): está en [`dex.config`](https://github.com/maceosoft/gitops/blob/main/argocd/config/dex.config).
 
 **Ansible** (recomendado) — `group_vars/dex_oauth_secrets.yml` ya trae `apply_incus: true`. Con
 las claves `dex.*` ya cargadas ([Probar el login](#probar-el-login-urls-y-que-esperar)), corre:
@@ -487,7 +487,7 @@ incus config set oidc.client.id=incus-ui
 #### Quién puede entrar y qué puede hacer
 
 - **Quién inicia sesión:** el conector GitHub de Dex solo deja pasar a miembros del team
-  `devops` de la org `symintel` (`orgs`/`teams` en `dex.config`). Quien no está en el team no
+  `devops` de la org `maceosoft` (`orgs`/`teams` en `dex.config`). Quien no está en el team no
   llega a Incus.
 - **Qué puede hacer:** con la configuración por defecto de Incus, cualquier usuario que se
   autentica con el proveedor OIDC tiene **acceso completo** al servidor. Para permisos
@@ -532,7 +532,7 @@ sequenceDiagram
 ## 4.8 — DNS de `*.homelab.local`
 
 Los nombres los resuelve el DNS de la LAN (BIND en `deborah`,
-[`playbook-bind-dns.yml`](https://github.com/symintel/homelab/blob/main/ansible/playbook-bind-dns.yml)).
+[`playbook-bind-dns.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-bind-dns.yml)).
 La zona `homelab.local` trae:
 
 | Registro | Apunta a |
@@ -542,7 +542,7 @@ La zona `homelab.local` trae:
 | `argocd.homelab.local`, `vcluster.homelab.local`, `api.homelab.local`, `grafana.homelab.local` | el Gateway: `gateway_ip` = `192.168.23.200` (primera IP del pool de MetalLB) |
 
 No hay comodín: cada nombre es un registro explícito en
-[`db.homelab.local.j2`](https://github.com/symintel/homelab/blob/main/ansible/roles/bind_dns/templates/db.homelab.local.j2).
+[`db.homelab.local.j2`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/bind_dns/templates/db.homelab.local.j2).
 Para publicar una app con un `HTTPRoute` nuevo, añade su registro a esa plantilla y aplica
 el playbook; hasta entonces su nombre no resuelve.
 
@@ -600,10 +600,11 @@ Espera `Healthy` en `k3s-upgrade` ([system-upgrade-controller](https://github.co
 | Gateway responde | `curl -k https://argocd.homelab.local` |
 | SSO Dex | Login GitHub en ArgoCD |
 | Incus UI OIDC | Login SSO en [`https://incus.homelab.local:8443`](https://incus.homelab.local:8443) |
-| Runner ARC | `arc-runners` Healthy; runner listado en *symintel → Settings → Actions → Runners* ([4.11](#411-arc-y-pipeline-de-opentofu)) |
+| Runner ARC | `arc-runners` Healthy; runner listado en *maceosoft → Settings → Actions → Runners* ([4.11](#411-arc-y-pipeline-de-opentofu)) |
 | Pipeline OpenTofu | Primer `tofu apply` de `infra` en verde; existe `terraform/tfstate-default-github` ([4.11](#411-arc-y-pipeline-de-opentofu)) |
 | SSH con Dex *(opcional)* | `opkssh login` y `ssh devops@oliver.homelab.local` entran ([4.12](#412-ssh-a-los-hosts-con-dex-opcional)) |
 | Monitoreo *(opcional)* | Grafana abre, el panel de nodos muestra temperaturas y una alerta de prueba llega a Discord ([4.13](#413-monitoreo-y-alertas-opcional)) |
+| Notificaciones de ArgoCD *(opcional)* | El comando de prueba envía un mensaje a `despliegues` ([4.14](#414-notificaciones-de-argocd-a-discord-opcional)) |
 
 Checklist global (URLs, `/etc/hosts`, nodos): **[Resumen del HomeLab](resumen-homelab.md)**.
 
@@ -625,11 +626,11 @@ kubectl get applications -n argocd | grep -E 'arc|terraform'
 kubectl get pods -n arc-systems        # controller + listener de arc-runners
 ```
 
-El runner aparece en *symintel → Settings → Actions → Runners*.
+El runner aparece en *maceosoft → Settings → Actions → Runners*.
 
-**Primer pipeline.** En `symintel/infra`, lanza *Actions → tofu → Run
+**Primer pipeline.** En `maceosoft/infra`, lanza *Actions → tofu → Run
 workflow* sobre `main`, o haz un push a `main`. El workflow reusable
-[`tofu.yml`](https://github.com/symintel/core-pipelines/blob/main/.github/workflows/tofu.yml)
+[`tofu.yml`](https://github.com/maceosoft/core-pipelines/blob/main/.github/workflows/tofu.yml)
 corre en `arc-runners`: hace `plan` en los PRs (pull requests) y `apply` en `main`. La
 primera ejecución crea el repo `api` con sus environments y secrets FTP (File Transfer Protocol).
 
@@ -640,12 +641,12 @@ kubectl -n terraform get secret tfstate-default-github   # state tras el primer 
 A partir de acá, cada repo nuevo se agrega con el
 [procedimiento de rutina — Agregar un repo](../operacion/agregar-repo.md): credenciales FTP en
 1Password (si despliega), entrada en el mapa de
-[`infra`](https://github.com/symintel/infra) por PR y el
+[`infra`](https://github.com/maceosoft/infra) por PR y el
 workflow de CI/CD.
 
 ## 4.12 — SSH a los hosts con Dex (opcional)
 
-Los miembros del team `devops` de la org `symintel` en GitHub entran por SSH (Secure Shell, conexión cifrada por
+Los miembros del team `devops` de la org `maceosoft` en GitHub entran por SSH (Secure Shell, conexión cifrada por
 terminal) a `invincible`, `oliver` y `deborah` con la identidad de Dex, sin repartir llaves. Las instancias de
 Incus no entran aquí: se manejan con `incus exec` y el login SSO de la UI. Cómo entra una persona:
 [Entrar por SSH a los servidores](../operacion/acceso-ssh.md).
@@ -680,12 +681,12 @@ sequenceDiagram
 1. `opkssh login` autentica contra Dex (GitHub) y deja una llave SSH que caduca a las 24 horas.
 2. Al conectar, `sshd` ejecuta `opkssh verify` (vía `AuthorizedKeysCommand`), que valida la firma del token
    y que el emisor es Dex.
-3. Un *policy plugin* de opkssh exige el grupo `symintel:devops` y el usuario Linux `devops`.
+3. Un *policy plugin* de opkssh exige el grupo `maceosoft:devops` y el usuario Linux `devops`.
 
 ### Pasos
 
 1. **Cliente en Dex.** El cliente `opkssh` (público, PKCE, con los tres callbacks en `localhost`) está en
-   [`dex.config`](https://github.com/symintel/gitops/blob/main/argocd/config/dex.config). Cuando ArgoCD
+   [`dex.config`](https://github.com/maceosoft/gitops/blob/main/argocd/config/dex.config). Cuando ArgoCD
    sincronice, reinicia Dex para que lo cargue:
 
     ```bash
@@ -715,7 +716,7 @@ sequenceDiagram
    funcionando, extender al resto: `--limit invincible,deborah`.
 
 Qué instala el rol
-[`opkssh`](https://github.com/symintel/homelab/blob/main/ansible/roles/opkssh/README.md) en cada nodo: el binario
+[`opkssh`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/opkssh/README.md) en cada nodo: el binario
 con versión fijada y su checksum, `/etc/opk/` (proveedor Dex y el plugin), la cuenta Linux `devops`, la CA del
 HomeLab y un archivo en `/etc/ssh/sshd_config.d/`.
 
@@ -724,8 +725,8 @@ HomeLab y un archivo en `/etc/ssh/sshd_config.d/`.
 El acceso depende de **pertenecer al team `devops` en GitHub**. No hay listas de usuarios ni de emails.
 
 - **Dex** solo emite tokens a miembros del team
-  ([conector GitHub](https://github.com/symintel/gitops/blob/main/argocd/config/dex.config)) y pone el team en
-  el claim `groups` como `symintel:devops`.
+  ([conector GitHub](https://github.com/maceosoft/gitops/blob/main/argocd/config/dex.config)) y pone el team en
+  el claim `groups` como `maceosoft:devops`.
 - **Cada nodo** exige ese grupo con un policy plugin (`/etc/opk/devops-team.sh`). El grupo se cambia con
   `opkssh_allowed_group` en el rol.
 
@@ -733,8 +734,8 @@ Dar de alta o de baja es cambiar el team en GitHub. Una baja impide obtener toke
 tenga la persona vale hasta que caduque (24 horas).
 
 !!! note "Por qué un plugin y no `/etc/opk/auth_id`"
-    La regla normal `oidc:groups:symintel:devops` no funciona con grupos de GitHub: opkssh separa la regla por
-    `:` y solo compara el último trozo (`devops`) con el grupo completo (`symintel:devops`), así que nunca
+    La regla normal `oidc:groups:maceosoft:devops` no funciona con grupos de GitHub: opkssh separa la regla por
+    `:` y solo compara el último trozo (`devops`) con el grupo completo (`maceosoft:devops`), así que nunca
     coinciden, y poner el valor entre comillas tampoco sirve. Por eso `auth_id` queda sin reglas y decide el
     plugin. Se comprobó leyendo `policy/enforcer.go` de opkssh.
 
@@ -755,7 +756,7 @@ tenga la persona vale hasta que caduque (24 horas).
 
 ### Deshacer
 
-[`playbook-uninstall-opkssh.yml`](https://github.com/symintel/homelab/blob/main/ansible/playbook-uninstall-opkssh.yml)
+[`playbook-uninstall-opkssh.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-uninstall-opkssh.yml)
 quita lo que instala el rol (configuración de `sshd`, binario, `/etc/opk` y la cuenta `devops`). Es seguro por
 defecto: sin `-e opkssh_uninstall_confirm=true` solo muestra qué quitaría.
 
@@ -772,7 +773,7 @@ No toca `authorized_keys` ni el hardening. La CA del HomeLab se conserva; para q
 | Síntoma | Causa probable | Qué revisar |
 |---|---|---|
 | El rol se detiene: "no resuelve argocd.homelab.local" | El nodo no usa el BIND del HomeLab. Pasó en `deborah`: NetworkManager, sin `dns=none`, reescribió `/etc/resolv.conf` con el DNS del router | `cat /etc/resolv.conf` y `getent hosts argocd.homelab.local` en el nodo. Corrige con `playbook-set-static-ip.yml --limit <nodo>` ([Fase 1](fase-1-red.md)) |
-| `Permission denied`; en `/var/log/opkssh.log`: `no policy to allow …` | El token no trae el grupo `symintel:devops`, o se pidió otro usuario Linux | `opkssh inspect ~/.ssh/id_ecdsa-cert.pub` (debe listar `groups`); `/etc/opk/policy.d/devops-team.yml` |
+| `Permission denied`; en `/var/log/opkssh.log`: `no policy to allow …` | El token no trae el grupo `maceosoft:devops`, o se pidió otro usuario Linux | `opkssh inspect ~/.ssh/id_ecdsa-cert.pub` (debe listar `groups`); `/etc/opk/policy.d/devops-team.yml` |
 | `Permission denied`; en `/var/log/opkssh.log`: `lookup … no such host` | Igual que la primera fila | DNS del nodo |
 | `x509: certificate signed by unknown authority` en el nodo | El nodo no confía en la CA del HomeLab | `curl -s -o /dev/null -w "%{http_code} ssl_verify=%{ssl_verify_result}\n" https://argocd.homelab.local/api/dex/.well-known/openid-configuration` debe dar `200 ssl_verify=0` |
 | Nadie entra con SSO y Dex no responde | Dex vive en K3s sobre estos mismos nodos | Entra con la llave de emergencia de `authorized_keys` |
@@ -829,12 +830,12 @@ Haz los pasos 1 a 5 **antes** de activar la app en GitOps (paso 6): ArgoCD neces
 
 1. **Discord** (a mano, sin bot: solo webhooks). Crea un rol y una categoría privada con dos canales, `alertas-criticas` y
    `alertas-avisos`, y un webhook por canal. Paso a paso, con los nombres exactos de los menús:
-   [Discord y healthchecks.io — Parte 1](../symintel/discord-healthchecks.md#parte-1-discord). Tu servidor puede tener personas
+   [Discord y healthchecks.io — Parte 1](../maceosoft/discord-healthchecks.md#parte-1-discord). Tu servidor puede tener personas
    ajenas a infraestructura, así que no uses un canal existente.
 
 2. **healthchecks.io.** Crea una cuenta y un check (`Period` de 5 minutos, `Grace Time` de 10), copia su **ping URL** y conéctalo a
    `alertas-criticas` con su integración de Discord:
-   [Parte 2](../symintel/discord-healthchecks.md#parte-2-healthchecksio).
+   [Parte 2](../maceosoft/discord-healthchecks.md#parte-2-healthchecksio).
 
 3. **1Password** (bóveda `HomeLab`). Tres items, como **Nota segura** y con los campos **fuera de cualquier sección**. El título del
    item y el nombre de cada campo tienen que ser exactos, porque el script los busca por nombre:
@@ -847,10 +848,10 @@ Haz los pasos 1 a 5 **antes** de activar la app en GitOps (paso 6): ArgoCD neces
     | `grafana-admin` | `password` | Contraseña del administrador de Grafana |
     | | `username` | *(opcional)* usuario; por defecto `admin` |
 
-    Cómo crearlos y comprobarlos: [Parte 3](../symintel/discord-healthchecks.md#parte-3-guardarlo-en-1password).
+    Cómo crearlos y comprobarlos: [Parte 3](../maceosoft/discord-healthchecks.md#parte-3-guardarlo-en-1password).
 
 4. **Secrets en el clúster.** Necesita la app de 1Password desbloqueada (*Integrate with other apps*) y el kubeconfig del homelab,
-   como el resto de [secretos de plataforma](../symintel/github.md). Son opcionales: si no existe ninguno de los tres items el script no hace nada; si existe
+   como el resto de [secretos de plataforma](../maceosoft/github.md). Son opcionales: si no existe ninguno de los tres items el script no hace nada; si existe
    alguno, exige los tres. Comprueba primero y aplica después (desde `ansible/`):
 
     ```bash
@@ -871,7 +872,7 @@ Haz los pasos 1 a 5 **antes** de activar la app en GitOps (paso 6): ArgoCD neces
     ```
 
 6. **Activar en GitOps.** `victoria-metrics` (ola 2) y `victoria-metrics-config` (ola 3, sus reglas y la ruta de Grafana) ya
-   están en la lista de [`root-appset.yaml`](https://github.com/symintel/gitops/blob/main/bootstrap/root-appset.yaml).
+   están en la lista de [`root-appset.yaml`](https://github.com/maceosoft/gitops/blob/main/bootstrap/root-appset.yaml).
    Fusiona ese cambio en `main` del repo `gitops` y **después aplica el ApplicationSet**: el `homelab-root` del clúster se creó
    a mano con `kubectl apply` y ArgoCD no lo actualiza solo desde git, así que sin este comando no pasa nada.
 
@@ -885,8 +886,9 @@ Haz los pasos 1 a 5 **antes** de activar la app en GitOps (paso 6): ArgoCD neces
     El consumo esperado es de **~1 a 1,5 GB** en total (estimación; confírmalo con `kubectl top`). `vmsingle`, `vmagent`,
     `vmalert`, Alertmanager y Grafana prefieren `invincible` y nunca van a `oliver` (el nodo ligero); `node-exporter` corre en los tres.
 
-7. **Probar de punta a punta.** Entra a [`https://grafana.homelab.local`](https://grafana.homelab.local) con `admin` y la
-   contraseña de 1Password, y comprueba que el panel de nodos muestra las temperaturas. Luego manda una alerta de prueba:
+7. **Probar de punta a punta.** Entra a [`https://grafana.homelab.local`](https://grafana.homelab.local) con **Sign in with SSO
+   (GitHub)** (ver [Grafana con SSO](#grafana-con-sso-de-dex)), o con `admin` y la contraseña de 1Password, y comprueba que el
+   panel de nodos muestra las temperaturas. Luego manda una alerta de prueba:
 
     ```bash
     kubectl -n monitoring port-forward svc/vmalertmanager-vm-victoria-metrics-k8s-stack 9093:9093 &
@@ -912,8 +914,8 @@ Haz los pasos 1 a 5 **antes** de activar la app en GitOps (paso 6): ArgoCD neces
 | Disco, memoria, reloj y pods | reglas por defecto del chart | aviso / crítica |
 
 Los umbrales de temperatura salen de los puntos de disparo que el propio hardware publica en `/sys`. Las reglas están en
-[`monitoring/config/rules`](https://github.com/symintel/gitops/tree/main/monitoring/config/rules) y tienen pruebas en
-[`monitoring/tests`](https://github.com/symintel/gitops/tree/main/monitoring/tests) (`monitoring/tests/run.sh`, con Docker): si cambias un
+[`monitoring/config/rules`](https://github.com/maceosoft/gitops/tree/main/monitoring/config/rules) y tienen pruebas en
+[`monitoring/tests`](https://github.com/maceosoft/gitops/tree/main/monitoring/tests) (`monitoring/tests/run.sh`, con Docker): si cambias un
 umbral, actualiza la prueba.
 
 ### Deshacer
@@ -923,6 +925,58 @@ Quita `victoria-metrics` y `victoria-metrics-config` de la lista de `root-appset
 (la convención de este repo). Para borrar también el historial de métricas y los Secrets,
 elimina el namespace: `kubectl delete namespace monitoring` (destructivo: se pierde el volumen de métricas).
 
+### Grafana con SSO de Dex
+
+Grafana usa el mismo Dex que Argo CD, Incus y vCluster (ver [4.7](#47-secretos-oauth-github-vcluster-incus-ui)). Todo viene en git, sin
+secretos nuevos:
+
+- **Cliente `grafana` en Dex** ([`dex.config`](https://github.com/maceosoft/gitops/blob/main/argocd/config/dex.config)): cliente
+  público con PKCE (proof key for code exchange), sin secreto, con la redirección `https://grafana.homelab.local/login/generic_oauth`.
+  Tras fusionar el cambio, reinicia Dex para que lo lea: `kubectl -n argocd rollout restart deploy argocd-dex-server`.
+- **`auth.generic_oauth` en Grafana** ([`values-vm-stack.yaml`](https://github.com/maceosoft/gitops/blob/main/monitoring/values-vm-stack.yaml)):
+  el grupo `maceosoft:devops` recibe el rol Admin y cualquier otro queda rechazado (`role_attribute_strict`). El usuario local `admin`
+  sigue activo como respaldo.
+- **CA del HomeLab:** Dex lo firma esa CA, y los pods no confían en ella. Un `Certificate` de cert-manager
+  ([`grafana-ca.yaml`](https://github.com/maceosoft/gitops/blob/main/monitoring/config/route/grafana-ca.yaml)) deja la CA en el Secret
+  `grafana-ca`, que se monta en Grafana como `tls_client_ca`.
+- **DNS de los pods:** CoreDNS reenviaba a los DNS de `deborah`, incluido el router, que responde NXDOMAIN (el nombre no existe) para `homelab.local`. Un
+  `coredns-custom` ([`coredns/`](https://github.com/maceosoft/gitops/tree/main/coredns)) reenvía `homelab.local` y `mco.local` solo
+  al BIND. Es la Application `coredns-custom`: como el ApplicationSet se aplicó a mano, tras fusionar ese cambio hay que volver a
+  ejecutar `kubectl apply -f gitops/bootstrap/root-appset.yaml`.
+
+### Métricas de Incus (opcional)
+
+Cada nodo de Incus publica en `https://<nodo>:8443/1.0/metrics` el uso de CPU, memoria, disco y red de **sus** instancias y VMs. Para leerlas hay que
+presentar un **certificado cliente** (un carnet digital) que Incus tenga en su lista de confianza con el tipo `metrics`: solo permite leer métricas,
+no administrar Incus. No hace falta tocar `core.metrics_address`: la API del puerto 8443 ya sirve ese endpoint.
+
+El certificado lo emite **cert-manager**, igual que los de los Gateway, así que no hay nada que crear a mano ni guardar en 1Password:
+
+1. **Fusiona el cambio de `gitops`.** Trae un `Certificate` (`incus-metrics`, namespace `monitoring`, firmado por el ClusterIssuer `homelab-ca`, uso
+   `client auth`, 10 años de duración) y el scrape
+   [`incus.yaml`](https://github.com/maceosoft/gitops/blob/main/monitoring/config/scrapes/incus.yaml). cert-manager deja el par de llaves en el Secret
+   `monitoring/incus-metrics`, y la llave privada no sale del clúster. Comprueba que está listo:
+
+    ```bash
+    kubectl -n monitoring get certificate incus-metrics   # READY = True
+    ```
+
+2. **Registra la parte pública en Incus** (desde `ansible/`):
+
+    ```bash
+    ansible-playbook -i inventory.ini playbook-incus-metrics.yml
+    ```
+
+    Lee `tls.crt` del Secret y lo añade al almacén de confianza de Incus con `--type=metrics` y el nombre `vmagent`. Si ya está, no hace nada.
+    Con la duración de 10 años no hace falta repetirlo; si cert-manager lo renovara, vuelve a correrlo.
+
+3. **Comprueba** en Grafana, *Explore*: `count by (nodename) (incus_procs_total)` debe devolver un valor por cada nodo con instancias. Después abre el
+   panel **Incus**.
+
+!!! warning "Que Incus confíe en el certificado, no en la CA"
+    No actives `core.trust_ca_certificates` en Incus: haría que cualquier certificado firmado por `homelab-ca` (incluidos los de los Gateway)
+    pudiera administrar Incus. El playbook añade solo este certificado y solo con el tipo `metrics`.
+
 ### Si falla
 
 | Síntoma | Causa probable | Qué revisar |
@@ -931,9 +985,82 @@ elimina el namespace: `kubectl delete namespace monitoring` (destructivo: se pie
 | `node-exporter` rechazado: *violates PodSecurity* | El namespace no tiene la etiqueta `privileged` | `kubectl get ns monitoring --show-labels`; vuelve a correr el paso 4 |
 | `vmsingle` en `Pending` | El volumen `longhorn` no se crea | `kubectl -n monitoring describe pvc`; estado de Longhorn ([4.4](#44-wave-1-pool-metallb-gateway-longhorn)) |
 | No llegan alertas a Discord | Alertmanager no lee el webhook | `kubectl -n monitoring logs` del Alertmanager (busca `discord`) y que existan los archivos en `/etc/alertmanager-secrets/` |
-| Grafana sin paneles | El Job de descarga no llegó a GitHub | `kubectl -n monitoring get jobs` y sus logs; salida a internet del clúster |
+| Grafana sin los paneles del chart (Kubernetes, nodos, VictoriaMetrics) | El Job de descarga no llegó a GitHub | `kubectl -n monitoring get jobs` y sus logs; salida a internet del clúster |
+| Falta un panel de la etiqueta `homelab` (ArgoCD, Longhorn, cert-manager, temperaturas) | El sidecar no recogió su ConfigMap | `kubectl -n monitoring get cm -l grafana_dashboard=1` debe listar cuatro `grafana-dashboard-*`; logs del contenedor `grafana-sc-dashboard` |
+| Un panel `homelab` sale vacío | Falta el scrape o las etiquetas no coinciden | [Monitoreo y alertas — Paneles](../operacion/monitoreo.md#paneles-de-grafana) |
+| No hay métricas `incus_*` | El certificado no está emitido o no está registrado en Incus | `kubectl -n monitoring get certificate incus-metrics` (READY) y, en invincible, `sudo incus config trust list` (debe haber un cliente `metrics` llamado `vmagent`) |
 | `grafana.homelab.local` no abre | Falta el registro DNS o la ruta | paso 5; `kubectl -n monitoring get httproute` |
-| `TargetDown` de etcd, scheduler o controller-manager | Se activaron los monitores de K3s | Deben estar `enabled: false` en [`values-vm-stack.yaml`](https://github.com/symintel/gitops/blob/main/monitoring/values-vm-stack.yaml) |
+| El SSO de Grafana falla con *Failed to get token from provider* | Grafana no resuelve o no confía en Dex | `kubectl -n monitoring logs deploy/vm-grafana -c grafana \| grep oauth`: *no such host* es el DNS (Application `coredns-custom`); *x509* es la CA (`grafana-ca`) |
+| El SSO de Grafana pide un cliente que no existe | Dex no leyó el cliente `grafana` | `kubectl -n argocd rollout restart deploy argocd-dex-server` |
+| `TargetDown` de etcd, scheduler o controller-manager | Se activaron los monitores de K3s | Deben estar `enabled: false` en [`values-vm-stack.yaml`](https://github.com/maceosoft/gitops/blob/main/monitoring/values-vm-stack.yaml) |
+
+---
+
+## 4.14 — Notificaciones de ArgoCD a Discord (opcional)
+
+ArgoCD trae un controlador de notificaciones, pero venía sin configurar: no avisaba de nada. Con la configuración de
+[`argocd/config/notifications`](https://github.com/maceosoft/gitops/tree/main/argocd/config/notifications) (repo `gitops`) llegan
+dos tipos de mensaje, para **todas** las Applications, sin anotar cada una:
+
+| Evento | Mensaje | Canal |
+|---|---|---|
+| Un sync terminó bien y la app está sana | 🚀 `<app>` desplegada, con la revisión, el estado y **las imágenes que usa** | tu canal `despliegues` |
+| Un sync falló | 🟡 `<app>`: el sync falló, con el mensaje de error | `alertas-avisos` |
+
+Las imágenes del mensaje son lo que enseña la versión real: cuando ArgoCD, Longhorn u otro producto se actualiza solo (los charts
+van con versión flotante, como `1.13.x`, y ArgoCD sigue la rama `stable`), el mensaje de despliegue lleva la versión nueva. Los
+estados que duran (una app `Degraded` más de 15 minutos o `OutOfSync` más de 30) los sigue cubriendo Alertmanager
+([4.13](#413-monitoreo-y-alertas-opcional)), así que las dos cosas no se repiten.
+
+!!! note "`despliegues` lo ve todo el equipo"
+    A diferencia de las alertas, que van a una categoría privada, `despliegues` es un canal de tu servidor que puede ver gente ajena a
+    infraestructura. Los mensajes llevan solo el nombre de la app, la revisión, las imágenes y un enlace a `argocd.homelab.local`.
+
+**Requisitos.** Los items de 1Password del [4.13](#413-monitoreo-y-alertas-opcional) (`discord-webhooks` incluido) y el
+playbook de secretos ya aplicado.
+
+### Pasos
+
+1. **Webhook del canal `despliegues`** en Discord, y guárdalo en el campo `deployments` del item `discord-webhooks`:
+   [Discord y healthchecks.io — paso 7](../maceosoft/discord-healthchecks.md#7-un-webhook-para-el-canal-de-despliegues-opcional).
+
+2. **Crear el Secret en el clúster** (desde `ansible/`). El script añade las claves al `argocd-notifications-secret` que ya trae
+   ArgoCD: `discord-despliegues-url` (el campo `deployments`) y `discord-avisos-url` (el `warnings` de las alertas). El campo es
+   opcional y se comprueba con el mismo formato de webhook de Discord:
+
+    ```bash
+    ../.venv/bin/python scripts/apply_platform_secrets.py --check
+    ansible-playbook -i inventory.ini playbook-platform-secrets.yml
+    ```
+
+3. **Fusionar el cambio de `gitops`.** No hace falta tocar el ApplicationSet: la configuración forma parte de la app `argocd`, que se
+   sincroniza sola. El controlador de notificaciones vigila su `ConfigMap` y su Secret, pero si no recoge el cambio, reinícialo:
+
+    ```bash
+    kubectl -n argocd rollout restart deploy/argocd-notifications-controller
+    ```
+
+4. **Probar.** Este comando envía **un mensaje real** al canal `despliegues` con los datos de la app `argocd`:
+
+    ```bash
+    kubectl -n argocd exec deploy/argocd-server -- \
+      argocd admin notifications template notify discord-deployed argocd --recipient discord-despliegues:
+    ```
+
+    Para probar las plantillas **sin enviar nada a Discord**, el repo `gitops` trae
+    [`argocd/config/notifications/test.sh`](https://github.com/maceosoft/gitops/blob/main/argocd/config/notifications/test.sh): las renderiza
+    contra una app real del clúster y un receptor local, y comprueba que el cuerpo es JSON válido y respeta los límites de Discord.
+    Necesita `kustomize`, Docker y un kubeconfig con acceso de lectura. Es la forma en que se validó esta configuración; el comando de
+    arriba, dentro del pod, no se ha probado.
+
+### Si falla
+
+| Síntoma | Causa probable | Qué revisar |
+|---|---|---|
+| No llega nada a `despliegues` | El Secret no tiene las claves, o el controlador no recargó | `kubectl -n argocd get secret argocd-notifications-secret -o jsonpath='{.data}'` debe listar `discord-despliegues-url` y `discord-avisos-url`; reinicia el controlador |
+| `config referenced '$discord-…', but key does not exist in secret` en los logs | Falta el campo `deployments` en 1Password | `--check` del script; vuelve a correr el playbook |
+| Llega un mensaje de más cada vez que un app se sincroniza | Es lo esperado: un mensaje por sync correcto | Si hay mucho ruido, afina el disparador `on-deployed` en `argocd/config/notifications` |
+| `HTTP 404` al enviar | El webhook se borró en Discord | Crea uno nuevo y actualiza `deployments` ([rotar](../operacion/rotar-credenciales.md#monitoreo-webhooks-de-discord-ping-de-healthchecksio-y-grafana)) |
 
 ---
 
@@ -962,12 +1089,12 @@ elimina el namespace: `kubectl delete namespace monitoring` (destructivo: se pie
 | Application `Degraded` | `kubectl describe application -n argocd <nombre>` |
 | Gateway sin dirección | `metallb-config`, pool libre |
 | SSO falla | Secretos 1Password + restart `argocd-dex-server` |
-| `homelab-root` `ComparisonError` / repo no accesible | Falta `argocd/repo-gitops`, o la App `symintel-argocd` no está instalada en `symintel/gitops`: re-correr `playbook-platform-secrets.yml` |
+| `homelab-root` `ComparisonError` / repo no accesible | Falta `argocd/repo-gitops`, o la App `maceosoft-argocd` no está instalada en `maceosoft/gitops`: re-correr `playbook-platform-secrets.yml` |
 | `arc-runners` `OutOfSync` y el pod del listener se reinicia cada pocos minutos | ArgoCD poda en bucle los recursos que crea el controlador de ARC (`AutoscalingListener`, `Role`, `RoleBinding`: copian la etiqueta `app.kubernetes.io/instance`). Se corrige con `application.resourceTrackingMethod: annotation` en `argocd-cm` (ya está en `gitops/argocd/config`). Comprueba: `kubectl -n argocd get cm argocd-cm -o jsonpath='{.data.application\.resourceTrackingMethod}'` → `annotation`; si no, sincroniza `argocd` y reinicia el controlador: `kubectl -n argocd rollout restart statefulset argocd-application-controller` |
 | Apps en `Error`: `ComparisonError … terminatingReplicas: field not declared in schema` | ArgoCD es anterior a la 3.5 y el clúster tiene Kubernetes 1.34 o más nuevo: [Actualizar ArgoCD](../operacion/actualizar-argocd.md#la-primera-vez-actualizar-a-mano-y-despues-activar-la-app) |
 | Login con GitHub da 404 (`client_id=.github.clientId`) | Faltan `dex.*` en `argocd-secret`: corre `playbook-dex-oauth-secrets.yml --tags argocd` ([4.7](#47-secretos-oauth-github-vcluster-incus-ui)) |
-| Runner no aparece en GitHub | `kubectl logs -n arc-systems` del listener; Secret `arc-runners/arc-runners-github-app` (App instalada en `symintel`) |
-| Pipeline `tofu` sin runner o sin credenciales | Runner `arc-runners` Online; Secrets `symintel-terraform-app`/`tofu-vars` en `arc-runners` |
+| Runner no aparece en GitHub | `kubectl logs -n arc-systems` del listener; Secret `arc-runners/arc-runners-github-app` (App instalada en `maceosoft`) |
+| Pipeline `tofu` sin runner o sin credenciales | Runner `arc-runners` Online; Secrets `terraform-app`/`tofu-vars` en `arc-runners` |
 | Longhorn pending | Etiquetas Longhorn ([playbook-options](../k3s/playbook-options.md)) |
 
 Catálogo y troubleshooting extendido: [GitOps — profundización](../gitops/index.md).

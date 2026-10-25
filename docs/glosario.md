@@ -34,6 +34,8 @@ vez que aparecen en cada página llevan el significado entre paréntesis.
 | **DMZ** | zona desmilitarizada | Opción del router que expone un equipo directo a internet. |
 | **DNS** | Domain Name System | Sistema que traduce nombres (argocd.homelab.local) a IPs. |
 | **DR** | recuperación ante desastres | Disaster recovery: cómo volver a levantar un servicio tras perderlo. |
+| **eMMC** | embedded MultiMediaCard | Almacenamiento flash soldado a la placa; es el disco de deborah y no tiene SMART. |
+| **EOL** | End Of Life | Fin de vida de un componente (en la eMMC, aviso de que quedan pocos bloques de reserva). |
 | **ESO** | [External Secrets Operator](https://external-secrets.io/) | Operador de Kubernetes que sincroniza secretos desde gestores externos. |
 | **FTP** | File Transfer Protocol | Protocolo para subir archivos al hosting (cPanel); también FTPS/SFTP. |
 | **HA** | alta disponibilidad | Diseño para que un servicio siga funcionando si cae un nodo. |
@@ -42,6 +44,7 @@ vez que aparecen en cada página llevan el significado entre paréntesis.
 | **IA** | inteligencia artificial | Programas que responden preguntas, resumen textos o generan ejercicios; aquí sirven de tutor para estudiar la guía (ver [Aprende con IA](aprende.md)). |
 | **Incus** | [Incus](https://linuxcontainers.org/incus/) | Gestor de contenedores y máquinas virtuales (fork comunitario de LXD); aloja las instancias donde corren los nodos del HomeLab. |
 | **IP** / IPs | dirección IP | Dirección de un equipo en la red (Internet Protocol). |
+| **JEDEC** | Joint Electron Device Engineering Council | Organismo que estandariza las memorias; define los campos de desgaste de la eMMC. |
 | **JSON** | JavaScript Object Notation | Formato de texto para datos estructurados. |
 | **K3s** | [distribución ligera de Kubernetes](https://k3s.io/) | Kubernetes empaquetado en un solo binario, pensado para edge y HomeLabs. |
 | **K8s** | [Kubernetes](https://kubernetes.io/) | Plataforma de orquestación de contenedores. |
@@ -60,6 +63,7 @@ vez que aparecen en cada página llevan el significado entre paréntesis.
 | **NIC** | tarjeta de red | Network Interface Card. |
 | **NTP** | [Network Time Protocol](https://www.ntp.org/) | Protocolo que sincroniza el reloj de los equipos; sin él los certificados TLS pueden parecer "aún no válidos". |
 | **NVMe** | disco SSD por PCIe | Non-Volatile Memory Express: discos SSD de alta velocidad. |
+| **NXDOMAIN** | [Non-Existent Domain](https://www.rfc-editor.org/rfc/rfc8020) | Respuesta de un servidor DNS que dice que el nombre no existe; el router la da para `homelab.local`, por eso los pods usan solo el BIND. |
 | **OCI** | [Open Container Initiative](https://opencontainers.org/) | Estándar de imágenes y registros; ARC y NGINX Gateway Fabric publican su chart de Helm en un registro OCI. |
 | **OIDC** | [OpenID Connect](https://openid.net/developers/how-connect-works/) | Protocolo de inicio de sesión sobre OAuth 2.0; Dex lo usa para el login con GitHub. |
 | **OpenPubkey** | [OpenPubkey](https://github.com/openpubkey/openpubkey) | Proyecto que convierte un login OIDC en una llave SSH de corta vida; lo usa [opkssh](https://github.com/openpubkey/opkssh) para entrar a los hosts con la identidad de Dex. |
@@ -72,8 +76,10 @@ vez que aparecen en cada página llevan el significado entre paréntesis.
 | **RAM** | memoria RAM | Memoria de trabajo del equipo. |
 | **RWX** | ReadWriteMany | Modo de acceso de un volumen que varios pods pueden montar a la vez, incluso en nodos distintos. |
 | **SANs** | Subject Alternative Names | Nombres e IPs extra que acepta un certificado TLS. |
+| **SATA** | Serial ATA | Interfaz de los discos y SSD de 2,5 pulgadas (invincible y oliver). |
 | **SBC** | Single Board Computer | Computador en una sola placa, como el Orange Pi 5 Plus. |
 | **SDK** | Software Development Kit | Librería para usar un servicio desde código (p. ej. el SDK de 1Password). |
+| **SMART** | Self-Monitoring, Analysis and Reporting Technology | Autodiagnóstico que traen los discos y SSD; avisa antes de que fallen. |
 | **SO** | sistema operativo |  |
 | **SOPS** | [Secrets OPerationS](https://github.com/getsops/sops) | Herramienta para cifrar secretos dentro de archivos YAML/JSON. |
 | **SPDK** | [Storage Performance Development Kit](https://spdk.io/) | Motor de almacenamiento de Longhorn v2 (no se usa aquí). |

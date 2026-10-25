@@ -1,8 +1,8 @@
-# Plataforma symintel — Discord y healthchecks.io
+# Plataforma maceosoft — Discord y healthchecks.io
 
 Cómo crear, **a mano y una sola vez**, las credenciales del [monitoreo](../implementacion/fase-4-gitops.md#413-monitoreo-y-alertas-opcional):
 los webhooks de Discord donde llegan las alertas y el check de healthchecks.io que avisa si el propio monitoreo cae. Al final
-se guardan en 1Password y [`playbook-platform-secrets.yml`](https://github.com/symintel/homelab/blob/main/ansible/playbook-platform-secrets.yml)
+se guardan en 1Password y [`playbook-platform-secrets.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-platform-secrets.yml)
 las lleva al clúster.
 
 !!! info "Los nombres de los menús están en inglés"
@@ -92,6 +92,17 @@ unset HOOK
 Debe aparecer "Prueba del webhook" en el canal; `curl` no imprime nada si todo va bien. Un error `404` significa que el webhook no existe
 (URL mal copiada o borrado).
 
+### 7. Un webhook para el canal de despliegues (opcional)
+
+Solo si quieres las [notificaciones de ArgoCD](../implementacion/fase-4-gitops.md#414-notificaciones-de-argocd-a-discord-opcional). Aquí se usa
+tu canal `despliegues`, que ya existe y **no está en la categoría privada**: lo ve todo el equipo. Es un webhook más, como los del paso 4:
+
+1. *Server Settings → Integrations → Webhooks → **Create Webhook*** (o **New Webhook**).
+2. **Name:** `ArgoCD`. **Channel:** `despliegues`.
+3. **Copy Webhook URL** y guárdala en el campo `deployments` del item `discord-webhooks` (parte 3).
+
+Las alertas de fallos de sync no necesitan otro webhook: reutilizan el de `alertas-avisos`.
+
 ## Parte 2 — healthchecks.io
 
 [healthchecks.io](https://healthchecks.io/) funciona como un **dead man's switch**: espera recibir un ping cada cierto tiempo y, si deja
@@ -151,12 +162,13 @@ Debe responder `OK` y el check pasa a **Up**. Cuando el monitoreo ya esté despl
 ## Parte 3 — Guardarlo en 1Password
 
 Los items van en la bóveda **`HomeLab`**, como **Nota segura**, con los campos **fuera de cualquier sección** y con el nombre exacto, porque el
-script los busca por nombre. Cómo crear un item con campos propios: [Plataforma symintel — GitHub](github.md#como-crear-un-item-con-campos-propios).
+script los busca por nombre. Cómo crear un item con campos propios: [Plataforma maceosoft — GitHub](github.md#como-crear-un-item-con-campos-propios).
 
 | Item | Campo | Contenido |
 |---|---|---|
 | `discord-webhooks` | `critical` | Webhook de `alertas-criticas` (parte 1, paso 4) |
 | | `warnings` | Webhook de `alertas-avisos` |
+| | `deployments` | *(opcional)* Webhook del canal `despliegues`, para las notificaciones de ArgoCD (parte 1, paso 7) |
 | `healthchecks-ping` | `url` | La ping URL del check (parte 2, paso 3) |
 | `grafana-admin` | `password` | Una contraseña generada con el generador de 1Password |
 | | `username` | *(opcional)* usuario del administrador; por defecto `admin` |

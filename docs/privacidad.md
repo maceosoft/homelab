@@ -3,8 +3,8 @@
 **Última actualización:** 4 de octubre de 2026
 
 Esta política explica qué datos se recogen cuando visitas esta documentación
-(`homelab.symintelligent.com`), para qué se usan y cómo puedes cambiar tu decisión.
-El sitio lo mantiene la organización [`symintel`](https://github.com/symintel) en GitHub.
+(`homelab.maceo.cl`), para qué se usan y cómo puedes cambiar tu decisión.
+El sitio lo mantiene la organización [`maceosoft`](https://github.com/maceosoft) en GitHub.
 
 ## En resumen
 
@@ -85,7 +85,7 @@ personales propios, en la práctica:
 ## Contacto
 
 Para cualquier consulta sobre esta política, abre un *issue* en
-[`symintel/homelab`](https://github.com/symintel/homelab/issues).
+[`maceosoft/homelab`](https://github.com/maceosoft/homelab/issues).
 
 !!! warning "Los issues son públicos"
     No incluyas datos personales en el issue. Si tu consulta los necesita, indícalo en el

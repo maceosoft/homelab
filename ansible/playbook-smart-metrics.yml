@@ -1,0 +1,17 @@
+---
+# Publica la salud de los discos de cada nodo (SMART de los SSD SATA, desgaste de la eMMC) como métricas,
+# para que el monitoreo avise por Discord. Ver roles/node_smart_metrics/README.md.
+#
+# Instala smartmontools (solo donde hay discos SATA) y un temporizador que lee los discos. No escribe en
+# los discos ni lanza autotests. Requiere el textfile collector de node-exporter (ver el README del rol).
+#
+#   ansible-playbook -i inventory.ini playbook-smart-metrics.yml --check --diff
+#   ansible-playbook -i inventory.ini playbook-smart-metrics.yml
+#
+# Es seguro correrlo en los tres nodos a la vez: no reinicia nada.
+
+- name: Métricas de salud de discos en los nodos
+  hosts: incus_cluster
+  become: true
+  roles:
+    - node_smart_metrics

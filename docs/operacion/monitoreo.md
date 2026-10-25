@@ -10,8 +10,16 @@ ve a [4.13 — Monitoreo y alertas](../implementacion/fase-4-gitops.md#413-monit
 
 ## Ver las temperaturas y el uso
 
-Entra a [`https://grafana.homelab.local`](https://grafana.homelab.local) (solo desde la red local) con el usuario
-`admin` y la contraseña del item `grafana-admin` de 1Password. Los paneles de nodos y de Kubernetes ya vienen cargados.
+Entra a [`https://grafana.homelab.local`](https://grafana.homelab.local) (solo desde la red local) y pulsa
+**Sign in with SSO (GitHub)**: es el mismo inicio de sesión que Argo CD, y solo entran los miembros del team `devops` de la
+organización `maceosoft`, que reciben el rol **Admin**. Cualquier otra persona es rechazada. Los paneles de nodos y de Kubernetes
+ya vienen cargados.
+
+??? note "Si el SSO no funciona: entrar con el usuario local"
+    El administrador local sigue activo como respaldo, porque el SSO depende de Dex, que vive en Argo CD, y de que el clúster
+    resuelva el DNS. Entra con el usuario `admin` y la contraseña del item `grafana-admin` de 1Password (en el formulario de la
+    misma pantalla, sin pulsar el botón SSO). Si el botón falla con *Failed to get token from provider*, mira el log de Grafana:
+    `kubectl -n monitoring logs deploy/vm-grafana -c grafana | grep oauth`.
 
 Para una consulta puntual usa *Explore* con estas expresiones:
 
@@ -21,6 +29,31 @@ Para una consulta puntual usa *Explore* con estas expresiones:
 | Memoria disponible (%) | `100 * node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes` |
 | Disco raíz usado (%) | `100 * (1 - node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})` |
 | Uso de CPU (%) | `100 * (1 - avg by (nodename) (rate(node_cpu_seconds_total{mode="idle"}[5m])))` |
+
+## Paneles de Grafana
+
+Los de la etiqueta **`homelab`** son los que se añadieron para esta plataforma; el resto vienen con el chart.
+
+| Panel | Para qué sirve | Origen |
+|---|---|---|
+| **HomeLab / Temperaturas** | Temperatura de `deborah` y de los dos Intel, ahora y en 24 horas, con líneas en los umbrales de las alertas, y las alertas de temperatura activas | propio (`homelab`) |
+| **ArgoCD** | Estado de sincronización y salud de las apps, operaciones de sync, uso del repo-server | grafana.com 14584 (`homelab`) |
+| **Longhorn Example** | Volúmenes, réplicas, uso y salud de los discos | grafana.com 13032 (`homelab`) |
+| **Cert-manager-Kubernetes** | Certificados, su vencimiento y su estado | grafana.com 20842 (`homelab`) |
+| **Incus** | CPU, memoria, disco y red de cada proyecto e instancia de Incus (sin la fila de logs de Loki, que no se usa) | grafana.com 19727 (`homelab`) |
+| **Node Exporter Full** | CPU, memoria, disco y red de cada nodo, y sensores de hardware | chart |
+| **Kubernetes / Views** (Global, Namespaces, Pods, Nodes) | Uso de recursos del clúster | chart |
+| **VictoriaMetrics** (single node, vmagent, vmalert, operator) y **Alertmanager** | Salud del propio monitoreo | chart |
+
+!!! warning "Revísalos tras el primer despliegue"
+    Los cinco de la etiqueta `homelab` se probaron cargándolos en un Grafana de la misma versión, pero **no contra las métricas reales de
+    tu clúster**. Si un panel sale vacío, mira en *Explore* si existe la métrica base (por ejemplo `argocd_app_info`,
+    `longhorn_volume_robustness` o `certmanager_certificate_expiration_timestamp_seconds`): puede faltar el scrape o que las etiquetas no
+    coincidan. El de Longhorn es de 2020, hecho para la versión 1.1: con la 1.13 algunos paneles pueden salir vacíos.
+
+!!! note "Kong: alertas sí, panel todavía no"
+    El plugin `prometheus` de Kong ya está activo (códigos HTTP y latencia por servicio) y hay alertas de errores 5xx, pero no se ha generado
+    el panel oficial de Kong (grafana.com 7424). Hay que revisar que sus consultas coincidan con las etiquetas reales antes de fijarlo.
 
 Las temperaturas de referencia, leídas del propio hardware: `deborah` (SoC, system on chip, el chip que reúne CPU y gráficos)
 reduce velocidad a 75 °C y otra vez a 85 °C; `invincible` y `oliver` tienen como límite del fabricante 100 °C.
@@ -41,6 +74,17 @@ reduce velocidad a 75 °C y otra vez a 85 °C; `invincible` y `oliver` tienen co
 | 🟡 `ArgoCDAppNoSana` / `Desincronizada` | Una app lleva más de 15 / 30 min fuera de `Healthy` / `Synced` | `kubectl get applications -n argocd` y la UI de ArgoCD |
 | 🟡 `NodosSinMetricas` | Algún nodo no envía métricas | `kubectl -n monitoring get pods -o wide` (¿falta un `node-exporter`?) |
 | 🟡 `SensoresTemperaturaSinDatos` | Se reciben métricas de un nodo, pero ninguna temperatura | Las alertas de temperatura de ese nodo no funcionarían: revisa `node-exporter` |
+| 🔴 `WebInaccesible` | ArgoCD, Dex o Grafana no responden `200` por su URL (lo que ve el usuario, aunque los pods estén bien) | Abre la URL; `kubectl -n kong get pods`, el Gateway y la ruta (`kubectl get httproute -A`) |
+| 🟡 `RedirectHttpRoto` / `DnsInternoFalla` / `CertificadoWebPorVencer` | El `http://` no redirige a `https://`; un nombre no resuelve dentro del clúster (CoreDNS o BIND); el certificado de un Gateway vence pronto | Comprueba el Gateway, el BIND de `deborah` y los certificados (`kubectl describe certificate -A`) |
+| 🔴/🟡 `KongErrores5xx` | Más del 5 % de las peticiones de un servicio devuelven 5xx (crítica si es ArgoCD, Grafana o Dex y pasa del 25 %) | Mira los logs del servicio y de Kong |
+| 🟡 `KongConfiguracionNoSeAplica` / `KongRecursosInvalidos` | El controlador de Kong no logra aplicar una ruta o hay recursos rotos | `kubectl -n kong logs deploy/kong-controller` y el `HTTPRoute` afectado |
+| 🔴 `CalicoNodoCaido` | Un nodo no tiene el pod de Calico: sus pods se quedan sin red | `kubectl -n calico-system get pods -o wide` |
+| 🟡 Calico, MetalLB, Sealed Secrets, ARC y ArgoCD (`CalicoFelix…`, `MetalLB…`, `SealedSecretsError…`, `ARC…`, `ArgoCDApplicationSetConErrores`) | Un componente de la plataforma falla, queda sin réplicas o sin métricas | El nombre de la alerta dice cuál; `kubectl -n <namespace> get pods` y sus logs |
+| 🔴/🟡 Discos y BIND (`DiscoSmartFalla`, `EmmcDesgastada`, `BindCaido`…) | SMART en fallo, SSD o eMMC desgastados, o el DNS de la LAN no responde | [Salud de los discos y del DNS](salud-de-discos.md) |
+| 🟡 `ParchesDeSeguridadPendientes` | Un nodo lleva más de 3 días con parches de seguridad sin instalar | Sigue [Parchear los nodos](parchear-nodos.md) |
+| 🟡 `ReinicioPendiente` | Una actualización ya instalada pide reiniciar el nodo, desde hace más de 7 días | Reinicia el nodo con el mismo procedimiento |
+| 🟡 `ListasDePaquetesViejas` | Las listas de apt llevan más de 7 días sin actualizarse: los avisos de parches pueden no ser reales | Mira `systemctl status node-apt-metrics.timer` en el nodo |
+| 🟡 `SinDatosDePaquetes` | `node-exporter` responde pero no publica los paquetes pendientes | Falta aplicar `playbook-apt-metrics.yml` en ese nodo |
 
 Además llegan las alertas estándar de Kubernetes y de los nodos que trae el chart (disco llenándose, memoria alta,
 reloj sin sincronizar por NTP o Network Time Protocol, pods que se reinician sin parar o con réplicas de menos). Su
@@ -49,6 +93,17 @@ descripción aparece en el propio mensaje. Después del primer despliegue, la li
 
 Los mensajes llevan el nombre del nodo y un resumen, **sin direcciones IP**, porque el canal puede ser visto por más
 personas. Una alerta crítica se repite cada 4 horas mientras siga activa; una de aviso, cada 12 horas.
+
+## Qué llega al canal de despliegues
+
+Además de las alertas, ArgoCD escribe en tu canal `despliegues` cada vez que una app termina un sync correcto
+([4.14](../implementacion/fase-4-gitops.md#414-notificaciones-de-argocd-a-discord-opcional)):
+
+- **🚀 `<app>` desplegada**: con la revisión, el estado y las imágenes que usa la app. Si ArgoCD, Longhorn u otro producto se
+  actualizó solo, la versión nueva aparece en esas imágenes (por ejemplo `quay.io/argoproj/argocd:v3.5.6`).
+- **🟡 `<app>`: el sync falló**: llega a `alertas-avisos` con el mensaje de error. Mira `kubectl describe application -n argocd <app>`.
+
+Esto es un **registro de lo que pasó**, no algo que atender: no hace falta responder a un 🚀.
 
 ## Silenciar una alerta
 
@@ -74,6 +129,7 @@ Alertmanager envía un ping a [healthchecks.io](https://healthchecks.io/), y si 
 
 ## Lo que todavía no cubre
 
-- La salud de los discos (SMART, el autodiagnóstico de los SSD) y el desgaste del almacenamiento de `deborah`.
-- Las métricas propias de Incus (instancias y VMs).
+- Los paneles de Kong, MetalLB y ARC de grafana.com (hay métricas y alertas, no panel).
+- Qué hace cada login en Dex (solo publica telemetría gRPC), las entregas fallidas de las notificaciones de ArgoCD y el estado de los planes de actualización de K3s.
+- OpenEBS, que no publica métricas útiles; solo lo cubren las alertas de réplicas.
 - Silenciar alertas o consultar el estado desde Discord (hoy se hace con `kubectl` y la interfaz de Alertmanager).

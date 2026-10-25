@@ -18,9 +18,9 @@ primero en 1Password (bóveda `HomeLab`) y después se lleva al clúster.
 
 | Credencial | Item en 1Password | Se aplica con |
 |---|---|---|
-| Private key de una GitHub App (`symintel-terraform`, `symintel-arc-runners`, `symintel-argocd`) | el item con el nombre de la App | `playbook-platform-secrets.yml` |
+| Private key de una GitHub App (`maceosoft-terraform`, `maceosoft-arc-runners`, `maceosoft-argocd`) | el item con el nombre de la App | `playbook-platform-secrets.yml` |
 | Credenciales FTP de un repo | `ftp-<repo>` | `playbook-platform-secrets.yml` + pipeline de `infra` |
-| Client secret de Dex (login con GitHub) | `symintel-dex` | `playbook-dex-oauth-secrets.yml` |
+| Client secret de Dex (login con GitHub) | `maceosoft-dex` | `playbook-dex-oauth-secrets.yml` |
 | Webhooks de Discord, ping URL de healthchecks.io y contraseña de Grafana (monitoreo) | `discord-webhooks`, `healthchecks-ping`, `grafana-admin` | `playbook-platform-secrets.yml` ([ver abajo](#monitoreo-webhooks-de-discord-ping-de-healthchecksio-y-grafana)) |
 | Contraseña de root de los nodos | `root@<nodo>` (la crea el playbook) | `playbook-rotate-root-passwords.yml` |
 | Llave de Sealed Secrets | `sealed-secrets` | `playbook-platform-secrets.yml` ([ojo: ver abajo](#llave-de-sealed-secrets)) |
@@ -28,7 +28,7 @@ primero en 1Password (bóveda `HomeLab`) y después se lleva al clúster.
 
 ## Private key de una GitHub App
 
-1. En GitHub: *symintel → Settings → Developer settings → GitHub Apps →*
+1. En GitHub: *maceosoft → Settings → Developer settings → GitHub Apps →*
    la App → *Private keys* → **Generate a private key**.
 2. En 1Password, reemplaza el campo `private_key` del item de esa App por el
    contenido completo del `.pem` nuevo.
@@ -39,7 +39,7 @@ primero en 1Password (bóveda `HomeLab`) y después se lleva al clúster.
     ansible-playbook -i inventory.ini playbook-platform-secrets.yml
     ```
 
-4. Si es la App de ARC (`symintel-arc-runners`), reinicia su *listener* para
+4. Si es la App de ARC (`maceosoft-arc-runners`), reinicia su *listener* para
    que tome la llave nueva: `kubectl -n arc-systems get pods` y borra el pod
    del listener (se recrea solo). Los runners nuevos ya usan la llave nueva.
 5. Cuando todo funcione, borra la llave **vieja** en GitHub (misma página,
@@ -56,13 +56,13 @@ primero en 1Password (bóveda `HomeLab`) y después se lleva al clúster.
     ansible-playbook -i inventory.ini playbook-platform-secrets.yml
     ```
 
-    Después, en `symintel/infra`: *Actions → tofu → Run workflow* sobre `main`.
+    Después, en `maceosoft/infra`: *Actions → tofu → Run workflow* sobre `main`.
 
 ## Client secret de Dex
 
-1. En la OAuth App *Symintel Dex*: **Generate a new client secret**. GitHub
+1. En la OAuth App *Maceosoft Dex*: **Generate a new client secret**. GitHub
    lo muestra una sola vez.
-2. Reemplaza `GITHUB_CLIENT_SECRET` en el item `symintel-dex`.
+2. Reemplaza `GITHUB_CLIENT_SECRET` en el item `maceosoft-dex`.
 3. Aplica (actualiza `argocd-secret` y reinicia Dex):
 
     ```bash
@@ -79,12 +79,12 @@ playbook los lleva al namespace `monitoring`; nunca se escriben en git.
 
 1. Genera el valor nuevo:
     - **Webhook de Discord:** Discord no permite regenerar el token de un webhook. En *Server Settings → Integrations → Webhooks*, usa
-      **Delete Webhook** y crea uno nuevo ([cómo](../symintel/discord-healthchecks.md#4-un-webhook-por-canal)); copia su URL.
+      **Delete Webhook** y crea uno nuevo ([cómo](../maceosoft/discord-healthchecks.md#4-un-webhook-por-canal)); copia su URL.
     - **Ping URL de healthchecks.io:** crea un check nuevo con la misma configuración (**Period** de 5 minutos, **Grace Time** de 10 y su
       integración con Discord), copia su ping URL y borra el viejo. Los pasos están en
-      [Discord y healthchecks.io](../symintel/discord-healthchecks.md#parte-2-healthchecksio).
+      [Discord y healthchecks.io](../maceosoft/discord-healthchecks.md#parte-2-healthchecksio).
     - **Contraseña de Grafana:** una nueva en 1Password.
-2. Reemplaza el campo en su item (`critical` o `warnings` en `discord-webhooks`, `url` en `healthchecks-ping`, `password` en
+2. Reemplaza el campo en su item (`critical`, `warnings` o `deployments` en `discord-webhooks`, `url` en `healthchecks-ping`, `password` en
    `grafana-admin`).
 3. Comprueba y aplica:
 
@@ -124,7 +124,7 @@ la renovación automática está desactivada.
 Solo hay que tocarla si se filtró la llave **privada**. En ese caso:
 
 1. Genera un par nuevo
-   ([comando](../symintel/github.md#paso-2-repos-app-de-argocd-y-ftp-manual)).
+   ([comando](../maceosoft/github.md#paso-2-repos-app-de-argocd-y-ftp-manual)).
 2. **Antes de reemplazar nada**, vuelve a sellar cada secreto con la llave
    nueva (`kubeseal --cert <tls.crt nuevo> …`) y commitea los `SealedSecret`
    nuevos.
@@ -141,5 +141,5 @@ funcionando. Hazlo **antes** de activar `sealed-secrets` en
 
 - `apply_platform_secrets.py --check` muestra todo en ✓.
 - ArgoCD sigue sincronizando `gitops` (`kubectl get applications -n argocd`).
-- El runner aparece *Online* en *symintel → Settings → Actions → Runners*.
+- El runner aparece *Online* en *maceosoft → Settings → Actions → Runners*.
 - El login con GitHub funciona en ArgoCD.

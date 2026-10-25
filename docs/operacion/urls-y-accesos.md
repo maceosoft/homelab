@@ -19,7 +19,7 @@ Si tu equipo no usa ese DNS, agrega las entradas a tu archivo `hosts` (ver [Resu
     </div>
     <div class="card-col">
       <div class="card-title">Grafana <span class="tag">Opcional</span></div>
-      <div class="text-muted">Temperaturas y uso de los nodos · usuario local</div>
+      <div class="text-muted">Temperaturas y uso de los nodos · SSO con GitHub</div>
       <div class="text-muted"><a href="https://grafana.homelab.local">grafana.homelab.local</a></div>
     </div>
     <div class="card-col">
@@ -30,7 +30,7 @@ Si tu equipo no usa ese DNS, agrega las entradas a tu archivo `hosts` (ver [Resu
     <div class="card-col">
       <div class="card-title">Documentación</div>
       <div class="text-muted">Esta guía</div>
-      <div class="text-muted"><a href="https://homelab.symintelligent.com">homelab.symintelligent.com</a></div>
+      <div class="text-muted"><a href="https://homelab.maceo.cl">homelab.maceo.cl</a></div>
     </div>
   </div>
 </div>
@@ -40,13 +40,13 @@ Si tu equipo no usa ese DNS, agrega las entradas a tu archivo `hosts` (ver [Resu
 | Producto | Dirección | Acceso |
 |---|---|---|
 | **Argo CD** (GitOps) | [`https://argocd.homelab.local`](https://argocd.homelab.local) | GitHub, con SSO (inicio de sesión único) a través de Dex |
-| **Dex** (SSO) | [`https://argocd.homelab.local/api/dex`](https://argocd.homelab.local/api/dex/.well-known/openid-configuration) (emisor OIDC) | Sin interfaz propia: lo usan Argo CD, Incus UI y vCluster |
+| **Dex** (SSO) | [`https://argocd.homelab.local/api/dex`](https://argocd.homelab.local/api/dex/.well-known/openid-configuration) (emisor OIDC) | Sin interfaz propia: lo usan Argo CD, Incus UI, vCluster, Grafana y el SSH con `opkssh` |
 | **Incus UI** | [`https://incus.homelab.local:8443/ui/`](https://incus.homelab.local:8443/ui/) | SSO (GitHub, vía Dex) o certificado TLS |
-| **Grafana** (monitoreo) | [`https://grafana.homelab.local`](https://grafana.homelab.local) | Usuario `admin` y contraseña del item `grafana-admin` de 1Password. Qué mirar: [Monitoreo y alertas](monitoreo.md) |
+| **Grafana** (monitoreo) | [`https://grafana.homelab.local`](https://grafana.homelab.local) | SSO con GitHub (team `devops`, rol Admin); el usuario `admin` con la contraseña del item `grafana-admin` de 1Password queda de respaldo. Qué mirar: [Monitoreo y alertas](monitoreo.md) |
 | **SSH a los servidores** | `ssh devops@<servidor>.homelab.local` (`invincible`, `oliver`, `deborah`) | Identidad de GitHub vía Dex, con `opkssh`: [Entrar por SSH a los servidores](acceso-ssh.md) |
 | **Longhorn UI** | No está publicada: `kubectl port-forward` y [`http://127.0.0.1:8080`](http://127.0.0.1:8080) | Sin login |
 | **vCluster Platform** | [`https://vcluster.homelab.local`](https://vcluster.homelab.local) | SSO (vía Dex). Se activa en la Fase 5; sin ella la URL responde 404 |
-| **Documentación** | [`https://homelab.symintelligent.com`](https://homelab.symintelligent.com) | Pública |
+| **Documentación** | [`https://homelab.maceo.cl`](https://homelab.maceo.cl) | Pública |
 | **API de Kubernetes** | `https://192.168.20.5:6443` (`deborah`) | `kubeconfig` |
 | **Gateway** (Kong) | `192.168.23.200` | — (recibe el tráfico de `argocd`, `vcluster` y `api`) |
 | **DNS** (BIND) | `192.168.20.5` | — (zonas `homelab.local` y `mco.local`) |
@@ -58,7 +58,7 @@ Si tu equipo no usa ese DNS, agrega las entradas a tu archivo `hosts` (ver [Resu
 
 ## Argo CD
 
-La interfaz de GitOps. Pide iniciar sesión con GitHub (Dex); solo entran los miembros del team `devops` de la organización `symintel`.
+La interfaz de GitOps. Pide iniciar sesión con GitHub (Dex); solo entran los miembros del team `devops` de la organización `maceosoft`.
 
 ??? note "Ver captura: inicio de sesión de Argo CD"
     ![Pantalla de inicio de sesión de Argo CD con el botón «Log in via GitHub»](../assets/screenshots/argocd-login.jpg){ loading=lazy }
@@ -121,10 +121,10 @@ Estas piezas no tienen UI; se revisan con `kubectl` o con Argo CD:
 
 | Qué | Dónde |
 |---|---|
-| Código (Ansible, OpenTofu, documentación) | [`symintel/homelab`](https://github.com/symintel/homelab) |
-| Manifiestos GitOps | [`symintel/gitops`](https://github.com/symintel/gitops) |
-| Pipelines reutilizables | [`symintel/core-pipelines`](https://github.com/symintel/core-pipelines) |
-| Documentación completa en texto plano (para IA) | [`llms-full.txt`](https://homelab.symintelligent.com/llms-full.txt) |
+| Código (Ansible, OpenTofu, documentación) | [`maceosoft/homelab`](https://github.com/maceosoft/homelab) |
+| Manifiestos GitOps | [`maceosoft/gitops`](https://github.com/maceosoft/gitops) |
+| Pipelines reutilizables | [`maceosoft/core-pipelines`](https://github.com/maceosoft/core-pipelines) |
+| Documentación completa en texto plano (para IA) | [`llms-full.txt`](https://homelab.maceo.cl/llms-full.txt) |
 | Cuaderno de estudio con IA | [Aprende con IA](../aprende.md) |
 
 ## Comprobar que responden

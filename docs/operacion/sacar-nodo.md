@@ -8,7 +8,7 @@ equipo, saca el viejo con este procedimiento y agrega el nuevo con
 !!! danger "Nodos que no se sacan con este procedimiento"
     - **`deborah`** es el control plane de K3s y el DNS (BIND): sacarlo
       apaga el clúster. Hay que reconstruirlo (ver el
-      [runbook de bootstrap](https://github.com/symintel/homelab/blob/main/ansible/bootstrap/README.md)).
+      [runbook de bootstrap](https://github.com/maceosoft/homelab/blob/main/ansible/bootstrap/README.md)).
     - **`invincible`** es el *leader* de Incus y aloja la UI (interfaz de usuario) de Incus:
       antes hay que mover esos roles a otro nodo.
     - **Quorum de Incus:** el clúster tiene 3 miembros. Con 2, sigue

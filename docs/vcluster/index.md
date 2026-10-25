@@ -14,7 +14,7 @@ cluster) y de vclusters, sin depender solo de CLI (interfaz de línea de comando
 |---|---|
 | Clústeres virtuales | API Kubernetes aislada dentro del management K3s, sin levantar VMs Incus |
 | UI web | Crear/borrar vclusters, ver estado, conectar desde navegador |
-| SSO | Login OIDC vía **Dex** → **GitHub** (team `devops` de la org `symintel`); credenciales en 1Password |
+| SSO | Login OIDC vía **Dex** → **GitHub** (team `devops` de la org `maceosoft`); credenciales en 1Password |
 | Kubeconfig | **Download kubeconfig** / **Connect** para el **host K3s** (connected cluster) y para cada **vCluster** |
 
 Sync **manual** — Application `vcluster-platform` (comentada en el ApplicationSet `homelab-root`: se activa a mano).
@@ -23,10 +23,10 @@ Sync **manual** — Application `vcluster-platform` (comentada en el Application
 
 | Recurso | Para qué sirve |
 |---|---|
-| [`vcluster-platform.yaml`](https://github.com/symintel/gitops/blob/main/argocd/apps/vcluster-platform.yaml) | Application Helm que instala Loft Platform en `vcluster-platform` |
-| [`vcluster/values/platform.yaml`](https://github.com/symintel/gitops/blob/main/vcluster/values/platform.yaml) | HTTPRoute `vcluster.homelab.local` (`vcluster/route`), OIDC issuer → ArgoCD Dex |
-| [`argocd/config/dex.config`](https://github.com/symintel/gitops/blob/main/argocd/config/dex.config) | Connector GitHub + OAuth client `vcluster-platform` |
-| [`argocd/secrets/1password.md`](https://github.com/symintel/gitops/blob/main/argocd/secrets/1password.md) | Ítems 1Password → `argocd-secret` |
+| [`vcluster-platform.yaml`](https://github.com/maceosoft/gitops/blob/main/argocd/apps/vcluster-platform.yaml) | Application Helm que instala Loft Platform en `vcluster-platform` |
+| [`vcluster/values/platform.yaml`](https://github.com/maceosoft/gitops/blob/main/vcluster/values/platform.yaml) | HTTPRoute `vcluster.homelab.local` (`vcluster/route`), OIDC issuer → ArgoCD Dex |
+| [`argocd/config/dex.config`](https://github.com/maceosoft/gitops/blob/main/argocd/config/dex.config) | Connector GitHub + OAuth client `vcluster-platform` |
+| [`argocd/secrets/1password.md`](https://github.com/maceosoft/gitops/blob/main/argocd/secrets/1password.md) | Ítems 1Password → `argocd-secret` |
 | **`argocd-route`** | Publica ArgoCD/Dex en `argocd.homelab.local` (ver [GitOps](../gitops/index.md)) |
 
 ## Flujo de autenticación
@@ -77,8 +77,8 @@ ArgoCD UI → `vcluster-platform` → **Sync**.
 ### 3. Validar SSO GitHub
 
 Tras sync de `argocd`, login en ArgoCD o Platform debe ofrecer **GitHub**.
-Si falla, revisa el Redirect URIs de la OAuth App y el team `symintel/devops` en
-[`dex.config`](https://github.com/symintel/gitops/blob/main/argocd/config/dex.config).
+Si falla, revisa el Redirect URIs de la OAuth App y el team `maceosoft/devops` en
+[`dex.config`](https://github.com/maceosoft/gitops/blob/main/argocd/config/dex.config).
 
 Con SSO estable, pon `auth.password.disabled: true` en `platform.yaml`.
 

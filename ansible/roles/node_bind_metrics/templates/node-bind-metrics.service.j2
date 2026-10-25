@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Métricas de BIND (named) para node-exporter
+After=named.service
+
+[Service]
+Type=oneshot
+Environment=BIND_SERVER={{ node_bind_metrics_server }}
+Environment=BIND_QUERY_NAME={{ node_bind_metrics_query_name }}
+Environment=BIND_UNIT={{ node_bind_metrics_unit }}
+ExecStart=/usr/local/bin/node-bind-metrics {{ node_bind_metrics_dir }}
+Nice=10

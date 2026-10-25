@@ -1,0 +1,12 @@
+---
+# Publica como métricas si BIND (named) está activo y responde, para que el monitoreo avise por Discord.
+# Ver roles/node_bind_metrics/README.md. NO cambia la configuración de BIND ni lo reinicia: solo consulta.
+#
+#   ansible-playbook -i inventory.ini playbook-bind-metrics.yml --check --diff
+#   ansible-playbook -i inventory.ini playbook-bind-metrics.yml
+
+- name: Métricas de BIND en deborah
+  hosts: deborah
+  become: true
+  roles:
+    - node_bind_metrics

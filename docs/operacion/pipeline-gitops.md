@@ -1,9 +1,9 @@
 # Pipeline de gitops
 
-Cada cambio en [`symintel/gitops`](https://github.com/symintel/gitops) se
+Cada cambio en [`maceosoft/gitops`](https://github.com/maceosoft/gitops) se
 valida **antes** de que ArgoCD lo aplique en el clúster. Lo hace el workflow
 reutilizable
-[`gitops.yml`](https://github.com/symintel/core-pipelines/blob/main/.github/workflows/gitops.yml)
+[`gitops.yml`](https://github.com/maceosoft/core-pipelines/blob/main/.github/workflows/gitops.yml)
 de `core-pipelines`, llamado desde `gitops/.github/workflows/validate.yml`.
 Corre en el runner `arc-runners` del HomeLab (todos los workflows de
 `core-pipelines` corren en ARC). Las herramientas que instala (helm, kustomize,
@@ -42,7 +42,7 @@ exista, el job se salta con un aviso y los demás jobs corren igual.
 
 2. En 1Password, bóveda `HomeLab`, crea el item **`argocd-ci`** (Nota segura)
    con un campo **`token`** (Contraseña) y pega el token
-   ([cómo crear un item](../symintel/github.md#como-crear-un-item-con-campos-propios)).
+   ([cómo crear un item](../maceosoft/github.md#como-crear-un-item-con-campos-propios)).
 3. Llévalo al clúster (crea el Secret `arc-runners/argocd-ci`), desde
    `ansible/` en `homelab`:
 

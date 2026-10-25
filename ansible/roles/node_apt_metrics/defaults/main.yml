@@ -1,0 +1,13 @@
+---
+# node_apt_metrics — valores por defecto. Ver README.md del rol.
+
+# Carpeta del "textfile collector" de node-exporter. Tiene que coincidir con la que monta el chart
+# (gitops: monitoring/values-vm-stack.yaml, hostPath del DaemonSet de node-exporter).
+node_apt_metrics_dir: /var/lib/node_exporter/textfile
+
+# Cada cuánto se recalculan los paquetes pendientes.
+node_apt_metrics_interval: 6h
+
+# Refrescar las listas de apt (apt-get update) antes de contar. Solo baja listas: no instala nada.
+# Sin esto el recuento se queda viejo si nada más actualiza las listas (en estos nodos tenían 17 días).
+node_apt_metrics_refresh_lists: true

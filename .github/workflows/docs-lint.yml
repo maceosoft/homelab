@@ -1,6 +1,6 @@
 name: Lint docs y manifiestos (solo en Pull Requests)
 # Corre en el runner arc-runners del HomeLab (no trae herramientas: Python se instala en cada job).
-# Los workflows reutilizables equivalentes están en symintel/core-pipelines (mkdocs.yml,
+# Los workflows reutilizables equivalentes están en maceosoft/core-pipelines (mkdocs.yml,
 # ansible.yml, tofu-validate.yml), pero un repo público no puede llamar a uno privado.
 on:
   pull_request:

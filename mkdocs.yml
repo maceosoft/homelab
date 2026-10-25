@@ -1,8 +1,8 @@
 site_name: HomeLab — K3s + Incus + CAPN
 site_description: Documentación de un HomeLab híbrido x86_64 + ARM64 (Incus, K3s, CAPN, ArgoCD)
-site_url: https://homelab.symintelligent.com/
-repo_url: https://github.com/symintel/homelab
-repo_name: symintel/homelab
+site_url: https://homelab.maceo.cl/
+repo_url: https://github.com/maceosoft/homelab
+repo_name: maceosoft/homelab
 edit_uri: edit/main/docs/
 docs_dir: docs
 
@@ -127,7 +127,7 @@ plugins:
           - gitops/*.md
           - storage/*.md
           - secrets/*.md
-          - symintel/*.md
+          - maceosoft/*.md
           - vcluster/*.md
           - capn/*.md
           - ansible/*.md
@@ -135,7 +135,7 @@ plugins:
           - labs/cinc/*.md
 
 # Muchas páginas enlazan deliberadamente a fuentes fuera de docs_dir
-# (ansible/, repo symintel/gitops) en vez de duplicar su contenido aquí.
+# (ansible/, repo maceosoft/gitops) en vez de duplicar su contenido aquí.
 # MkDocs no puede validar esos archivos por estar fuera de docs/,
 # así que se bajan a "info" para no romper `mkdocs build --strict`.
 validation:
@@ -172,12 +172,16 @@ nav:
       - Sacar o reemplazar un nodo: operacion/sacar-nodo.md
       - Agregar un disco a un nodo: operacion/agregar-disco.md
       - Backups y snapshots de Incus: operacion/backups-incus.md
+      - Parchear los nodos: operacion/parchear-nodos.md
       - Actualizar K3s: operacion/actualizar-k3s.md
       - Actualizar ArgoCD: operacion/actualizar-argocd.md
       - Cambiar el controlador de Gateway: operacion/cambiar-gateway.md
       - Caché de los runners (ARC): operacion/cache-arc.md
       - Calico (CNI) con ArgoCD: operacion/actualizar-calico.md
       - Actualizar Debian en deborah (12 a 13): operacion/actualizar-debian-deborah.md
+      - Salud de los discos y del DNS: operacion/salud-de-discos.md
+      - Certificado de métricas de Incus: operacion/certificado-metricas-incus.md
+      - Avisos de versiones nuevas (Renovate): operacion/actualizaciones-de-productos.md
       - Rotar credenciales: operacion/rotar-credenciales.md
       - Pipeline de gitops: operacion/pipeline-gitops.md
   - Arquitectura:
@@ -202,8 +206,8 @@ nav:
       - CAPN: capn/index.md
       - Storage: storage/index.md
       - Secretos: secrets/index.md
-      - "Plataforma symintel — GitHub": symintel/github.md
-      - "Plataforma symintel — Discord y healthchecks.io": symintel/discord-healthchecks.md
+      - "Plataforma maceosoft — GitHub": maceosoft/github.md
+      - "Plataforma maceosoft — Discord y healthchecks.io": maceosoft/discord-healthchecks.md
       - Glosario: glosario.md
       - Seguridad:
           - Hardening post-incidente: security/hardening-post-incidente.md

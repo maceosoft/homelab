@@ -64,7 +64,7 @@ kubectl apply -f gitops/argocd/apps/vcluster-platform.yaml
 
 Argo CD UI → Application `vcluster-platform` → **Sync**.
 
-Secretos OAuth (si no en 4.7): [`argocd/secrets/1password.md`](https://github.com/symintel/gitops/blob/main/argocd/secrets/1password.md).
+Secretos OAuth (si no en 4.7): [`argocd/secrets/1password.md`](https://github.com/maceosoft/gitops/blob/main/argocd/secrets/1password.md).
 
 Tras sync de `vcluster-platform`, aplica `VCLUSTER_CLIENT_SECRET` en Helm:
 
@@ -156,7 +156,7 @@ Si no ves el clúster o no puedes descargar kubeconfig, asigna **Cluster Access*
 al usuario o equipo en Platform. Sin esa asignación, el login SSO funciona pero
 **no hay clústeres ni kubeconfig visibles** (denegar por defecto). Los grupos
 OIDC de GitHub llegan con prefijo `loft-` (ver
-[`platform.yaml`](https://github.com/symintel/gitops/blob/main/vcluster/values/platform.yaml)).
+[`platform.yaml`](https://github.com/maceosoft/gitops/blob/main/vcluster/values/platform.yaml)).
 
 ## Accesos web del HomeLab
 

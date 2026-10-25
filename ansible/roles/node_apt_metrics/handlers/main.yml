@@ -1,0 +1,6 @@
+---
+- name: Escribir las métricas de paquetes ahora
+  ansible.builtin.systemd:
+    name: node-apt-metrics.service
+    state: started
+  when: not ansible_check_mode

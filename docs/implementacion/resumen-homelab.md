@@ -74,7 +74,7 @@ Detalle hardware: [Inventario](../hardware/inventory.md).
 |---|---|---|
 | CNI | **Flannel** `vxlan` (embebido en K3s) | Canal, Calico o Cilium vía rol `k3s_cni` o apps GitOps manuales |
 
-Variable Ansible: `k3s_install.core.cni` en [`group_vars/incus_cluster/k3s_install.yml`](https://github.com/symintel/homelab/blob/main/ansible/group_vars/incus_cluster/k3s_install.yml).
+Variable Ansible: `k3s_install.core.cni` en [`group_vars/incus_cluster/k3s_install.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/group_vars/incus_cluster/k3s_install.yml).
 Detalle y trade-offs: [Fase 3 — CNI](fase-3-k3s.md#cni) · [playbook-options](../k3s/playbook-options.md#cni).
 
 Verificación:
@@ -97,9 +97,9 @@ Playbook: `playbook-dex-oauth-secrets.yml`.
 !!! important "Permisos por defecto"
     En vCluster Platform, los usuarios SSO (inicio de sesión único) **no ven nada** hasta asignarles
     acceso. En Incus, quien entra por SSO tiene acceso completo: el control es que Dex solo deja
-    pasar al team `devops` de `symintel`. Ver [Fase 4](fase-4-gitops.md) y [Fase 5](fase-5-vcluster.md).
+    pasar al team `devops` de `maceosoft`. Ver [Fase 4](fase-4-gitops.md) y [Fase 5](fase-5-vcluster.md).
 
-Documentación: [Secretos OAuth](https://github.com/symintel/gitops/blob/main/argocd/secrets/1password.md)
+Documentación: [Secretos OAuth](https://github.com/maceosoft/gitops/blob/main/argocd/secrets/1password.md)
 
 ## GitOps (Argo CD)
 
@@ -109,7 +109,7 @@ Apps típicas en `Healthy` tras Fase 4:
 - Opcionales (sync manual): `vcluster-platform`, `capn-demo`
 - CNI (solo si no usas Flannel embebido): `calico-operator` + `calico-config`, `canal` o `cilium` — **una** a la vez
 
-Repo: [`gitops`](https://github.com/symintel/gitops) · [`bootstrap/root-appset.yaml`](https://github.com/symintel/gitops/blob/main/bootstrap/root-appset.yaml)
+Repo: [`gitops`](https://github.com/maceosoft/gitops) · [`bootstrap/root-appset.yaml`](https://github.com/maceosoft/gitops/blob/main/bootstrap/root-appset.yaml)
 
 ## Verificación global
 

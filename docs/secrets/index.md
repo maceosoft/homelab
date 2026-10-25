@@ -3,7 +3,7 @@
 !!! info "Parte de la guía de implementación"
     - **[Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets)** — Fase 4 wave 0; CAPN (Cluster API Provider for Incus) Fase 6.
     - **OAuth Dex** — [Fase 4 paso 4.7](../implementacion/fase-4-gitops.md#47-secretos-oauth-github-vcluster-incus-ui).
-    - **Plataforma symintel** (Apps de ArgoCD, ARC y OpenTofu, FTP) — [1Password → clúster](../symintel/github.md#paso-3-cluster-y-secretos-de-plataforma).
+    - **Plataforma maceosoft** (Apps de ArgoCD, ARC y OpenTofu, FTP) — [1Password → clúster](../maceosoft/github.md#paso-3-cluster-y-secretos-de-plataforma).
 
 ## Diagrama — tres vías de secretos
 
@@ -42,7 +42,7 @@ rm secret-plano.yaml
     guarda en 1Password (item `sealed-secrets`) y
     `playbook-platform-secrets.yml` lo lleva al clúster; la renovación
     automática está desactivada (`keyrenewperiod: "0"`). Cómo generarlo:
-    [Plataforma symintel — Paso 2](../symintel/github.md#paso-2-repos-app-de-argocd-y-ftp-manual).
+    [Plataforma maceosoft — Paso 2](../maceosoft/github.md#paso-2-repos-app-de-argocd-y-ftp-manual).
 
     Como el certificado (la llave pública) también está en 1Password, puedes
     sellar sin tener acceso al clúster:
@@ -64,7 +64,7 @@ Credenciales de **GitHub OAuth App** y clientes Dex **vCluster Platform** e
 
 | Origen | Campos |
 |---|---|
-| **GitHub** (OAuth App de la org `symintel`) | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` |
+| **GitHub** (OAuth App de la org `maceosoft`) | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` |
 | **Ansible** (`playbook-dex-oauth-secrets.yml`) | `VCLUSTER_CLIENT_SECRET` (genera en 1Password si falta; aplica en Dex y Helm) |
 
 `VCLUSTER_CLIENT_SECRET` **no** se crea en GitHub: Ansible lo genera en 1Password si falta.
@@ -81,17 +81,18 @@ Homepage `https://argocd.homelab.local` (informativa); Redirect URIs
 `https://argocd.homelab.local/api/dex/callback` (crítico).
 
 Detalle: [Fase 4 — 4.7](../implementacion/fase-4-gitops.md#47-secretos-oauth-github-vcluster-incus-ui)
-· [`1password.md`](https://github.com/symintel/gitops/blob/main/argocd/secrets/1password.md)
+· [`1password.md`](https://github.com/maceosoft/gitops/blob/main/argocd/secrets/1password.md)
 
 ## Monitoreo: webhooks de Discord, ping de healthchecks.io y Grafana (1Password → Secrets del clúster)
 
 Opcional ([Fase 4 — 4.13](../implementacion/fase-4-gitops.md#413-monitoreo-y-alertas-opcional)). Cómo crear las credenciales:
-[Discord y healthchecks.io](../symintel/discord-healthchecks.md). `playbook-platform-secrets.yml` crea,
+[Discord y healthchecks.io](../maceosoft/discord-healthchecks.md). `playbook-platform-secrets.yml` crea,
 en el namespace `monitoring`, tres Secrets desde 1Password; sus valores nunca pasan por git porque el repo es público.
 
 | Item de 1Password | Campos | Secret en el clúster |
 |---|---|---|
 | `discord-webhooks` | `critical`, `warnings` | `monitoring/discord-webhooks` |
+| `discord-webhooks` | `deployments` *(opcional)* | claves `discord-despliegues-url` y `discord-avisos-url` en `argocd/argocd-notifications-secret` (notificaciones de ArgoCD, [4.14](../implementacion/fase-4-gitops.md#414-notificaciones-de-argocd-a-discord-opcional)) |
 | `healthchecks-ping` | `url` | `monitoring/healthchecks-ping` |
 | `grafana-admin` | `password` (y `username`, opcional) | `monitoring/grafana-admin` |
 
@@ -101,7 +102,7 @@ créalo de nuevo en Discord, actualiza el item y vuelve a correr el playbook.
 
 ## Rotación de password de root (1Password SDK local)
 
-[`playbook-rotate-root-passwords.yml`](https://github.com/symintel/homelab/blob/main/ansible/playbook-rotate-root-passwords.yml)
+[`playbook-rotate-root-passwords.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-rotate-root-passwords.yml)
 genera una password nueva por nodo (no idempotente a propósito — cada
 corrida rota), la aplica en el `root` local de cada host (`become` +
 `ansible.builtin.user`, hasheada con `password_hash('sha512')`) y la guarda

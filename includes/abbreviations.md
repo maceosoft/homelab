@@ -33,6 +33,8 @@
 *[DMZ]: zona desmilitarizada — Opción del router que expone un equipo directo a internet.
 *[DNS]: Domain Name System — Sistema que traduce nombres (argocd.homelab.local) a IPs.
 *[DR]: recuperación ante desastres — Disaster recovery: cómo volver a levantar un servicio tras perderlo.
+*[eMMC]: embedded MultiMediaCard — Almacenamiento flash soldado a la placa; es el disco de deborah y no tiene SMART.
+*[EOL]: End Of Life — Fin de vida de un componente (en la eMMC, aviso de que quedan pocos bloques de reserva).
 *[ESO]: External Secrets Operator — Operador de Kubernetes que sincroniza secretos desde gestores externos.
 *[FTP]: File Transfer Protocol — Protocolo para subir archivos al hosting (cPanel); también FTPS/SFTP.
 *[HA]: alta disponibilidad — Diseño para que un servicio siga funcionando si cae un nodo.
@@ -42,6 +44,7 @@
 *[Incus]: Incus — Gestor de contenedores y máquinas virtuales (fork comunitario de LXD); aloja las instancias donde corren los nodos del HomeLab.
 *[IP]: dirección IP — Dirección de un equipo en la red (Internet Protocol).
 *[IPs]: dirección IP — Dirección de un equipo en la red (Internet Protocol).
+*[JEDEC]: Joint Electron Device Engineering Council — Organismo que estandariza las memorias; define los campos de desgaste de la eMMC.
 *[JSON]: JavaScript Object Notation — Formato de texto para datos estructurados.
 *[K3s]: distribución ligera de Kubernetes — Kubernetes empaquetado en un solo binario, pensado para edge y HomeLabs.
 *[K8s]: Kubernetes — Plataforma de orquestación de contenedores.
@@ -60,6 +63,7 @@
 *[NIC]: tarjeta de red — Network Interface Card.
 *[NTP]: Network Time Protocol — Protocolo que sincroniza el reloj de los equipos; sin él los certificados TLS pueden parecer "aún no válidos".
 *[NVMe]: disco SSD por PCIe — Non-Volatile Memory Express: discos SSD de alta velocidad.
+*[NXDOMAIN]: Non-Existent Domain — Respuesta de un DNS que dice que el nombre no existe.
 *[OCI]: Open Container Initiative — Estándar de imágenes y registros; ARC y NGINX Gateway Fabric publican su chart de Helm en un registro OCI.
 *[OIDC]: OpenID Connect — Protocolo de inicio de sesión sobre OAuth 2.0; Dex lo usa para el login con GitHub.
 *[OpenPubkey]: Proyecto que convierte un login OIDC en una llave SSH de corta vida; lo usa opkssh para entrar a los hosts con la identidad de Dex.
@@ -74,8 +78,10 @@
 *[RAM]: memoria RAM — Memoria de trabajo del equipo.
 *[RWX]: ReadWriteMany — Modo de acceso de un volumen que varios pods pueden montar a la vez, incluso en nodos distintos.
 *[SANs]: Subject Alternative Names — Nombres e IPs extra que acepta un certificado TLS.
+*[SATA]: Serial ATA — Interfaz de los discos y SSD de 2,5 pulgadas (invincible y oliver).
 *[SBC]: Single Board Computer — Computador en una sola placa, como el Orange Pi 5 Plus.
 *[SDK]: Software Development Kit — Librería para usar un servicio desde código (p. ej. el SDK de 1Password).
+*[SMART]: Self-Monitoring, Analysis and Reporting Technology — Autodiagnóstico que traen los discos y SSD; avisa antes de que fallen.
 *[SO]: sistema operativo
 *[SOPS]: Secrets OPerationS — Herramienta para cifrar secretos dentro de archivos YAML/JSON.
 *[SPDK]: Storage Performance Development Kit — Motor de almacenamiento de Longhorn v2 (no se usa aquí).

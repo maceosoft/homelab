@@ -1,31 +1,38 @@
 #!/usr/bin/env python3
-"""Secretos de plataforma de la org symintel: 1Password -> clúster.
+"""Secretos de plataforma de la org maceosoft: 1Password -> clúster.
 
 Crea (o actualiza) los namespaces y Secrets que tienen que existir ANTES de
 GitOps, y que no pueden vivir en git:
 
-  argocd/repo-gitops                       App symintel-argocd: ArgoCD lee symintel/gitops (privado)
+  argocd/repo-gitops                       App maceosoft-argocd: ArgoCD lee maceosoft/gitops (privado)
   arc-runners/arc-runners-github-app       App de ARC (registro del runner)
-  arc-runners/symintel-terraform-app       App de OpenTofu, como TF_VAR_github_app_*
+  arc-runners/terraform-app                App de OpenTofu, como TF_VAR_github_app_*
+  arc-runners-symintel/...                 lo mismo para la org antigua (symintel), opcional: ver abajo
   arc-runners/tofu-vars                    TF_VAR_ftp (credenciales FTP por repo)
   arc-runners/argocd-ci                    ARGOCD_AUTH_TOKEN (opcional: diff del pipeline de gitops)
   kube-system/sealed-secrets-key-homelab   llave de Sealed Secrets (opcional, ver abajo)
   monitoring/discord-webhooks              webhooks de Discord de Alertmanager (opcional: monitoreo)
   monitoring/healthchecks-ping             ping URL de healthchecks.io (opcional: monitoreo)
   monitoring/grafana-admin                 usuario y contraseña de admin de Grafana (opcional: monitoreo)
+  argocd/argocd-notifications-secret       webhooks de Discord de las notificaciones de ArgoCD (opcional:
+                                           campo "deployments" de discord-webhooks)
   namespace terraform                      state de OpenTofu (lo escribe el runner)
 
-El único scale set (arc-runners, desplegado por ArgoCD desde symintel/gitops)
+El único scale set (arc-runners, desplegado por ArgoCD desde maceosoft/gitops)
 monta los dos últimos Secrets como variables de entorno.
 
 Items esperados en la bóveda (ONEPASSWORD_VAULT, default HomeLab); ver
-docs/symintel/github.md:
+docs/maceosoft/github.md:
 
-  symintel-argocd       app_id, installation_id, private_key
+  maceosoft-argocd       app_id, installation_id, private_key
   sealed-secrets        (opcional) certificate, private_key: el par de Sealed Secrets
-  symintel-arc-runners  app_id, installation_id, private_key
-  symintel-terraform    app_id, installation_id, private_key
-  discord-webhooks      (opcional, monitoreo) critical, warnings: URL de un webhook de Discord por canal
+  maceosoft-arc-runners  app_id, installation_id, private_key
+  maceosoft-terraform    app_id, installation_id, private_key
+  symintel-arc-runners  (opcional) app_id, installation_id, private_key: App de ARC de la org antigua; crea el namespace
+                        arc-runners-symintel y su Secret arc-runners-github-app (Application arc-runners-symintel)
+  symintel-terraform    (opcional) app_id, installation_id, private_key: App de OpenTofu de la org antigua
+  discord-webhooks      (opcional, monitoreo) critical, warnings: URL de un webhook de Discord por canal;
+                        deployments (opcional): webhook del canal de despliegues, para las notificaciones de ArgoCD
   healthchecks-ping     (opcional, monitoreo) url: ping URL del check de healthchecks.io
   grafana-admin         (opcional, monitoreo) password y, si quieres, username (default: admin)
   ftp-<repo>            (uno por repo con deploy) dev_host, dev_user,
@@ -52,15 +59,20 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from onepassword_homelab import VAULT_NAME, create_client, find_vault_id  # noqa: E402
 
-# Tiene que coincidir con el repoURL de las Applications de symintel/gitops.
-GITOPS_REPO_URL = "https://github.com/symintel/gitops.git"
+# Tiene que coincidir con el repoURL de las Applications de maceosoft/gitops.
+GITOPS_REPO_URL = "https://github.com/maceosoft/gitops.git"
 RUNNER_NAMESPACE = "arc-runners"
+# Org antigua (symintel): su scale set corre en otro namespace, con los mismos nombres de Secret. Opcional.
+LEGACY_ORG = "symintel"
+LEGACY_RUNNER_NAMESPACE = "arc-runners-symintel"
+LEGACY_ARC_ITEM = "symintel-arc-runners"
+LEGACY_TF_ITEM = "symintel-terraform"
 STATE_NAMESPACE = "terraform"
 FTP_ITEM_PREFIX = "ftp-"
 # Token de la cuenta "ci" de ArgoCD (solo lectura). Opcional: se genera recién
 # cuando ArgoCD funciona; mientras no exista el item, el Secret no se crea.
 ARGOCD_CI_ITEM = "argocd-ci"
-# Par de llaves de Sealed Secrets, generado por el operador (docs/symintel/github.md).
+# Par de llaves de Sealed Secrets, generado por el operador (docs/maceosoft/github.md).
 # El controlador usa un Secret tls de kube-system con la etiqueta "active" en vez de
 # generar su propia llave: así los SealedSecret de git sobreviven a reinstalar K3s.
 # Opcional: hasta la Fase 6 (CAPN) nada lo necesita.
@@ -73,6 +85,10 @@ FTP_FIELDS = ("host", "user", "password", "remote_dir")
 # ninguno de los tres items, no se configura nada; si existe alguno, tienen que estar completos los tres.
 # El namespace es "privileged" porque node-exporter usa hostPath/hostNetwork.
 MONITORING_NAMESPACE = "monitoring"
+# Notificaciones de ArgoCD a Discord: el Secret ya lo crea el manifiesto de ArgoCD (vacío); aquí solo se le añaden
+# las claves que leen sus servicios (gitops: argocd/config/notifications). "avisos" reutiliza el webhook "warnings".
+ARGOCD_NAMESPACE = "argocd"
+ARGOCD_NOTIFICATIONS_SECRET = "argocd-notifications-secret"
 DISCORD_ITEM = "discord-webhooks"
 HEARTBEAT_ITEM = "healthchecks-ping"
 GRAFANA_ITEM = "grafana-admin"
@@ -162,6 +178,19 @@ async def read_app(client, item: str) -> dict[str, str]:
     }
 
 
+async def read_app_optional(client, item: str) -> dict[str, str] | None:
+    """Como read_app, pero None si el item no existe (opcional). Error si tiene solo parte de los campos."""
+    ref = f"op://{VAULT_NAME}/{item}"
+    raw = {f: (await read_optional(client, f"{ref}/{f}")).strip() for f in ("app_id", "installation_id", "private_key")}
+    if not any(raw.values()):
+        return None
+    missing = [f for f, v in raw.items() if not v]
+    if missing:
+        raise RuntimeError(f"{ref}: faltan los campos {', '.join(missing)} (hacen falta app_id, installation_id y private_key).")
+    raw["private_key"] = check_pem(normalize_pem(raw["private_key"]), f"{ref}/private_key")
+    return raw
+
+
 async def read_monitoring(client) -> dict[str, str] | None:
     """Valores del monitoreo, o None si no hay ningún item (opcional). Error si están incompletos o mal formados."""
     ref = lambda item, field: f"op://{VAULT_NAME}/{item}/{field}"  # noqa: E731
@@ -188,6 +217,14 @@ async def read_monitoring(client) -> dict[str, str] | None:
     if not values["url"].startswith("https://"):
         raise RuntimeError(f"{wanted['url']}: la ping URL de healthchecks.io tiene que empezar con https://")
     values["username"] = (await read_optional(client, ref(GRAFANA_ITEM, "username"))).strip() or "admin"
+    # Opcional: webhook del canal de despliegues (notificaciones de ArgoCD).
+    deployments = (await read_optional(client, ref(DISCORD_ITEM, "deployments"))).strip()
+    if deployments and not DISCORD_WEBHOOK_RE.match(deployments):
+        raise RuntimeError(
+            f"{ref(DISCORD_ITEM, 'deployments')}: no parece un webhook de Discord (https://discord.com/api/webhooks/<id>/<token>). "
+            "No se aplica para no enviar notificaciones a otro destino."
+        )
+    values["deployments"] = deployments
     return values
 
 
@@ -210,9 +247,9 @@ async def read_ftp(client) -> dict[str, dict]:
 async def build_manifests() -> list[dict]:
     client = await create_client()
 
-    argocd = await read_app(client, "symintel-argocd")
-    arc = await read_app(client, "symintel-arc-runners")
-    tf = await read_app(client, "symintel-terraform")
+    argocd = await read_app(client, "maceosoft-argocd")
+    arc = await read_app(client, "maceosoft-arc-runners")
+    tf = await read_app(client, "maceosoft-terraform")
     ftp = await read_ftp(client)
 
     manifests: list[dict] = [
@@ -249,7 +286,7 @@ async def build_manifests() -> list[dict]:
     manifests.append(
         secret(
             RUNNER_NAMESPACE,
-            "symintel-terraform-app",
+            "terraform-app",
             {
                 "TF_VAR_github_app_id": tf["app_id"],
                 "TF_VAR_github_app_installation_id": tf["installation_id"],
@@ -263,6 +300,38 @@ async def build_manifests() -> list[dict]:
         manifests.append(secret(RUNNER_NAMESPACE, "argocd-ci", {"ARGOCD_AUTH_TOKEN": token.strip()}))
     else:
         print(f"Aviso: sin item {ARGOCD_CI_ITEM!r} en 1Password: el pipeline de gitops omitirá el diff de ArgoCD.", file=sys.stderr)
+
+    legacy_arc = await read_app_optional(client, LEGACY_ARC_ITEM)
+    legacy_tf = await read_app_optional(client, LEGACY_TF_ITEM)
+    if legacy_arc:
+        manifests.append(namespace(LEGACY_RUNNER_NAMESPACE, baseline=True))
+        manifests.append(
+            secret(
+                LEGACY_RUNNER_NAMESPACE,
+                "arc-runners-github-app",
+                {
+                    "github_app_id": legacy_arc["app_id"],
+                    "github_app_installation_id": legacy_arc["installation_id"],
+                    "github_app_private_key": legacy_arc["private_key"],
+                },
+            )
+        )
+        if legacy_tf:
+            manifests.append(
+                secret(
+                    LEGACY_RUNNER_NAMESPACE,
+                    "terraform-app",
+                    {
+                        "TF_VAR_github_app_id": legacy_tf["app_id"],
+                        "TF_VAR_github_app_installation_id": legacy_tf["installation_id"],
+                        "TF_VAR_github_app_private_key": legacy_tf["private_key"],
+                    },
+                )
+            )
+    elif legacy_tf:
+        raise RuntimeError(f"El item {LEGACY_TF_ITEM!r} existe pero falta {LEGACY_ARC_ITEM!r}: sin él no hay scale set para la org {LEGACY_ORG}.")
+    else:
+        print(f"Aviso: sin item {LEGACY_ARC_ITEM!r}: no se prepara el scale set de la org {LEGACY_ORG} (opcional).", file=sys.stderr)
 
     sealed_cert = await read_optional(client, f"op://{VAULT_NAME}/{SEALED_ITEM}/certificate")
     sealed_key = await read_optional(client, f"op://{VAULT_NAME}/{SEALED_ITEM}/private_key")
@@ -293,6 +362,19 @@ async def build_manifests() -> list[dict]:
         manifests.append(
             secret(MONITORING_NAMESPACE, "grafana-admin", {"admin-user": monitoring["username"], "admin-password": monitoring["password"]})
         )
+        if monitoring["deployments"]:
+            manifests.append(
+                secret(
+                    ARGOCD_NAMESPACE,
+                    ARGOCD_NOTIFICATIONS_SECRET,
+                    {"discord-despliegues-url": monitoring["deployments"], "discord-avisos-url": monitoring["warnings"]},
+                )
+            )
+        else:
+            print(
+                f"Aviso: sin el campo 'deployments' en {DISCORD_ITEM!r}: ArgoCD no enviará notificaciones a Discord.",
+                file=sys.stderr,
+            )
     else:
         print(
             f"Aviso: sin items {DISCORD_ITEM!r}, {HEARTBEAT_ITEM!r} y {GRAFANA_ITEM!r} en 1Password: el monitoreo no se configura.",
@@ -307,11 +389,11 @@ def redact(manifest: dict) -> dict:
     return {**manifest, "stringData": {k: "<redacted>" for k in manifest["stringData"]}}
 
 
-# Items y campos que el script espera (ver docs/symintel/github.md).
+# Items y campos que el script espera (ver docs/maceosoft/github.md).
 EXPECTED = {
-    "symintel-terraform": ["app_id", "installation_id", "private_key"],
-    "symintel-arc-runners": ["app_id", "installation_id", "private_key"],
-    "symintel-argocd": ["app_id", "installation_id", "private_key"],
+    "maceosoft-terraform": ["app_id", "installation_id", "private_key"],
+    "maceosoft-arc-runners": ["app_id", "installation_id", "private_key"],
+    "maceosoft-argocd": ["app_id", "installation_id", "private_key"],
 }
 FTP_EXPECTED = [f"{env}_{f}" for env in ("dev", "prod") for f in FTP_FIELDS]
 
@@ -362,6 +444,18 @@ async def check() -> int:
         ok = ok and has
     else:
         print(f"  · sin item {ARGOCD_CI_ITEM} (opcional: el pipeline de gitops omite el diff de ArgoCD)")
+    # Opcional: las Apps de la org antigua (scale set arc-runners-symintel).
+    for title in (LEGACY_ARC_ITEM, LEGACY_TF_ITEM):
+        if title in by_title:
+            item = await client.items.get(vault_id, by_title[title].id)
+            found = {f.title: f.value for f in item.fields}
+            print(f"  {title}  (opcional: org {LEGACY_ORG})")
+            for name in ("app_id", "installation_id", "private_key"):
+                good = bool((found.get(name) or "").strip())
+                print(f"    {'✓' if good else '✗'} {name}")
+                ok = ok and good
+        else:
+            print(f"  · sin item {title} (opcional: org {LEGACY_ORG})")
     # Opcional: el par de llaves de Sealed Secrets.
     if SEALED_ITEM in by_title:
         item = await client.items.get(vault_id, by_title[SEALED_ITEM].id)
@@ -403,6 +497,16 @@ async def check() -> int:
                 else:
                     print(f"    {'✓' if good else '✗'} {name}" + ("" if good else " (falta o está vacío)"))
                 ok = ok and good
+            if title == DISCORD_ITEM:
+                # Opcional: no hace fallar la comprobación, pero si existe tiene que tener el formato correcto.
+                dep = (found.get("deployments") or "").strip()
+                if not dep:
+                    print("    · deployments (opcional): sin él, ArgoCD no notifica a Discord")
+                elif DISCORD_WEBHOOK_RE.match(dep):
+                    print("    ✓ deployments (opcional)")
+                else:
+                    print("    ✗ deployments (opcional): no parece un webhook de Discord")
+                    ok = False
     return 0 if ok else 1
 
 

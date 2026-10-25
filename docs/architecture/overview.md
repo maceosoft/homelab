@@ -32,7 +32,8 @@ bajo demanda sobre el mismo hardware, sin tocar producción.
 
 Vista de más alto nivel: la **Plataforma HomeLab** como una sola caja negra y
 los actores/sistemas externos con los que interactúa (operador, Git, registro
-de imágenes, Omnitruck y la LAN). Útil para entender *qué entra y sale* del
+de imágenes, Omnitruck, la LAN y los servicios de avisos Discord y
+healthchecks.io). Útil para entender *qué entra y sale* del
 sistema sin detalle interno.
 
 ```mermaid
@@ -49,12 +50,18 @@ flowchart TB
     registro["<span style='color:#fff'><b>Registro de imágenes</b><br/><small>[Software System]</small><br/>images.linuxcontainers.org (simplestreams Incus/CAPN)</span>"]
     omnitruck["<span style='color:#fff'><b>Omnitruck Cinc/Chef</b><br/><small>[Software System]</small><br/>Distribuye los paquetes de cinc-client/cinc-auditor</span>"]
     lan["<span style='color:#fff'><b>Red LAN / Router</b><br/><small>[Software System]</small><br/>DHCP y asignación de IPs fijas para los 3 nodos</span>"]
+    discord["<span style='color:#fff'><b>Discord</b><br/><small>[Software System]</small><br/>Canales de alertas críticas, avisos y despliegues</span>"]
+    healthchecks["<span style='color:#fff'><b>healthchecks.io</b><br/><small>[Software System]</small><br/>Dead man's switch: avisa si el monitoreo deja de pingear</span>"]
 
     operador -->|"Administra<br/><small>[kubectl / SSH / ArgoCD UI]</small>"| plataforma
     plataforma -->|"Sincroniza manifiestos<br/><small>[GitOps (ArgoCD)]</small>"| git
     plataforma -->|"Descarga imágenes<br/><small>[kubeadm / ubuntu]</small>"| registro
     plataforma -->|"Instala paquetes<br/><small>[HTTPS]</small>"| omnitruck
     plataforma <-->|"Bridge L2, IP fija<br/><small>[netplan]</small>"| lan
+    plataforma -->|"Envía alertas y avisos<br/><small>[webhook HTTPS]</small>"| discord
+    plataforma -->|"Ping cada 5 min<br/><small>[HTTPS]</small>"| healthchecks
+    healthchecks -.->|"Avisa si el ping se corta<br/><small>[integración Discord]</small>"| discord
+    discord -.->|"Notifica<br/><small>[móvil / escritorio]</small>"| operador
 
     classDef person fill:#08427B,stroke:#073B6F,color:#fff
     classDef system fill:#1168BD,stroke:#0B4884,color:#fff
@@ -63,13 +70,13 @@ flowchart TB
     classDef external fill:#999999,stroke:#8A8A8A,color:#fff
     class operador person
     class plataforma system
-    class git,registro,omnitruck,lan external
+    class git,registro,omnitruck,lan,discord,healthchecks external
 ```
 
 ### Nivel 2 — Contenedores
 
 Abre la caja de la plataforma y muestra los **contenedores lógicos** (K3s
-Management, Incus Cluster, Workload Clusters, Storage y Cinc Lab) con sus
+Management, Incus Cluster, Workload Clusters, Storage, Monitoreo y Cinc Lab) con sus
 tecnologías y cómo se relacionan entre sí y con los sistemas externos.
 
 ```mermaid
@@ -86,10 +93,13 @@ flowchart TB
         incus["<span style='color:#fff'><b>Incus Cluster</b><br/><small>[Container: Incus, dqlite HA]</small><br/>3 miembros: grupo x86 (M920q+M700) y grupo arm64 (Orange Pi)</span>"]
         workload["<span style='color:#fff'><b>Workload Clusters</b><br/><small>[Container: kubeadm sobre LXCMachine]</small><br/>Clusters K8s efímeros provisionados por CAPN (LXC o VM)</span>"]
         storage["<span style='color:#fff'><b>Storage</b><br/><small>[Container: OpenEBS LocalPV + Longhorn v1]</small><br/>Persistencia local y replicada entre x86/arm64</span>"]
+        monitoreo["<span style='color:#fff'><b>Monitoreo</b><br/><small>[Container: VictoriaMetrics + Grafana]</small><br/>Métricas, sondas, alertas y paneles (namespace monitoring)</span>"]
         cinclab["<span style='color:#fff'><b>Cinc Lab VMs</b><br/><small>[Container: Incus VM (Ubuntu 24.04)]</small><br/>Sandbox para probar cookbooks de Cinc/Chef</span>"]
     end
     git["<span style='color:#fff'><b>Git remoto</b><br/><small>[Software System]</small><br/>GitHub / GitLab</span>"]
     registro["<span style='color:#fff'><b>Registro de imágenes</b><br/><small>[Software System]</small><br/>images.linuxcontainers.org</span>"]
+    discord["<span style='color:#fff'><b>Discord</b><br/><small>[Software System]</small><br/>Canales de alertas y despliegues</span>"]
+    healthchecks["<span style='color:#fff'><b>healthchecks.io</b><br/><small>[Software System]</small><br/>Dead man's switch</span>"]
 
     operador -->|"Administra<br/><small>[kubectl / ArgoCD UI]</small>"| k3s_mgmt
     git -->|"Sincroniza manifiestos<br/><small>[GitOps]</small>"| k3s_mgmt
@@ -98,6 +108,12 @@ flowchart TB
     incus -->|"Aloja<br/><small>[cluster group @x86 / @arm64]</small>"| workload
     incus -->|"Aloja<br/><small>[target manual]</small>"| cinclab
     workload -->|"Monta volúmenes<br/><small>[PVC]</small>"| storage
+    k3s_mgmt -->|"Despliega por GitOps<br/><small>[Argo CD]</small>"| monitoreo
+    monitoreo -->|"Lee métricas de los nodos<br/><small>[HTTPS :8443, certificado metrics]</small>"| incus
+    monitoreo -->|"Guarda métricas<br/><small>[PVC Longhorn]</small>"| storage
+    monitoreo -->|"Alertas<br/><small>[webhook HTTPS]</small>"| discord
+    monitoreo -->|"Ping cada 5 min<br/><small>[HTTPS]</small>"| healthchecks
+    operador -->|"Consulta paneles<br/><small>[Grafana, SSO]</small>"| monitoreo
 
     classDef person fill:#08427B,stroke:#073B6F,color:#fff
     classDef system fill:#1168BD,stroke:#0B4884,color:#fff
@@ -105,8 +121,8 @@ flowchart TB
     classDef component fill:#85BBF0,stroke:#78A8D8,color:#000
     classDef external fill:#999999,stroke:#8A8A8A,color:#fff
     class operador person
-    class k3s_mgmt,incus,workload,storage,cinclab container
-    class git,registro external
+    class k3s_mgmt,incus,workload,storage,monitoreo,cinclab container
+    class git,registro,discord,healthchecks external
     style homelab fill:none,stroke:#888,stroke-dasharray:6 4
 ```
 
@@ -115,6 +131,6 @@ flowchart TB
 | Nivel | Página | Qué muestra |
 |---|---|---|
 | 1–2 | *(esta página)* | Contexto + contenedores lógicos |
-| 3 | **[Componentes](nivel-3-componentes.md)** | Zoom por contenedor (K3s, Incus, workload, storage, Cinc) |
+| 3 | **[Componentes](nivel-3-componentes.md)** | Zoom por contenedor (K3s, Incus, workload, storage, monitoreo, Cinc) |
 | 4 | **[Despliegue](nivel-4-despliegue.md)** | 3 nodos físicos en la LAN |
 

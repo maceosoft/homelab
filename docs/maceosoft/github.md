@@ -1,14 +1,14 @@
-# Plataforma symintel — GitHub
+# Plataforma maceosoft — GitHub
 
-Cómo se conecta la org GitHub **`symintel`** con el clúster HomeLab:
-- **ArgoCD** despliega desde el repo privado `symintel/gitops`.
+Cómo se conecta la org GitHub **`maceosoft`** con el clúster HomeLab:
+- **ArgoCD** despliega desde el repo privado `maceosoft/gitops`.
 - **ARC (Actions Runner Controller)** corre un runner self-hosted de GitHub Actions dentro del clúster
   (un solo scale set, `arc-runners`, para CI, deploys y OpenTofu).
 - **OpenTofu** gestiona la org desde un pipeline que corre en uno de esos
   runners, y guarda su state en el clúster.
 
 !!! tip "Dónde se ejecuta en la guía de implementación"
-    - **Pasos 1 y 2 (manuales):** [Fase 0 — GitHub y 1Password](../implementacion/fase-0-preparacion.md#github-y-1password-org-symintel-manual-una-sola-vez)
+    - **Pasos 1 y 2 (manuales):** [Fase 0 — GitHub y 1Password](../implementacion/fase-0-preparacion.md#github-y-1password-org-maceosoft-manual-una-sola-vez)
     - **Paso 3 (secretos de plataforma):** [Fase 4 — 4.2](../implementacion/fase-4-gitops.md#42-bootstrap-gitops-applicationset), antes del ApplicationSet de bootstrap
     - **Pasos 4 y 5 (ARC y pipeline):** [Fase 4 — 4.11](../implementacion/fase-4-gitops.md#411-arc-y-pipeline-de-opentofu)
 
@@ -17,10 +17,10 @@ Cómo se conecta la org GitHub **`symintel`** con el clúster HomeLab:
 !!! info "Repos involucrados"
     | Repo | Qué contiene |
     |---|---|
-    | [`symintel/homelab`](https://github.com/symintel/homelab) | Este sitio. Ansible: k3s, ArgoCD y los **secretos de plataforma** (1Password → clúster) |
-    | [`symintel/gitops`](https://github.com/symintel/gitops) | Applications de ArgoCD, incluidos ARC y el runner de OpenTofu |
-    | [`symintel/core-pipelines`](https://github.com/symintel/core-pipelines) | Workflows reutilizables (`tofu.yml`, CI, deploy FTP) |
-    | [`symintel/infra`](https://github.com/symintel/infra) | OpenTofu: repos, environments y secrets de la org |
+    | [`maceosoft/homelab`](https://github.com/maceosoft/homelab) | Este sitio. Ansible: k3s, ArgoCD y los **secretos de plataforma** (1Password → clúster) |
+    | [`maceosoft/gitops`](https://github.com/maceosoft/gitops) | Applications de ArgoCD, incluidos ARC y el runner de OpenTofu |
+    | [`maceosoft/core-pipelines`](https://github.com/maceosoft/core-pipelines) | Workflows reutilizables (`tofu.yml`, CI, deploy FTP) |
+    | [`maceosoft/infra`](https://github.com/maceosoft/infra) | OpenTofu: repos, environments y secrets de la org |
 
 ## Cómo encaja
 
@@ -28,13 +28,13 @@ Cómo se conecta la org GitHub **`symintel`** con el clúster HomeLab:
 flowchart LR
   OP[1Password<br/>bóveda HomeLab] -->|playbook-platform-secrets.yml| K8S
   subgraph K8S[Clúster k3s]
-    ARGO[ArgoCD] -->|App symintel-argocd| GITOPS[(symintel/gitops)]
+    ARGO[ArgoCD] -->|App maceosoft-argocd| GITOPS[(maceosoft/gitops)]
     ARGO --> ARC[ARC controller]
     ARC --> RT[arc-runners]
     RT --> STATE[(ns terraform<br/>Secret tfstate-default-github)]
   end
-  INFRA[symintel/infra] -->|tofu.yml de core-pipelines| RT
-  RT -->|App symintel-terraform| GH[org symintel]
+  INFRA[maceosoft/infra] -->|tofu.yml de core-pipelines| RT
+  RT -->|App maceosoft-terraform| GH[org maceosoft]
 ```
 
 Hay piezas que **tienen que existir antes** de que ArgoCD o el pipeline
@@ -44,7 +44,7 @@ gestiona ni las importa:
 | Qué | Por qué a mano |
 |---|---|
 | Repos `gitops`, `infra`, `core-pipelines` | Sin ellos no hay de dónde desplegar ni pipeline que corra OpenTofu |
-| App `symintel-argocd` | ArgoCD la necesita para leer el repo privado que despliega todo lo demás |
+| App `maceosoft-argocd` | ArgoCD la necesita para leer el repo privado que despliega todo lo demás |
 | GitHub Apps y OAuth App | GitHub no permite crear OAuth Apps por API, y las GitHub Apps piden confirmación en el navegador |
 
 Todo lo demás (el repo `api` y los repos futuros) lo crea el pipeline de
@@ -65,12 +65,14 @@ export ONEPASSWORD_ACCOUNT_NAME="Mi Cuenta"  # tu cuenta
 
 | Item | Tipo de item | Campos | Lo usa |
 |---|---|---|---|
-| `symintel-terraform` | Nota segura | `app_id`, `installation_id`, `private_key` | Runner de OpenTofu (`TF_VAR_github_app_*`) |
-| `symintel-arc-runners` | Nota segura | `app_id`, `installation_id`, `private_key` | ARC (registro del runner) |
-| `symintel-argocd` | Nota segura | `app_id`, `installation_id`, `private_key` | ArgoCD lee `symintel/gitops` (`argocd/repo-gitops`) |
+| `maceosoft-terraform` | Nota segura | `app_id`, `installation_id`, `private_key` | Runner de OpenTofu (`TF_VAR_github_app_*`) |
+| `maceosoft-arc-runners` | Nota segura | `app_id`, `installation_id`, `private_key` | ARC (registro del runner) |
+| `maceosoft-argocd` | Nota segura | `app_id`, `installation_id`, `private_key` | ArgoCD lee `maceosoft/gitops` (`argocd/repo-gitops`) |
+| `symintel-arc-runners` *(opcional)* | Nota segura | `app_id`, `installation_id`, `private_key` | ARC de la **org antigua** (`symintel`): registro de su scale set. Ver [Dos organizaciones](#dos-organizaciones-un-scale-set-por-org) |
+| `symintel-terraform` *(opcional)* | Nota segura | `app_id`, `installation_id`, `private_key` | OpenTofu de la org antigua; sin él, esos runners no tienen credenciales de OpenTofu |
 | `sealed-secrets` | Nota segura | `certificate`, `private_key` *(opcional hasta la Fase 6)* | Llave de cifrado de Sealed Secrets: sobrevive si reinstalas K3s |
-| `symintel-dex` | Nota segura | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` (+ `VCLUSTER_CLIENT_SECRET`, que genera el playbook) | Dex (login con GitHub) |
-| `discord-webhooks` | Nota segura | `critical`, `warnings`: URL de un webhook de Discord por canal *(opcional: monitoreo)* | Alertmanager envía las alertas ([4.13](../implementacion/fase-4-gitops.md#413-monitoreo-y-alertas-opcional)). Cómo crearlos: [Discord y healthchecks.io](discord-healthchecks.md#parte-1-discord) |
+| `maceosoft-dex` | Nota segura | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` (+ `VCLUSTER_CLIENT_SECRET`, que genera el playbook) | Dex (login con GitHub) |
+| `discord-webhooks` | Nota segura | `critical`, `warnings`: URL de un webhook de Discord por canal; `deployments` *(opcional)*: el del canal `despliegues` para las notificaciones de ArgoCD *(opcional: monitoreo)* | Alertmanager envía las alertas ([4.13](../implementacion/fase-4-gitops.md#413-monitoreo-y-alertas-opcional)). Cómo crearlos: [Discord y healthchecks.io](discord-healthchecks.md#parte-1-discord) |
 | `healthchecks-ping` | Nota segura | `url`: ping URL del check de healthchecks.io *(opcional: monitoreo)* | Alertmanager le manda un ping cada 5 minutos para avisar que el monitoreo sigue vivo. Cómo crearla: [Discord y healthchecks.io](discord-healthchecks.md#parte-2-healthchecksio) |
 | `grafana-admin` | Nota segura | `password` y, si quieres, `username` (por defecto `admin`) *(opcional: monitoreo)* | Administrador de Grafana |
 | `ftp-<repo>` | Nota segura | `dev_host`, `dev_user`, `dev_password`, `dev_remote_dir`, `prod_host`, `prod_user`, `prod_password`, `prod_remote_dir` | OpenTofu → secrets FTP de `<repo>` (`TF_VAR_ftp`) |
@@ -83,7 +85,7 @@ que **el título del item y el nombre de cada campo tienen que ser exactos**
 
 1. En 1Password abre la bóveda **`HomeLab`** → **Nuevo elemento** → **Nota
    segura** (*Secure Note*).
-2. En **Título** escribe el nombre del item, por ejemplo `symintel-terraform`.
+2. En **Título** escribe el nombre del item, por ejemplo `maceosoft-terraform`.
 3. Por cada campo: **+ Añadir más** → elige el tipo (**Texto** o
    **Contraseña**) → en la etiqueta del campo escribe el nombre exacto
    (por ejemplo `app_id`) → pega el valor.
@@ -96,16 +98,16 @@ el resto. Cada tabla de abajo dice qué tipo lleva cada campo.
 
 ## Paso 1 — GitHub Apps y OAuth App (manual)
 
-Hazlo con una cuenta **owner de la organización** `symintel`.
+Hazlo con una cuenta **owner de la organización** `maceosoft`.
 
-### `symintel-terraform`
+### `maceosoft-terraform`
 
-[symintel → Settings → Developer settings → GitHub Apps → New GitHub App](https://github.com/organizations/symintel/settings/apps/new)
+[maceosoft → Settings → Developer settings → GitHub Apps → New GitHub App](https://github.com/organizations/maceosoft/settings/apps/new)
 
 | Campo | Valor |
 |---|---|
-| GitHub App name | `symintel-terraform` |
-| Homepage URL | `https://github.com/symintel` |
+| GitHub App name | `maceosoft-terraform` |
+| Homepage URL | `https://github.com/maceosoft` |
 | Webhook → Active | desmarcado |
 | Where can this GitHub App be installed? | Only on this account |
 
@@ -130,19 +132,19 @@ authorization*, eventos) se deja vacío o sin marcar.
 Todos los demás permisos quedan en *No access*.
 
 Después de *Create GitHub App*, junta tres datos y guárdalos en el item
-**`symintel-terraform`** de 1Password (Nota segura, ver
+**`maceosoft-terraform`** de 1Password (Nota segura, ver
 [cómo crearlo](#como-crear-un-item-con-campos-propios)):
 
 | Campo en 1Password | Tipo | Dato | Dónde está en GitHub |
 |---|---|---|---|
 | `app_id` | Texto | App ID | Página de la App, pestaña *General*: línea **App ID** (un número, por ejemplo `1234567`) |
-| `private_key` | Contraseña | Private key | Misma página, abajo en *Private keys* → **Generate a private key**. Se descarga un archivo `symintel-terraform.<fecha>.private-key.pem`. Ábrelo con un editor de texto y copia **todo**, incluidas las líneas `-----BEGIN RSA PRIVATE KEY-----` y `-----END RSA PRIVATE KEY-----` |
-| `installation_id` | Texto | Installation ID | Menú izquierdo de la App → **Install App** → *Install* junto a `symintel` → **All repositories** → *Install*. GitHub te lleva a `https://github.com/organizations/symintel/settings/installations/<número>`: ese número final |
+| `private_key` | Contraseña | Private key | Misma página, abajo en *Private keys* → **Generate a private key**. Se descarga un archivo `maceosoft-terraform.<fecha>.private-key.pem`. Ábrelo con un editor de texto y copia **todo**, incluidas las líneas `-----BEGIN RSA PRIVATE KEY-----` y `-----END RSA PRIVATE KEY-----` |
+| `installation_id` | Texto | Installation ID | Menú izquierdo de la App → **Install App** → *Install* junto a `maceosoft` → **All repositories** → *Install*. GitHub te lleva a `https://github.com/organizations/maceosoft/settings/installations/<número>`: ese número final |
 
 Así queda el item:
 
 ```text
-symintel-terraform        (Nota segura · bóveda HomeLab)
+maceosoft-terraform        (Nota segura · bóveda HomeLab)
 ├── app_id                1234567
 ├── installation_id       87654321
 └── private_key           ••••••••   (el .pem completo)
@@ -152,18 +154,18 @@ Al pegar el `.pem` en un campo Contraseña se pierden los saltos de línea. No
 importa: el playbook reconstruye la llave. Cuando el item esté guardado,
 **borra el `.pem`** de Descargas.
 
-### `symintel-arc-runners`
+### `maceosoft-arc-runners`
 
 Es la App con la que ARC registra el runner `arc-runners` en la org. Se
-crea en el mismo formulario que `symintel-terraform`, pero es **otra App**:
+crea en el mismo formulario que `maceosoft-terraform`, pero es **otra App**:
 nombre, permisos y credenciales propios.
 
-[symintel → Settings → Developer settings → GitHub Apps → New GitHub App](https://github.com/organizations/symintel/settings/apps/new)
+[maceosoft → Settings → Developer settings → GitHub Apps → New GitHub App](https://github.com/organizations/maceosoft/settings/apps/new)
 
 | Campo | Valor |
 |---|---|
-| GitHub App name | `symintel-arc-runners` |
-| Homepage URL | `https://github.com/symintel` |
+| GitHub App name | `maceosoft-arc-runners` |
+| Homepage URL | `https://github.com/maceosoft` |
 | Webhook → Active | desmarcado |
 | Where can this GitHub App be installed? | Only on this account |
 
@@ -183,39 +185,39 @@ authorization*, eventos) se deja vacío o sin marcar.
 Todos los demás permisos quedan en *No access*.
 
 Después de *Create GitHub App*, guarda sus tres datos en el item
-**`symintel-arc-runners`** de 1Password (Nota segura, ver
+**`maceosoft-arc-runners`** de 1Password (Nota segura, ver
 [cómo crearlo](#como-crear-un-item-con-campos-propios)):
 
 | Campo en 1Password | Tipo | Dato | Dónde está en GitHub |
 |---|---|---|---|
 | `app_id` | Texto | App ID | Página de la App, pestaña *General*: línea **App ID** |
-| `private_key` | Contraseña | Private key | Misma página, abajo en *Private keys* → **Generate a private key**. Se descarga `symintel-arc-runners.<fecha>.private-key.pem`. Ábrelo con un editor de texto y copia **todo**, incluidas las líneas `-----BEGIN RSA PRIVATE KEY-----` y `-----END RSA PRIVATE KEY-----` |
-| `installation_id` | Texto | Installation ID | Menú izquierdo de la App → **Install App** → *Install* junto a `symintel` → **All repositories** → *Install*. El número al final de la URL `https://github.com/organizations/symintel/settings/installations/<número>` |
+| `private_key` | Contraseña | Private key | Misma página, abajo en *Private keys* → **Generate a private key**. Se descarga `maceosoft-arc-runners.<fecha>.private-key.pem`. Ábrelo con un editor de texto y copia **todo**, incluidas las líneas `-----BEGIN RSA PRIVATE KEY-----` y `-----END RSA PRIVATE KEY-----` |
+| `installation_id` | Texto | Installation ID | Menú izquierdo de la App → **Install App** → *Install* junto a `maceosoft` → **All repositories** → *Install*. El número al final de la URL `https://github.com/organizations/maceosoft/settings/installations/<número>` |
 
 Así queda el item:
 
 ```text
-symintel-arc-runners      (Nota segura · bóveda HomeLab)
+maceosoft-arc-runners      (Nota segura · bóveda HomeLab)
 ├── app_id                2345678
 ├── installation_id       98765432
 └── private_key           ••••••••   (el .pem completo)
 ```
 
-Los tres valores son **distintos** de los de `symintel-terraform`: cada App
+Los tres valores son **distintos** de los de `maceosoft-terraform`: cada App
 tiene su App ID, su llave y su instalación. No copies los de la otra. Cuando
 el item esté guardado, **borra el `.pem`** de Descargas.
 
-### OAuth App `Symintel Dex`
+### OAuth App `Maceosoft Dex`
 
-[symintel → Settings → Developer settings → OAuth Apps → New OAuth App](https://github.com/organizations/symintel/settings/applications/new)
+[maceosoft → Settings → Developer settings → OAuth Apps → New OAuth App](https://github.com/organizations/maceosoft/settings/applications/new)
 
 | Campo | Valor |
 |---|---|
-| Application name | `Symintel Dex` |
+| Application name | `Maceosoft Dex` |
 | Homepage URL | `https://argocd.homelab.local` |
 | Redirect URIs | `https://argocd.homelab.local/api/dex/callback` (solo esta) |
 
-Después de *Register application*, crea el item **`symintel-dex`** en la
+Después de *Register application*, crea el item **`maceosoft-dex`** en la
 bóveda `HomeLab` (Nota segura, ver [cómo crearlo](#como-crear-un-item-con-campos-propios))
 con estos dos campos:
 
@@ -229,36 +231,36 @@ Así queda el item (el último campo lo agrega solo
 del cliente vCluster de Dex, no viene de GitHub):
 
 ```text
-symintel-dex              (Nota segura · bóveda HomeLab)
+maceosoft-dex              (Nota segura · bóveda HomeLab)
 ├── GITHUB_CLIENT_ID      Ov23li…
 ├── GITHUB_CLIENT_SECRET  ••••••••
 └── VCLUSTER_CLIENT_SECRET ••••••••  (lo genera el playbook)
 ```
 
-Solo puede entrar el team **`devops`** de `symintel`, y sus miembros quedan
+Solo puede entrar el team **`devops`** de `maceosoft`, y sus miembros quedan
 como admin de ArgoCD. Se aplica en el
 [paso 4.7 de la Fase 4](../implementacion/fase-4-gitops.md#47-secretos-oauth-github-vcluster-incus-ui).
 
 ## Paso 2 — Repos, App de ArgoCD y FTP (manual)
 
-1. **Repos** (privados), creados en `symintel` y con su contenido subido con git:
+1. **Repos** (privados), creados en `maceosoft` y con su contenido subido con git:
     - `gitops`.
     - `core-pipelines`: después, en *Settings → Actions → General → Access*,
-      elige "Accessible from repositories in the 'symintel' organization".
+      elige "Accessible from repositories in the 'maceosoft' organization".
       Mientras pruebas, los demás repos lo usan con `@main`; el tag `v1` se
       crea cuando todo funcione (ver el README de `core-pipelines`).
     - `infra`.
-2. **GitHub App `symintel-argocd`**, con la que ArgoCD lee el repo privado
+2. **GitHub App `maceosoft-argocd`**, con la que ArgoCD lee el repo privado
    `gitops`. Va después de los repos porque se instala **solo** en `gitops`.
    (Las deploy keys están deshabilitadas en la organización, por eso se usa
    una App.)
 
-    [symintel → Settings → Developer settings → GitHub Apps → New GitHub App](https://github.com/organizations/symintel/settings/apps/new)
+    [maceosoft → Settings → Developer settings → GitHub Apps → New GitHub App](https://github.com/organizations/maceosoft/settings/apps/new)
 
     | Campo | Valor |
     |---|---|
-    | GitHub App name | `symintel-argocd` |
-    | Homepage URL | `https://github.com/symintel` |
+    | GitHub App name | `maceosoft-argocd` |
+    | Homepage URL | `https://github.com/maceosoft` |
     | Webhook → Active | desmarcado |
     | Where can this GitHub App be installed? | Only on this account |
 
@@ -272,14 +274,14 @@ como admin de ArgoCD. Se aplica en el
     Sin permisos de organización. Todos los demás quedan en *No access*.
 
     Después de *Create GitHub App*, guarda sus tres datos en el item
-    **`symintel-argocd`** de 1Password (Nota segura, ver
+    **`maceosoft-argocd`** de 1Password (Nota segura, ver
     [cómo crearlo](#como-crear-un-item-con-campos-propios)):
 
     | Campo en 1Password | Tipo | Dato | Dónde está en GitHub |
     |---|---|---|---|
     | `app_id` | Texto | App ID | Página de la App, pestaña *General*: línea **App ID** |
     | `private_key` | Contraseña | Private key | Misma página, abajo en *Private keys* → **Generate a private key**. Copia **todo** el `.pem` descargado, incluidas las líneas `BEGIN`/`END` |
-    | `installation_id` | Texto | Installation ID | Menú izquierdo → **Install App** → *Install* junto a `symintel` → **Only select repositories** → elige **`gitops`** → *Install*. El número al final de la URL `…/settings/installations/<número>` |
+    | `installation_id` | Texto | Installation ID | Menú izquierdo → **Install App** → *Install* junto a `maceosoft` → **Only select repositories** → elige **`gitops`** → *Install*. El número al final de la URL `…/settings/installations/<número>` |
 
     Instálala **solo en `gitops`**: con esa llave se puede leer el código de
     todos los repos donde esté instalada. Borra el `.pem` al terminar.
@@ -294,7 +296,7 @@ como admin de ArgoCD. Se aplica en el
     | `dev_host` | Texto | `dev.tu-cpanel.example.com` |
     | `dev_user` | Texto | `usuario_dev` |
     | `dev_password` | Contraseña | |
-    | `dev_remote_dir` | Texto | `/home/usuario/dev.symintel.example.com` |
+    | `dev_remote_dir` | Texto | `/home/usuario/dev.maceosoft.example.com` |
     | `prod_host` | Texto | `tu-cpanel.example.com` |
     | `prod_user` | Texto | `usuario_prod` |
     | `prod_password` | Contraseña | |
@@ -349,23 +351,24 @@ cd ansible
 ansible-playbook -i inventory.ini playbook-platform-secrets.yml
 ```
 
-[`playbook-platform-secrets.yml`](https://github.com/symintel/homelab/blob/main/ansible/playbook-platform-secrets.yml)
+[`playbook-platform-secrets.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-platform-secrets.yml)
 crea los namespaces `argocd`, `arc-runners` (PSS `baseline`) y `terraform`
 (solo guarda el state de OpenTofu), y estos Secrets:
 
 | Secret | Namespace | Contenido |
 |---|---|---|
-| `repo-gitops` | `argocd` | App `symintel-argocd`: ArgoCD puede clonar `https://github.com/symintel/gitops.git` |
+| `repo-gitops` | `argocd` | App `maceosoft-argocd`: ArgoCD puede clonar `https://github.com/maceosoft/gitops.git` |
 | `arc-runners-github-app` | `arc-runners` | App de ARC |
-| `symintel-terraform-app` | `arc-runners` | `TF_VAR_github_app_id`, `TF_VAR_github_app_installation_id`, `TF_VAR_github_app_private_key` |
+| `terraform-app` | `arc-runners` | `TF_VAR_github_app_id`, `TF_VAR_github_app_installation_id`, `TF_VAR_github_app_private_key` |
 | `tofu-vars` | `arc-runners` | `TF_VAR_ftp` (todos los items `ftp-<repo>`) |
+| `arc-runners-github-app`, `terraform-app` | `arc-runners-symintel` | Lo mismo para la org antigua, desde `symintel-arc-runners` y `symintel-terraform` (solo si existen). El namespace se crea con PSS `baseline` |
 | `sealed-secrets-key-homelab` | `kube-system` | Par de llaves de Sealed Secrets (item `sealed-secrets`, si existe) |
 | `discord-webhooks`, `healthchecks-ping`, `grafana-admin` | `monitoring` | Webhooks de Discord, ping URL de healthchecks.io y contraseña de Grafana (los items del mismo nombre; solo si existen los tres). El namespace se crea con PSS `privileged`, porque `node-exporter` usa el disco y la red del nodo |
 
 !!! note "Un solo runner"
     Es un HomeLab: el único scale set (`arc-runners`, grupo Default) corre CI (integración continua),
     deploys y OpenTofu, y tiene las credenciales de OpenTofu como variables de
-    entorno. Cualquier repo de `symintel` que corra un job ahí puede
+    entorno. Cualquier repo de `maceosoft` que corra un job ahí puede
     alcanzarlas. Mantén la org solo con repos tuyos.
 
 !!! warning "Siempre contra el HomeLab"
@@ -376,6 +379,32 @@ crea los namespaces `argocd`, `arc-runners` (PSS `baseline`) y `terraform`
 
 Es idempotente: re-córrelo cada vez que rotes algo en 1Password o agregues
 un item `ftp-<repo>`.
+
+## Dos organizaciones: un scale set por org
+
+Un scale set de ARC se registra en **una sola** organización de GitHub (`githubConfigUrl`). Para que los mismos runners
+atiendan a la org nueva (`maceosoft`) y a la antigua (`symintel`) hay **dos scale sets**, con un solo controller
+(`arc-controller`) que atiende a los dos:
+
+| | Org `maceosoft` | Org `symintel` (antigua) |
+|---|---|---|
+| Application | `arc-runners` | `arc-runners-symintel` |
+| Namespace | `arc-runners` | `arc-runners-symintel` |
+| App de ARC (item de 1Password) | `maceosoft-arc-runners` | `symintel-arc-runners` |
+| Nombre en `runs-on:` | `arc-runners` | `arc-runners` (el mismo) |
+| Caché `/cache` (RWX, Longhorn) | 20 GiB | 10 GiB, propia |
+| OpenTofu y FTP | Sí (`terraform-app`, `tofu-vars`) | Solo si existe el item `symintel-terraform` |
+
+Los dos usan **la misma plantilla** de runner
+([`values-scaleset.yaml`](https://github.com/maceosoft/gitops/blob/main/arc/values-scaleset.yaml)); la org antigua solo cambia
+`githubConfigUrl` ([`values-scaleset-symintel.yaml`](https://github.com/maceosoft/gitops/blob/main/arc/values-scaleset-symintel.yaml)).
+Cada namespace tiene sus propios Secrets, con **el mismo nombre**, así que los de una org no los ve la otra, y la caché tampoco se
+comparte (una caché envenenada en una org no llega a la otra).
+
+Para activar la org antigua: crea en `symintel` la App de ARC (igual que [`maceosoft-arc-runners`](#maceosoft-arc-runners), pero en esa
+org) y guárdala en el item `symintel-arc-runners`; después corre `playbook-platform-secrets.yml`. Si el item no existe, el script no
+crea el namespace ni el Secret y el scale set de la org antigua no arranca. Para quitarla, borra la Application
+`arc-runners-symintel` y los items.
 
 ## Paso 4 — GitOps
 
@@ -395,7 +424,7 @@ ArgoCD sincroniza, entre otras, estas Applications:
 
 Haz un push a `main` de `infra`, o lánzalo desde *Actions → tofu →
 Run workflow*. El workflow
-[`tofu.yml`](https://github.com/symintel/core-pipelines/blob/main/.github/workflows/tofu.yml)
+[`tofu.yml`](https://github.com/maceosoft/core-pipelines/blob/main/.github/workflows/tofu.yml)
 corre en `arc-runners`: hace `plan` en los PRs (pull requests) y `apply` en `main`. En la
 primera ejecución crea `api`.
 
@@ -416,7 +445,9 @@ Después del playbook y de GitOps:
 ```bash
 kubectl -n argocd get secret repo-gitops
 kubectl -n arc-runners get secret \
-  arc-runners-github-app symintel-terraform-app tofu-vars
+  arc-runners-github-app terraform-app tofu-vars
+# org antigua, si la usas:
+kubectl -n arc-runners-symintel get secret arc-runners-github-app
 kubectl -n argocd get applications | grep -E 'arc|terraform'
 # controller + listener del scale set
 kubectl -n arc-systems get pods
@@ -431,7 +462,7 @@ Paso a paso completo: [Operación — Rotar credenciales](../operacion/rotar-cre
 | Qué | Cómo |
 |---|---|
 | Private key de una GitHub App | Genera una nueva en GitHub, reemplaza `private_key` en 1Password, re-corre `playbook-platform-secrets.yml` y borra la vieja en GitHub |
-| Private key de `symintel-argocd` | Igual que las otras Apps: nueva llave en GitHub, reemplaza `private_key`, re-corre el playbook y borra la vieja |
+| Private key de `maceosoft-argocd` | Igual que las otras Apps: nueva llave en GitHub, reemplaza `private_key`, re-corre el playbook y borra la vieja |
 | Credenciales FTP | Edita `ftp-<repo>`, re-corre el playbook y lanza el pipeline de `infra` |
 | Webhook de Discord, ping URL de healthchecks.io o contraseña de Grafana | Cambia el campo en su item, re-corre `playbook-platform-secrets.yml` y sigue [Operación — Rotar credenciales](../operacion/rotar-credenciales.md#monitoreo-webhooks-de-discord-ping-de-healthchecksio-y-grafana) |
 | Client secret de Dex | Nuevo secret en la OAuth App, actualiza `GITHUB_CLIENT_SECRET` y corre `playbook-dex-oauth-secrets.yml` |

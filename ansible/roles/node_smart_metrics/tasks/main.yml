@@ -1,0 +1,59 @@
+---
+# Solo lee los discos y escribe métricas: no toca los datos ni lanza autotests SMART.
+
+# Con "vendor == ATA" (SATA) o "SAS" en los datos de Ansible; la eMMC y los discos virtuales (iSCSI,
+# zram) no cuentan, porque no tienen SMART.
+- name: Detectar los discos con SMART (SATA/SAS)
+  ansible.builtin.set_fact:
+    node_smart_metrics_smart_disks: >-
+      {{ ansible_facts.devices | dict2items
+         | selectattr('value.vendor', 'defined')
+         | selectattr('value.vendor', 'in', ['ATA', 'SAS'])
+         | map(attribute='key') | list }}
+
+- name: Instalar smartmontools (smartctl) donde hay discos SATA/SAS
+  ansible.builtin.apt:
+    name: smartmontools
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+  when:
+    - node_smart_metrics_install_smartmontools
+    - node_smart_metrics_smart_disks | length > 0
+  notify: Escribir las métricas de discos ahora
+
+- name: Crear la carpeta del textfile collector de node-exporter
+  ansible.builtin.file:
+    path: "{{ node_smart_metrics_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Instalar el script que escribe las métricas de discos
+  ansible.builtin.copy:
+    src: node-smart-metrics.sh
+    dest: /usr/local/bin/node-smart-metrics
+    owner: root
+    group: root
+    mode: "0755"
+  notify: Escribir las métricas de discos ahora
+
+- name: Instalar el servicio y el temporizador de systemd
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - node-smart-metrics.service
+    - node-smart-metrics.timer
+  notify: Escribir las métricas de discos ahora
+
+- name: Habilitar el temporizador
+  ansible.builtin.systemd:
+    name: node-smart-metrics.timer
+    enabled: true
+    state: started
+    daemon_reload: true
