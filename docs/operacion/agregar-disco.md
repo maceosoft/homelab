@@ -76,4 +76,4 @@ ssh devops@deborah.homelab.local findmnt /var/lib/longhorn-nvme0n1   # montado, 
 | "Ya tiene filesystem" y no formatea | Es a propósito: el disco no está vacío. Revisa qué tiene antes de borrarlo a mano |
 | Longhorn no muestra el disco | Espera un minuto y revisa la anotación del nodo: `kubectl get node deborah -o yaml \| grep longhorn` |
 
-Más detalle del rol: [`storage_provision`](https://github.com/symintel/homelab/blob/main/ansible/roles/storage_provision/README.md).
+Más detalle del rol: [`storage_provision`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/storage_provision/README.md).

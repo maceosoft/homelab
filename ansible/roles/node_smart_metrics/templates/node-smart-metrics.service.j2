@@ -1,0 +1,9 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Métricas de salud de los discos para node-exporter
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/node-smart-metrics {{ node_smart_metrics_dir }}
+Nice=10
+IOSchedulingClass=idle

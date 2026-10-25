@@ -1,0 +1,6 @@
+---
+- name: Escribir las métricas de BIND ahora
+  ansible.builtin.systemd:
+    name: node-bind-metrics.service
+    state: started
+  when: not ansible_check_mode

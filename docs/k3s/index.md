@@ -149,11 +149,11 @@ kubectl label node oliver node.longhorn.io/create-default-disk=false
 ## 5. Almacenamiento
 
 Ver [Storage](../storage/index.md) para el detalle de OpenEBS/Longhorn
-replicado x86↔arm64. Manifiestos GitOps en [`gitops/storage/`](https://github.com/symintel/gitops/tree/main/storage).
+replicado x86↔arm64. Manifiestos GitOps en [`gitops/storage/`](https://github.com/maceosoft/gitops/tree/main/storage).
 
 ## 6. Plan de actualización automática
 
-Manifiestos versionados en [`gitops/k3s-upgrade/`](https://github.com/symintel/gitops/tree/main/k3s-upgrade).
+Manifiestos versionados en [`gitops/k3s-upgrade/`](https://github.com/maceosoft/gitops/tree/main/k3s-upgrade).
 
 ### 6.1 K3s (server + agents) — `system-upgrade-controller`
 

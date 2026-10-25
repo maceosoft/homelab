@@ -1,7 +1,7 @@
 # k3s_argocd
 
 Instala el **controller Argo CD** en el clúster K3s (bootstrap GitOps).
-Solo el controller — las Applications viven en [`gitops`](https://github.com/symintel/gitops).
+Solo el controller — las Applications viven en [`gitops`](https://github.com/maceosoft/gitops).
 
 ## Playbook
 

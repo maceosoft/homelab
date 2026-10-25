@@ -9,7 +9,7 @@ Usado por:
 Configuración vía variables de entorno (ver gitops/argocd/secrets/1password.md):
   ONEPASSWORD_ACCOUNT_NAME — cuenta personal (sidebar); ej. Mi Cuenta
   ONEPASSWORD_VAULT        — bóveda; default HomeLab
-  ONEPASSWORD_ITEM         — ítem con los secretos de Dex; default symintel-dex
+  ONEPASSWORD_ITEM         — ítem con los secretos de Dex; default maceosoft-dex
 """
 from __future__ import annotations
 
@@ -28,9 +28,9 @@ from onepassword import (
 # Cuenta personal por defecto (no empresa). Ejemplo: Mi Cuenta
 ACCOUNT_NAME = os.getenv("ONEPASSWORD_ACCOUNT_NAME", "Personal")
 
-# Bóveda e ítem de Dex: op://HomeLab/symintel-dex/GITHUB_CLIENT_ID
+# Bóveda e ítem de Dex: op://HomeLab/maceosoft-dex/GITHUB_CLIENT_ID
 VAULT_NAME = os.getenv("ONEPASSWORD_VAULT", "HomeLab")
-ITEM_NAME = os.getenv("ONEPASSWORD_ITEM", "symintel-dex")
+ITEM_NAME = os.getenv("ONEPASSWORD_ITEM", "maceosoft-dex")
 
 INTEGRATION_NAME = os.getenv("ONEPASSWORD_INTEGRATION_NAME", "Homelab GitOps")
 INTEGRATION_VERSION = os.getenv("ONEPASSWORD_INTEGRATION_VERSION", "1.0.0")

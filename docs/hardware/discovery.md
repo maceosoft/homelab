@@ -5,7 +5,7 @@ confirmar (o contradecir) con datos medidos los roles asignados en el
 [Inventario de hardware](inventory.md) — en particular, si `deborah`
 sigue siendo el mejor candidato a control-plane K3s (distribución ligera de Kubernetes).
 
-Código: [`ansible/playbook-discovery.yml`](https://github.com/symintel/homelab/blob/main/ansible/playbook-discovery.yml)
+Código: [`ansible/playbook-discovery.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-discovery.yml)
 (dos plays en un mismo archivo: escaneo por nodo + consolidado).
 
 ## Uso

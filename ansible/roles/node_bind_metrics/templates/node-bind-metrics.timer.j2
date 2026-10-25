@@ -1,0 +1,11 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Consulta de prueba a BIND cada {{ node_bind_metrics_interval }}
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec={{ node_bind_metrics_interval }}
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target

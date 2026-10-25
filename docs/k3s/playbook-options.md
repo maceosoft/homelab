@@ -2,12 +2,12 @@
 
 Anexo de **[Fase 3 — K3s](../implementacion/fase-3-k3s.md)**.
 
-El playbook [`playbook-k3s.yml`](https://github.com/symintel/homelab/blob/main/ansible/playbook-k3s.yml) instala **solo
+El playbook [`playbook-k3s.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-k3s.yml) instala **solo
 lo que ArgoCD no puede hacer**: binario K3s (distribución ligera de Kubernetes), kube-vip CP (control plane), controller ArgoCD,
 etiquetas de nodos, etc. Addons (MetalLB, Gateway, Longhorn, vCluster, …) van
-en el repo [`gitops`](https://github.com/symintel/gitops).
+en el repo [`gitops`](https://github.com/maceosoft/gitops).
 
-Configuración: [`ansible/group_vars/incus_cluster/k3s_install.yml`](https://github.com/symintel/homelab/blob/main/ansible/group_vars/incus_cluster/k3s_install.yml)
+Configuración: [`ansible/group_vars/incus_cluster/k3s_install.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/group_vars/incus_cluster/k3s_install.yml)
 
 Catálogo de roles: [Ansible — roles](../ansible/index.md)
 
@@ -81,7 +81,7 @@ ansible-playbook -i inventory.ini playbook-k3s.yml
 ## CNI
 
 K3s trae **Flannel** embebido. Canal, Calico y Cilium requieren
-`--flannel-backend=none` y `--disable-network-policy` (rol [`k3s_cni`](https://github.com/symintel/homelab/blob/main/ansible/roles/k3s_cni/README.md),
+`--flannel-backend=none` y `--disable-network-policy` (rol [`k3s_cni`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/k3s_cni/README.md),
 tag `cni`, **después** del server y **antes** de los agents).
 
 | CNI | `k3s_install.core.cni` | Instalación |
@@ -91,7 +91,7 @@ tag `cni`, **después** del server y **antes** de los agents).
 | [Calico](https://docs.tigera.io/calico/latest/about/) | `calico` | Tigera operator + custom resources |
 | [Cilium](https://docs.cilium.io/) | `cilium` | Helm chart oficial |
 
-Activalo editando [`group_vars/incus_cluster/k3s_install.yml`](https://github.com/symintel/homelab/blob/main/ansible/group_vars/incus_cluster/k3s_install.yml)
+Activalo editando [`group_vars/incus_cluster/k3s_install.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/group_vars/incus_cluster/k3s_install.yml)
 (`core.cni: calico`, `gitops_argocd.enabled: true`) y después:
 
 ```bash
@@ -126,7 +126,7 @@ migración, no un flag.
 
 Calico lo administra ArgoCD tras el bootstrap (Applications `calico-operator` + `calico-config`, sync manual; ver
 [Calico con ArgoCD](../operacion/actualizar-calico.md)). Alternativas GitOps (sync manual):
-`canal` o `cilium` en [`gitops/argocd/apps/`](https://github.com/symintel/gitops/tree/main/argocd/apps) —
+`canal` o `cilium` en [`gitops/argocd/apps/`](https://github.com/maceosoft/gitops/tree/main/argocd/apps) —
 solo si instalaste K3s con `cni` distinto de `flannel` vía Ansible **o** aplicas el
 manifest tras `--flannel-backend=none`. **No** actives más de una app CNI (Container Network Interface) a la vez.
 
@@ -221,7 +221,7 @@ Continúa en [Fase 4 — GitOps](../implementacion/fase-4-gitops.md).
 
 ## Playbook OAuth Dex (Fase 4)
 
-[`playbook-dex-oauth-secrets.yml`](https://github.com/symintel/homelab/blob/main/ansible/playbook-dex-oauth-secrets.yml) —
+[`playbook-dex-oauth-secrets.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-dex-oauth-secrets.yml) —
 genera `VCLUSTER_CLIENT_SECRET` en 1Password si falta,
 aplica `argocd-secret` y configura Incus OIDC (OpenID Connect) en invincible. Necesita
 `KUBECONFIG` exportado y la app de 1Password desbloqueada.
@@ -244,7 +244,7 @@ ansible-playbook -i inventory.ini playbook-dex-oauth-secrets.yml --tags vcluster
 
 `apply_incus` está en `true` por defecto en `group_vars`.
 
-Variables: [`group_vars/dex_oauth_secrets.yml`](https://github.com/symintel/homelab/blob/main/ansible/group_vars/dex_oauth_secrets.yml).
+Variables: [`group_vars/dex_oauth_secrets.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/group_vars/dex_oauth_secrets.yml).
 
 ## Ejemplos
 
@@ -286,7 +286,7 @@ kube-vip **nunca** debe gestionar Services `LoadBalancer` (`svc_enable=false`).
 
 ## Playbook clúster Incus (Fase 2)
 
-[`playbook-incus-cluster.yml`](https://github.com/symintel/homelab/blob/main/ansible/playbook-incus-cluster.yml) — bootstrap,
+[`playbook-incus-cluster.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-incus-cluster.yml) — bootstrap,
 join, cluster groups, scheduler manual y UI (interfaz de usuario). Ejecutar tras `playbook-bootstrap.yml`.
 
 ```bash
@@ -302,5 +302,5 @@ ansible-playbook -i inventory.ini playbook-incus-cluster.yml
 | `scheduler` | `oliver` → `scheduler.instance manual` |
 | `ui` | `incus-ui-canonical` + `core.https_address` |
 
-Variables: [`group_vars/incus_cluster/vars.yml`](https://github.com/symintel/homelab/blob/main/ansible/group_vars/incus_cluster/vars.yml).
+Variables: [`group_vars/incus_cluster/vars.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/group_vars/incus_cluster/vars.yml).
 Guía: [Fase 2 — Incus](../implementacion/fase-2-incus.md).

@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Métricas de paquetes pendientes para node-exporter
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+Environment=NODE_APT_UPDATE={{ '1' if node_apt_metrics_refresh_lists else '0' }}
+ExecStart=/usr/local/bin/node-apt-metrics {{ node_apt_metrics_dir }}
+Nice=10
+IOSchedulingClass=idle

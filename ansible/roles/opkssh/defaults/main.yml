@@ -11,7 +11,7 @@ opkssh_binary: /usr/local/bin/opkssh
 opkssh_system_user: opksshuser
 
 # Proveedor OIDC: Dex dentro de ArgoCD. El client id es el cliente público
-# "opkssh" de dex.config (repo symintel/gitops).
+# "opkssh" de dex.config (repo maceosoft/gitops).
 opkssh_issuer: https://argocd.homelab.local/api/dex
 opkssh_client_id: opkssh
 opkssh_key_expiration: 24h
@@ -21,7 +21,7 @@ opkssh_key_expiration: 24h
 # normal de /etc/opk/auth_id no puede comparar grupos con ":", por eso la decisión
 # la toma un policy plugin (templates/devops-team.sh.j2).
 opkssh_login_user: devops
-opkssh_allowed_group: "symintel:devops"
+opkssh_allowed_group: "maceosoft:devops"
 opkssh_login_user_sudo_nopasswd: true
 
 # Instalar la CA del HomeLab para que el host valide el certificado de Dex.

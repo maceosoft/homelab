@@ -2,7 +2,7 @@
 
 `deborah` (Orange Pi 5 Plus, ARM64) corre **Debian 12 (bookworm)**; los otros dos nodos ya están en **Debian 13
 (trixie)**. El playbook
-[`playbook-upgrade-debian13.yml`](https://github.com/symintel/homelab/blob/main/ansible/playbook-upgrade-debian13.yml)
+[`playbook-upgrade-debian13.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-upgrade-debian13.yml)
 la actualiza con respaldo, una simulación previa y una **compuerta de arranque** que se valida antes de reiniciar.
 
 !!! danger "Es la operación más delicada del HomeLab"
@@ -25,7 +25,7 @@ documenta la actualización para sistemas «puros», no para imágenes de fabric
 
 - [ ] **Incus alineado en los tres nodos.** El clúster exige la misma versión en todos los miembros. Hoy `deborah`
   tenía Incus 7.4 y el repositorio ofrecía 7.5.1: actualiza primero Incus en los tres nodos con
-  [`playbook-upgrade-incus.yml`](https://github.com/symintel/homelab/blob/main/ansible/playbook-upgrade-incus.yml)
+  [`playbook-upgrade-incus.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-upgrade-incus.yml)
   (`-e incus_upgrade_confirm=true`; ver [Actualizar o desinstalar Incus](../incus/cluster-setup.md#actualizar-o-desinstalar-incus)).
   El playbook se detiene si no coincide (`upgrade_skip_incus_check=true` lo salta, solo para ensayar).
 - [ ] **Acceso físico** a `deborah` (HDMI o consola serie) y, si puedes, una **imagen de la eMMC** (`dd` desde otro

@@ -5,7 +5,7 @@
     Ansible bootstrap (K3s, red): [Fases 0–3](../implementacion/index.md).
 
 Referencia de **Applications** Argo CD y resolución de problemas. Manifiestos en
-[`gitops/`](https://github.com/symintel/gitops).
+[`gitops/`](https://github.com/maceosoft/gitops).
 
 Documentación relacionada:
 
@@ -19,8 +19,8 @@ Documentación relacionada:
 
 | Repo | Qué instala | Herramienta |
 |---|---|---|
-| [`homelab`](https://github.com/symintel/homelab) | K3s binario, kube-vip CP, controller ArgoCD, red SO | [Ansible](https://docs.ansible.com/) |
-| [`gitops`](https://github.com/symintel/gitops) | MetalLB, Gateway API, storage, vCluster, CAPN, … | [Argo CD](https://argo-cd.readthedocs.io/) |
+| [`homelab`](https://github.com/maceosoft/homelab) | K3s binario, kube-vip CP, controller ArgoCD, red SO | [Ansible](https://docs.ansible.com/) |
+| [`gitops`](https://github.com/maceosoft/gitops) | MetalLB, Gateway API, storage, vCluster, CAPN, … | [Argo CD](https://argo-cd.readthedocs.io/) |
 
 ```mermaid
 flowchart LR
@@ -41,7 +41,7 @@ Sync **auto** = la sincroniza `homelab-root` (si está descomentada en `root-app
 
 | Manifiesto | Sync | Para qué sirve |
 |---|---|---|
-| [`bootstrap/root-appset.yaml`](https://github.com/symintel/gitops/blob/main/bootstrap/root-appset.yaml) | Una vez, a mano | **ApplicationSet**: genera la Application raíz `homelab-root` con las apps descomentadas de su lista, desplegadas por olas. Es el único `kubectl apply` GitOps tras tener el controller; ArgoCD no lo gestiona, así que se vuelve a aplicar con `kubectl apply -f` cada vez que cambia la lista. |
+| [`bootstrap/root-appset.yaml`](https://github.com/maceosoft/gitops/blob/main/bootstrap/root-appset.yaml) | Una vez, a mano | **ApplicationSet**: genera la Application raíz `homelab-root` con las apps descomentadas de su lista, desplegadas por olas. Es el único `kubectl apply` GitOps tras tener el controller; ArgoCD no lo gestiona, así que se vuelve a aplicar con `kubectl apply -f` cada vez que cambia la lista. |
 
 ### Wave 0 — Fundamentos (storage + LB controller)
 
@@ -69,7 +69,9 @@ Sync **auto** = la sincroniza `homelab-root` (si está descomentada en `root-app
 |---|---|---|
 | **`argocd-route`** | [Gateway API](https://gateway-api.sigs.k8s.io/) | `HTTPRoute`: UI en [`https://argocd.homelab.local`](https://argocd.homelab.local). |
 | **`argocd/config/`** (`argocd`) | [Dex](https://dexidp.io/docs/) | Connector GitHub + staticClients vCluster e Incus UI. |
-| [`argocd/secrets/`](https://github.com/symintel/gitops/tree/main/argocd/secrets) | [1Password SDK](https://github.com/1Password/onepassword-sdk-python) | OAuth desde app local |
+| **`victoria-metrics`** *(opcional)* | [VictoriaMetrics](https://docs.victoriametrics.com/helm/victoria-metrics-k8s-stack/) | Monitoreo: métricas, Alertmanager (alertas a Discord) y Grafana en [`https://grafana.homelab.local`](https://grafana.homelab.local). Necesita los Secrets de `playbook-platform-secrets.yml` antes de activarla ([4.13](../implementacion/fase-4-gitops.md#413-monitoreo-y-alertas-opcional)). |
+| [`argocd/config/notifications/`](https://github.com/maceosoft/gitops/tree/main/argocd/config/notifications) | ArgoCD Notifications | Servicios, disparadores y plantillas de las notificaciones a Discord ([4.14](../implementacion/fase-4-gitops.md#414-notificaciones-de-argocd-a-discord-opcional)); `test.sh` las prueba sin enviar nada. |
+| [`argocd/secrets/`](https://github.com/maceosoft/gitops/tree/main/argocd/secrets) | [1Password SDK](https://github.com/1Password/onepassword-sdk-python) | OAuth desde app local |
 
 **Cómo se ve.** La UI de ArgoCD en [`https://argocd.homelab.local`](https://argocd.homelab.local) pide iniciar sesión con GitHub (Dex):
 
@@ -86,6 +88,7 @@ La aplicación raíz `homelab-root` agrupa todas las demás: en su vista de árb
 | Application | Producto | Para qué sirve |
 |---|---|---|
 | **`k3s-upgrade`** | [system-upgrade-controller](https://github.com/rancher/system-upgrade-controller) | Upgrades K3s escalonados. |
+| **`victoria-metrics-config`** *(opcional)* | [VictoriaMetrics](https://docs.victoriametrics.com/operator/) | Reglas de alerta (`VMRule`), scrapes de cert-manager, Longhorn y ArgoCD, y la `HTTPRoute` de Grafana. Va después de `victoria-metrics` porque sus CRD los instala ese chart. |
 
 ### Sync manual (tú decides cuándo)
 
@@ -107,12 +110,13 @@ La aplicación raíz `homelab-root` agrupa todas las demás: en su vista de árb
 
 | Ruta | Para qué sirve |
 |---|---|
-| [`storage/`](https://github.com/symintel/gitops/tree/main/storage) | StorageClasses vía `homelab-storage`. |
-| [`metallb/`](https://github.com/symintel/gitops/tree/main/metallb) | Pool + L2Advertisement. |
-| [`k3s-upgrade/`](https://github.com/symintel/gitops/tree/main/k3s-upgrade) | CRs `Plan` SUC. |
-| [`vcluster/values/platform.yaml`](https://github.com/symintel/gitops/blob/main/vcluster/values/platform.yaml) | Helm values Platform + OIDC Dex. |
-| [`capn/clusters/`](https://github.com/symintel/gitops/tree/main/capn/clusters) | Clusters generados con `clusterctl`. |
-| [`cni/calico/`](https://github.com/symintel/gitops/tree/main/cni/calico) | Installation CR Calico (`calico-config` Application). |
+| [`storage/`](https://github.com/maceosoft/gitops/tree/main/storage) | StorageClasses vía `homelab-storage`. |
+| [`metallb/`](https://github.com/maceosoft/gitops/tree/main/metallb) | Pool + L2Advertisement. |
+| [`k3s-upgrade/`](https://github.com/maceosoft/gitops/tree/main/k3s-upgrade) | CRs `Plan` SUC. |
+| [`monitoring/`](https://github.com/maceosoft/gitops/tree/main/monitoring) | Values del chart de VictoriaMetrics, reglas, scrapes, ruta de Grafana y pruebas de las reglas (`victoria-metrics` y `victoria-metrics-config`). |
+| [`vcluster/values/platform.yaml`](https://github.com/maceosoft/gitops/blob/main/vcluster/values/platform.yaml) | Helm values Platform + OIDC Dex. |
+| [`capn/clusters/`](https://github.com/maceosoft/gitops/tree/main/capn/clusters) | Clusters generados con `clusterctl`. |
+| [`cni/calico/`](https://github.com/maceosoft/gitops/tree/main/cni/calico) | Installation CR Calico (`calico-config` Application). |
 
 ---
 
@@ -138,10 +142,10 @@ La aplicación raíz `homelab-root` agrupa todas las demás: en su vista de árb
 | SSO vCluster falla | `playbook-dex-oauth-secrets.yml --tags ensure,argocd,vcluster`; restart Dex |
 | Incus UI SSO falla | `incus config get oidc.issuer` / `oidc.client.id` en invincible; `invincible` debe confiar en la CA del HomeLab (`--tags incus_ca`); cliente `incus-ui` público en `dex.config`; restart Dex |
 | Dex login sin GitHub | Secretos GitHub en `argocd-secret`; Redirect URIs de la OAuth App correcto |
-| GitHub login rechazado | Usuario debe pertenecer al team `devops` de la org `symintel` |
+| GitHub login rechazado | Usuario debe pertenecer al team `devops` de la org `maceosoft` |
 | Longhorn pod pending | Etiquetas `node.longhorn.io/create-default-disk` ([playbook labels](../k3s/playbook-options.md)) |
 | Pods CNI no Ready | K3s con `--flannel-backend=none` antes de sync; solo **una** app CNI activa ([CNI](../k3s/playbook-options.md#cni)) |
 
-Manifiestos fuente: [`gitops/argocd/apps/`](https://github.com/symintel/gitops/tree/main/argocd/apps).
+Manifiestos fuente: [`gitops/argocd/apps/`](https://github.com/maceosoft/gitops/tree/main/argocd/apps).
 
 Guía ejecutable: **[Fase 4 — GitOps](../implementacion/fase-4-gitops.md)**.

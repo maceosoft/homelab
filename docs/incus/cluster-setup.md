@@ -3,7 +3,7 @@
 !!! info "Parte de la guía de implementación"
     Sigue **[Fase 2 — Incus](../implementacion/fase-2-incus.md)** para el orden
     completo. **Ansible** ejecuta bootstrap, join, cluster groups, scheduler y UI (interfaz de usuario)
-    vía [`playbook-incus-cluster.yml`](https://github.com/symintel/homelab/blob/main/ansible/playbook-incus-cluster.yml).
+    vía [`playbook-incus-cluster.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-incus-cluster.yml).
     Los bloques manuales siguientes son referencia.
 
 ## Automatización (Ansible)
@@ -14,15 +14,15 @@ ansible-playbook -i inventory.ini playbook-bootstrap.yml
 ansible-playbook -i inventory.ini playbook-incus-cluster.yml
 ```
 
-Roles: [`incus_cluster`](https://github.com/symintel/homelab/blob/main/ansible/roles/incus_cluster/README.md),
-[`incus_ui`](https://github.com/symintel/homelab/blob/main/ansible/roles/incus_ui/README.md).
+Roles: [`incus_cluster`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/incus_cluster/README.md),
+[`incus_ui`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/incus_ui/README.md).
 
 ## Almacenamiento
 
 Default HomeLab: driver **`dir`**, pool **`local`**, ruta
 `/var/lib/incus/storage-pools/local`. Ansible valida ≥ **20 GB** libres antes del
 init (`incus_storage_min_free_gb` en
-[`group_vars/incus_cluster/vars.yml`](https://github.com/symintel/homelab/blob/main/ansible/group_vars/incus_cluster/vars.yml)).
+[`group_vars/incus_cluster/vars.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/group_vars/incus_cluster/vars.yml)).
 
 | Aspecto | Default |
 |---|---|
@@ -218,7 +218,7 @@ un contenedor: la sirve el daemon de Incus en `core.https_address`.
     ```
 
 `/etc/hosts` en tu estación — bloque completo en
-[Resumen del HomeLab](../implementacion/resumen-homelab.md#etchosts-en-tu-estacion-de-trabajo):
+[Resumen del HomeLab](../implementacion/resumen-homelab.md#dns-en-tu-estacion-de-trabajo):
 
 Acceso inicial: [`https://incus.homelab.local:8443`](https://incus.homelab.local:8443) → certificado de cliente.
 
@@ -280,7 +280,7 @@ Incus 7.x **no** trae `incus auth` (grupos y `identity-provider-group` son de LX
 
 | Escenario | Resultado |
 |---|---|
-| Miembro del team `devops` de la org `symintel` | Dex lo deja pasar y, con la configuración por defecto de Incus, tiene **acceso completo** |
+| Miembro del team `devops` de la org `maceosoft` | Dex lo deja pasar y, con la configuración por defecto de Incus, tiene **acceso completo** |
 | Cuenta que no está en ese team | Dex rechaza el login: nunca llega a Incus |
 
 El control de acceso es, entonces, la pertenencia al team `devops` (filtro `orgs`/`teams` del
@@ -331,8 +331,8 @@ Qué exige OVN y qué implica para el HomeLab. Los segmentos y el despliegue est
 
 ### Desplegar OVN y los segmentos
 
-El rol [`incus_ovn`](https://github.com/symintel/homelab/blob/main/ansible/roles/incus_ovn/README.md), dentro de
-[`playbook-incus-cluster.yml`](https://github.com/symintel/homelab/blob/main/ansible/playbook-incus-cluster.yml), instala OVN en los tres
+El rol [`incus_ovn`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/incus_ovn/README.md), dentro de
+[`playbook-incus-cluster.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-incus-cluster.yml), instala OVN en los tres
 nodos (la base de datos en alta disponibilidad, con `invincible` creándola y los otros uniéndose), configura Incus y crea la red
 *uplink* sobre `br0` y una red OVN. Es **seguro por defecto**: sin `-e incus_ovn_confirm=true` solo hace el preflight (versión de Incus,
 paquetes, memoria libre, que `br0` exista y que las IP reservadas no respondan) y no instala nada. Con
@@ -386,8 +386,8 @@ Ambos playbooks son **seguros por defecto**: sin la variable de confirmación so
 
 | Qué | Playbook | Confirmación | Efecto |
 |---|---|---|---|
-| Actualizar Incus a la última versión del repositorio | [`playbook-upgrade-incus.yml`](https://github.com/symintel/homelab/blob/main/ansible/playbook-upgrade-incus.yml) | `-e incus_upgrade_confirm=true` | Actualiza los paquetes `incus*` nodo por nodo y espera a que los tres miembros estén `ONLINE`. No borra instancias |
-| Desinstalar el clúster (para rehacerlo) | [`playbook-uninstall-incus.yml`](https://github.com/symintel/homelab/blob/main/ansible/playbook-uninstall-incus.yml) | `-e incus_uninstall_confirm=true` | **Destructivo:** borra instancias, imágenes, redes gestionadas, el pool y los paquetes. No toca `br0`, K3s ni BIND |
+| Actualizar Incus a la última versión del repositorio | [`playbook-upgrade-incus.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-upgrade-incus.yml) | `-e incus_upgrade_confirm=true` | Actualiza los paquetes `incus*` nodo por nodo y espera a que los tres miembros estén `ONLINE`. No borra instancias |
+| Desinstalar el clúster (para rehacerlo) | [`playbook-uninstall-incus.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-uninstall-incus.yml) | `-e incus_uninstall_confirm=true` | **Destructivo:** borra instancias, imágenes, redes gestionadas, el pool y los paquetes. No toca `br0`, K3s ni BIND |
 
 El clúster exige **la misma versión de Incus en todos los miembros**: mientras difieren, el API queda bloqueado en los
 ya actualizados hasta que los demás los alcanzan. Por eso el playbook de actualización recorre los tres nodos seguidos y

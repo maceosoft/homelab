@@ -1,0 +1,11 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Recalcular los paquetes pendientes cada {{ node_apt_metrics_interval }}
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec={{ node_apt_metrics_interval }}
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target

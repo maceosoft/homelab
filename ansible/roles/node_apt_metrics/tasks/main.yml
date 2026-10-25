@@ -1,0 +1,39 @@
+---
+# Solo escribe métricas: no instala ni actualiza paquetes. Con node_apt_metrics_refresh_lists refresca
+# las listas de apt (apt-get update).
+
+- name: Crear la carpeta del textfile collector de node-exporter
+  ansible.builtin.file:
+    path: "{{ node_apt_metrics_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Instalar el script que escribe las métricas de paquetes
+  ansible.builtin.copy:
+    src: node-apt-metrics.sh
+    dest: /usr/local/bin/node-apt-metrics
+    owner: root
+    group: root
+    mode: "0755"
+  notify: Escribir las métricas de paquetes ahora
+
+- name: Instalar el servicio y el temporizador de systemd
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - node-apt-metrics.service
+    - node-apt-metrics.timer
+  notify: Escribir las métricas de paquetes ahora
+
+- name: Habilitar el temporizador
+  ansible.builtin.systemd:
+    name: node-apt-metrics.timer
+    enabled: true
+    state: started
+    daemon_reload: true

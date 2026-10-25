@@ -1,6 +1,6 @@
 # 🏠 HomeLab — K3s + Incus + CAPN
 
-📖 **Documentación publicada:** https://homelab.symintelligent.com/
+📖 **Documentación publicada:** https://homelab.maceo.cl/
 
 Documentación y código de infraestructura de mi HomeLab: un clúster Kubernetes
 híbrido (x86_64 + ARM64) construido sobre Incus, con Cluster API (CAPN) para
