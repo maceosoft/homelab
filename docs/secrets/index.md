@@ -83,6 +83,22 @@ Homepage `https://argocd.homelab.local` (informativa); Redirect URIs
 Detalle: [Fase 4 — 4.7](../implementacion/fase-4-gitops.md#47-secretos-oauth-github-vcluster-incus-ui)
 · [`1password.md`](https://github.com/symintel/gitops/blob/main/argocd/secrets/1password.md)
 
+## Monitoreo: webhooks de Discord, ping de healthchecks.io y Grafana (1Password → Secrets del clúster)
+
+Opcional ([Fase 4 — 4.13](../implementacion/fase-4-gitops.md#413-monitoreo-y-alertas-opcional)). Cómo crear las credenciales:
+[Discord y healthchecks.io](../symintel/discord-healthchecks.md). `playbook-platform-secrets.yml` crea,
+en el namespace `monitoring`, tres Secrets desde 1Password; sus valores nunca pasan por git porque el repo es público.
+
+| Item de 1Password | Campos | Secret en el clúster |
+|---|---|---|
+| `discord-webhooks` | `critical`, `warnings` | `monitoring/discord-webhooks` |
+| `healthchecks-ping` | `url` | `monitoring/healthchecks-ping` |
+| `grafana-admin` | `password` (y `username`, opcional) | `monitoring/grafana-admin` |
+
+Alertmanager lee las URL como archivos montados (`webhook_url_file`), así que ni siquiera aparecen en su configuración. El script
+exige que las dos URL de Discord tengan el formato `https://discord.com/api/webhooks/<id>/<token>`. Para rotar un webhook, bórralo y
+créalo de nuevo en Discord, actualiza el item y vuelve a correr el playbook.
+
 ## Rotación de password de root (1Password SDK local)
 
 [`playbook-rotate-root-passwords.yml`](https://github.com/symintel/homelab/blob/main/ansible/playbook-rotate-root-passwords.yml)

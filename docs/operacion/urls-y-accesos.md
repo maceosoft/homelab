@@ -18,6 +18,11 @@ Si tu equipo no usa ese DNS, agrega las entradas a tu archivo `hosts` (ver [Resu
       <div class="text-muted"><a href="https://incus.homelab.local:8443/ui/">incus.homelab.local:8443</a></div>
     </div>
     <div class="card-col">
+      <div class="card-title">Grafana <span class="tag">Opcional</span></div>
+      <div class="text-muted">Temperaturas y uso de los nodos · usuario local</div>
+      <div class="text-muted"><a href="https://grafana.homelab.local">grafana.homelab.local</a></div>
+    </div>
+    <div class="card-col">
       <div class="card-title">Longhorn <span class="tag">Por túnel</span></div>
       <div class="text-muted">Almacenamiento replicado · sin login</div>
       <div class="text-muted"><code>kubectl port-forward</code> → <code>127.0.0.1:8080</code></div>
@@ -37,6 +42,7 @@ Si tu equipo no usa ese DNS, agrega las entradas a tu archivo `hosts` (ver [Resu
 | **Argo CD** (GitOps) | [`https://argocd.homelab.local`](https://argocd.homelab.local) | GitHub, con SSO (inicio de sesión único) a través de Dex |
 | **Dex** (SSO) | [`https://argocd.homelab.local/api/dex`](https://argocd.homelab.local/api/dex/.well-known/openid-configuration) (emisor OIDC) | Sin interfaz propia: lo usan Argo CD, Incus UI y vCluster |
 | **Incus UI** | [`https://incus.homelab.local:8443/ui/`](https://incus.homelab.local:8443/ui/) | SSO (GitHub, vía Dex) o certificado TLS |
+| **Grafana** (monitoreo) | [`https://grafana.homelab.local`](https://grafana.homelab.local) | Usuario `admin` y contraseña del item `grafana-admin` de 1Password. Qué mirar: [Monitoreo y alertas](monitoreo.md) |
 | **SSH a los servidores** | `ssh devops@<servidor>.homelab.local` (`invincible`, `oliver`, `deborah`) | Identidad de GitHub vía Dex, con `opkssh`: [Entrar por SSH a los servidores](acceso-ssh.md) |
 | **Longhorn UI** | No está publicada: `kubectl port-forward` y [`http://127.0.0.1:8080`](http://127.0.0.1:8080) | Sin login |
 | **vCluster Platform** | [`https://vcluster.homelab.local`](https://vcluster.homelab.local) | SSO (vía Dex). Se activa en la Fase 5; sin ella la URL responde 404 |
@@ -46,7 +52,7 @@ Si tu equipo no usa ese DNS, agrega las entradas a tu archivo `hosts` (ver [Resu
 | **DNS** (BIND) | `192.168.20.5` | — (zonas `homelab.local` y `mco.local`) |
 
 !!! note "Cada nombre tiene su registro en BIND"
-    La zona `homelab.local` apunta `argocd`, `vcluster` y `api` a la IP del Gateway (`192.168.23.200`), `incus` al líder del clúster
+    La zona `homelab.local` apunta `argocd`, `vcluster`, `api` y `grafana` a la IP del Gateway (`192.168.23.200`), `incus` al líder del clúster
     (`invincible`, `192.168.20.6`) y cada servidor (`invincible`, `oliver`, `deborah`) a su propia IP. No hay comodín: un nombre
     nuevo no resuelve hasta que se añade su registro. Solo existe la ruta de Argo CD; por eso `vcluster.homelab.local` resuelve pero responde 404.
 

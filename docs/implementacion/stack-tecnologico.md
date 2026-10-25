@@ -116,6 +116,9 @@ flowchart TB
 - **[MetalLB](https://metallb.universe.tf/)** — LoadBalancer en LAN (red local); Fase 4 wave 0–1.
 - **[Gateway API](https://gateway-api.sigs.k8s.io/)** con **[Kong Ingress Controller](https://developer.konghq.com/kubernetes-ingress-controller/)** — HTTP(S) hacia ArgoCD y vCluster; Fase 4 wave 1 (alternativas: Traefik, NGINX Gateway Fabric).
 - **[1Password Python SDK](https://github.com/1Password/onepassword-sdk-python)** — Secretos OAuth desde la app local; Fase 4.
+- **[VictoriaMetrics](https://docs.victoriametrics.com/)** (con **[Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/)**) — Métricas y alertas de nodos y plataforma, más ligero que Prometheus; Fase 4 (4.13, opcional).
+- **[Grafana](https://grafana.com/docs/grafana/latest/)** — Paneles de temperatura, memoria y disco en `grafana.homelab.local`; Fase 4 (4.13, opcional).
+- **[Discord](https://discord.com/developers/docs/resources/webhook)** y **[healthchecks.io](https://healthchecks.io/docs/)** — Destino de las alertas (webhooks) y vigilante externo (*dead man's switch*) que recibe un ping de Alertmanager, por si cae todo el clúster; Fase 4 (4.13, opcional).
 
 ## Capa 4 — Storage y secretos en clúster
 

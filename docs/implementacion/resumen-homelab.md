@@ -24,6 +24,7 @@ al terminar la Fase 4 como mínimo; las fases 5 y 6 son opcionales.
 | **Dex** (issuer) | `https://argocd.homelab.local/api/dex` | — | 4 |
 | **vCluster Platform** | [`https://vcluster.homelab.local`](https://vcluster.homelab.local) | SSO Dex → GitHub | 5 |
 | **Incus UI** | [`https://incus.homelab.local:8443`](https://incus.homelab.local:8443) | SSO Dex (o cert cliente antes Fase 4) | 2 / 4 |
+| **Grafana** *(opcional)* | [`https://grafana.homelab.local`](https://grafana.homelab.local) | `admin` y la contraseña del item `grafana-admin` de 1Password | 4 ([4.13](fase-4-gitops.md#413-monitoreo-y-alertas-opcional)) |
 | **K3s API** | `https://192.168.20.5:6443` | kubeconfig | 3 |
 
 ### Kubeconfig
@@ -36,13 +37,13 @@ al terminar la Fase 4 como mínimo; las fases 5 y 6 son opcionales.
 
 ## DNS en tu estación de trabajo
 
-Usa `192.168.20.5` (BIND en `deborah`) como DNS: `argocd`, `vcluster` y `api` (`.homelab.local`) apuntan al Gateway
+Usa `192.168.20.5` (BIND en `deborah`) como DNS: `argocd`, `vcluster`, `api` y `grafana` (`.homelab.local`) apuntan al Gateway
 (`192.168.23.200`, IP fija) e `incus.homelab.local` a invincible
 ([Fase 4 — 4.8](fase-4-gitops.md#48-dns-de-homelablocal)). Si no puedes, el respaldo
 es `/etc/hosts`:
 
 ```
-192.168.23.200  argocd.homelab.local vcluster.homelab.local
+192.168.23.200  argocd.homelab.local vcluster.homelab.local api.homelab.local grafana.homelab.local
 192.168.20.6    incus.homelab.local
 ```
 
@@ -51,6 +52,7 @@ Verificación:
 ```bash
 curl -kI https://argocd.homelab.local
 curl -kI https://vcluster.homelab.local
+curl -kI https://grafana.homelab.local   # solo si instalaste el monitoreo (4.13)
 curl -kI https://incus.homelab.local:8443
 ```
 

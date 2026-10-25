@@ -21,6 +21,7 @@ primero en 1Password (bóveda `HomeLab`) y después se lleva al clúster.
 | Private key de una GitHub App (`symintel-terraform`, `symintel-arc-runners`, `symintel-argocd`) | el item con el nombre de la App | `playbook-platform-secrets.yml` |
 | Credenciales FTP de un repo | `ftp-<repo>` | `playbook-platform-secrets.yml` + pipeline de `infra` |
 | Client secret de Dex (login con GitHub) | `symintel-dex` | `playbook-dex-oauth-secrets.yml` |
+| Webhooks de Discord, ping URL de healthchecks.io y contraseña de Grafana (monitoreo) | `discord-webhooks`, `healthchecks-ping`, `grafana-admin` | `playbook-platform-secrets.yml` ([ver abajo](#monitoreo-webhooks-de-discord-ping-de-healthchecksio-y-grafana)) |
 | Contraseña de root de los nodos | `root@<nodo>` (la crea el playbook) | `playbook-rotate-root-passwords.yml` |
 | Llave de Sealed Secrets | `sealed-secrets` | `playbook-platform-secrets.yml` ([ojo: ver abajo](#llave-de-sealed-secrets)) |
 | Token de ArgoCD del pipeline de `gitops` (cuenta `ci`) | `argocd-ci` | `playbook-platform-secrets.yml` ([cómo generarlo](pipeline-gitops.md#activar-el-diff-contra-el-cluster-una-vez)) |
@@ -70,6 +71,37 @@ primero en 1Password (bóveda `HomeLab`) y después se lleva al clúster.
 
 4. Prueba el login con GitHub en ArgoCD y después borra el secret viejo en la
    OAuth App.
+
+## Monitoreo: webhooks de Discord, ping de healthchecks.io y Grafana
+
+Son opcionales ([4.13](../implementacion/fase-4-gitops.md#413-monitoreo-y-alertas-opcional)). Los tres viven en 1Password y el
+playbook los lleva al namespace `monitoring`; nunca se escriben en git.
+
+1. Genera el valor nuevo:
+    - **Webhook de Discord:** Discord no permite regenerar el token de un webhook. En *Server Settings → Integrations → Webhooks*, usa
+      **Delete Webhook** y crea uno nuevo ([cómo](../symintel/discord-healthchecks.md#4-un-webhook-por-canal)); copia su URL.
+    - **Ping URL de healthchecks.io:** crea un check nuevo con la misma configuración (**Period** de 5 minutos, **Grace Time** de 10 y su
+      integración con Discord), copia su ping URL y borra el viejo. Los pasos están en
+      [Discord y healthchecks.io](../symintel/discord-healthchecks.md#parte-2-healthchecksio).
+    - **Contraseña de Grafana:** una nueva en 1Password.
+2. Reemplaza el campo en su item (`critical` o `warnings` en `discord-webhooks`, `url` en `healthchecks-ping`, `password` en
+   `grafana-admin`).
+3. Comprueba y aplica:
+
+    ```bash
+    ../.venv/bin/python scripts/apply_platform_secrets.py --check
+    ansible-playbook -i inventory.ini playbook-platform-secrets.yml
+    ```
+
+4. Si tras unos minutos Alertmanager sigue usando el valor anterior, reinicia su pod; para la contraseña de Grafana, reinicia su
+   Deployment (el volumen es efímero y vuelve a leerla al arrancar):
+
+    ```bash
+    kubectl -n monitoring get pods
+    kubectl -n monitoring rollout restart deploy/vm-grafana
+    ```
+
+5. Prueba con la alerta de prueba del [paso 7 de 4.13](../implementacion/fase-4-gitops.md#413-monitoreo-y-alertas-opcional).
 
 ## Contraseña de root de los nodos
 

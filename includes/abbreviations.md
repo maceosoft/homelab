@@ -58,6 +58,7 @@
 *[NAT]: Network Address Translation — Traducción de direcciones que hace el router entre la red local e internet.
 *[NFS]: Network File System — Protocolo de carpetas compartidas por red en Linux.
 *[NIC]: tarjeta de red — Network Interface Card.
+*[NTP]: Network Time Protocol — Protocolo que sincroniza el reloj de los equipos; sin él los certificados TLS pueden parecer "aún no válidos".
 *[NVMe]: disco SSD por PCIe — Non-Volatile Memory Express: discos SSD de alta velocidad.
 *[OCI]: Open Container Initiative — Estándar de imágenes y registros; ARC y NGINX Gateway Fabric publican su chart de Helm en un registro OCI.
 *[OIDC]: OpenID Connect — Protocolo de inicio de sesión sobre OAuth 2.0; Dex lo usa para el login con GitHub.
@@ -79,6 +80,7 @@
 *[SOPS]: Secrets OPerationS — Herramienta para cifrar secretos dentro de archivos YAML/JSON.
 *[SPDK]: Storage Performance Development Kit — Motor de almacenamiento de Longhorn v2 (no se usa aquí).
 *[SSD]: disco de estado sólido
+*[SoC]: system on chip — Chip que reúne CPU, gráficos y otros componentes; el RK3588 de deborah es uno.
 *[SSH]: Secure Shell — Protocolo para conectarse a otro equipo por terminal de forma cifrada.
 *[SSO]: inicio de sesión único — Single Sign-On: entrar a varios servicios con la misma cuenta (aquí, GitHub vía Dex).
 *[SUC]: System Upgrade Controller — Controlador de Rancher que actualiza K3s nodo por nodo.

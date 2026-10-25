@@ -166,6 +166,7 @@ nav:
       - Procedimientos de rutina: operacion/index.md
       - URLs y accesos de los productos: operacion/urls-y-accesos.md
       - Entrar por SSH a los servidores: operacion/acceso-ssh.md
+      - Monitoreo y alertas: operacion/monitoreo.md
       - Agregar un repo: operacion/agregar-repo.md
       - Agregar un nodo: operacion/agregar-nodo.md
       - Sacar o reemplazar un nodo: operacion/sacar-nodo.md
@@ -202,6 +203,7 @@ nav:
       - Storage: storage/index.md
       - Secretos: secrets/index.md
       - "Plataforma symintel — GitHub": symintel/github.md
+      - "Plataforma symintel — Discord y healthchecks.io": symintel/discord-healthchecks.md
       - Glosario: glosario.md
       - Seguridad:
           - Hardening post-incidente: security/hardening-post-incidente.md
