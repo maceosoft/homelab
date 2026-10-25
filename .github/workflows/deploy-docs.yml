@@ -1,6 +1,6 @@
 name: Build y desplegar documentación (MkDocs -> GitHub Pages)
 # Corre en el runner arc-runners del HomeLab. El equivalente reutilizable está en
-# symintel/core-pipelines (mkdocs.yml), pero un repo público no puede llamar a uno privado.
+# maceosoft/core-pipelines (mkdocs.yml), pero un repo público no puede llamar a uno privado.
 
 on:
   push:

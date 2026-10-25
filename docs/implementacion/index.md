@@ -108,8 +108,8 @@ URLs, `/etc/hosts`, nodos y verificación.
 
 | Repo | Qué instala | Herramienta |
 |---|---|---|
-| [`homelab`](https://github.com/symintel/homelab) | Red SO, Incus, K3s, kube-vip, controller ArgoCD | [Ansible](https://docs.ansible.com/) |
-| [`gitops`](https://github.com/symintel/gitops) | MetalLB, Gateway API, storage, vCluster, CAPN, … | [Argo CD](https://argo-cd.readthedocs.io/) |
+| [`homelab`](https://github.com/maceosoft/homelab) | Red SO, Incus, K3s, kube-vip, controller ArgoCD | [Ansible](https://docs.ansible.com/) |
+| [`gitops`](https://github.com/maceosoft/gitops) | MetalLB, Gateway API, storage, vCluster, CAPN, … | [Argo CD](https://argo-cd.readthedocs.io/) |
 
 ## Stack tecnológico
 

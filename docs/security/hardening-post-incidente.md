@@ -9,7 +9,7 @@
 Esta página es la guía para reconstruir `deborah` de forma segura y para
 que este incidente no se repita en `invincible`/`oliver`. El playbook y el
 rol que la acompañan están en
-[`ansible/roles/host_hardening/`](https://github.com/symintel/homelab/blob/main/ansible/roles/host_hardening/README.md).
+[`ansible/roles/host_hardening/`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/host_hardening/README.md).
 
 ## Causa raíz (y por qué importa el orden)
 
@@ -51,7 +51,7 @@ K8s.
 
 ## Qué hace el hardening (resumen)
 
-Detalle completo en el [README del rol](https://github.com/symintel/homelab/blob/main/ansible/roles/host_hardening/README.md).
+Detalle completo en el [README del rol](https://github.com/maceosoft/homelab/blob/main/ansible/roles/host_hardening/README.md).
 En corto: SSH sin password (solo key), eliminación de las cuentas por
 defecto conocidas (`orangepi`, `pi`, `ubuntu`, `debian`) con su home,
 sysctl de red básico, y auditd para tener rastro si algo vuelve a pasar. En
@@ -73,7 +73,7 @@ de que vuelva a ser útil. El orden completo, paso a paso con los comandos
 exactos, vive en un solo lugar para no duplicarlo (y que no se desactualice
 en dos partes distintas):
 
-**→ [`ansible/bootstrap/README.md`](https://github.com/symintel/homelab/blob/main/ansible/bootstrap/README.md)**
+**→ [`ansible/bootstrap/README.md`](https://github.com/maceosoft/homelab/blob/main/ansible/bootstrap/README.md)**
 
 Usá `--limit deborah` en cada paso. La IP fija (`playbook-set-static-ip.yml`) va
 **antes** que el hardening.

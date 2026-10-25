@@ -6,7 +6,7 @@ Calico es el CNI (Container Network Interface, la red de los pods) del clúster.
 1. **Bootstrap, con Ansible** (rol `k3s_cni`): al crear el clúster, ArgoCD todavía no existe y
    necesita red de pods para arrancar, así que Ansible instala Calico primero.
 2. **Desde entonces, ArgoCD** lo administra y lo actualiza: dos Applications de
-   [`symintel/gitops`](https://github.com/symintel/gitops).
+   [`maceosoft/gitops`](https://github.com/maceosoft/gitops).
 
 | Application | Qué administra | Dónde |
 |---|---|---|

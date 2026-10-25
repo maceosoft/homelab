@@ -16,7 +16,7 @@ IP 80/443 de MetalLB y no pueden convivir:
 | `nginx-gateway` | [NGINX Gateway Fabric](https://docs.nginx.com/nginx-gateway-fabric/) | Necesita también `nginx-gateway-helm-repo` (registro OCI del chart) |
 
 El `Gateway` de cada uno está en `gateway/<kong|traefik|nginx>/` del repo
-[`gitops`](https://github.com/symintel/gitops); `GatewayClass`, puertos y
+[`gitops`](https://github.com/maceosoft/gitops); `GatewayClass`, puertos y
 anotaciones cambian de uno a otro, los `HTTPRoute` no.
 
 ## Cómo funciona el TLS

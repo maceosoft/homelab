@@ -1,13 +1,13 @@
 # Ansible — catálogo de roles
 
-Inventario de roles en [`ansible/roles/`](https://github.com/symintel/homelab/tree/main/ansible/roles). Cada rol tiene
+Inventario de roles en [`ansible/roles/`](https://github.com/maceosoft/homelab/tree/main/ansible/roles). Cada rol tiene
 su `README.md` con variables, tags y verificación.
 
 !!! tip "¿De cero a nodo operativo?"
     Esta página es el catálogo por rol/fase. El **orden completo** para
     llevar un nodo de bare-metal a operativo (incluye hardening,
     BIND, WiFi — hoy fuera de las fases 1-4 de abajo) está en
-    [`ansible/bootstrap/README.md`](https://github.com/symintel/homelab/blob/main/ansible/bootstrap/README.md).
+    [`ansible/bootstrap/README.md`](https://github.com/maceosoft/homelab/blob/main/ansible/bootstrap/README.md).
 
 ## Por fase de implementación
 
@@ -22,39 +22,41 @@ su `README.md` con variables, tags y verificación.
 
 | Rol | Propósito | Playbook | Tags |
 |---|---|---|---|
-| [`netplan_bridge`](https://github.com/symintel/homelab/blob/main/ansible/roles/netplan_bridge/README.md) | IP fija en `br0` (Netplan) y `/etc/resolv.conf` estático | `playbook-set-static-ip.yml` | — |
-| [`incus_install`](https://github.com/symintel/homelab/blob/main/ansible/roles/incus_install/README.md) | Paquete Incus (Zabbly) | `playbook-bootstrap.yml` | — |
-| [`incus_cluster`](https://github.com/symintel/homelab/blob/main/ansible/roles/incus_cluster/README.md) | Bootstrap/join/groups Incus | `playbook-incus-cluster.yml` | `bootstrap`, `join`, `groups`, `scheduler` |
-| [`incus_ui`](https://github.com/symintel/homelab/blob/main/ansible/roles/incus_ui/README.md) | UI nativa Incus | `playbook-incus-cluster.yml` | `ui` |
-| [`incus_ovn`](https://github.com/symintel/homelab/blob/main/ansible/roles/incus_ovn/README.md) | OVN para Incus (opcional, apagado por defecto) | `playbook-incus-cluster.yml` | `ovn` |
-| [`bind_dns`](https://github.com/symintel/homelab/blob/main/ansible/roles/bind_dns/README.md) | BIND en deborah: DNS de la LAN y zonas `mco.local`, su reversa y `homelab.local` | `playbook-bind-dns.yml` | — |
-| [`k3s_prereqs`](https://github.com/symintel/homelab/blob/main/ansible/roles/k3s_prereqs/README.md) | Swap, módulos kernel, sysctl, requisitos de Longhorn (open-iscsi, NFS) | `playbook-k3s.yml` | `prereqs`, `always` |
-| [`k3s_server`](https://github.com/symintel/homelab/blob/main/ansible/roles/k3s_server/README.md) | Control-plane K3s | `playbook-k3s.yml` | `server`, `core` |
-| [`k3s_cni`](https://github.com/symintel/homelab/blob/main/ansible/roles/k3s_cni/README.md) | CNI Canal/Calico/Cilium | `playbook-k3s.yml` | `cni`, `core` |
-| [`k3s_agent`](https://github.com/symintel/homelab/blob/main/ansible/roles/k3s_agent/README.md) | Workers K3s | `playbook-k3s.yml` | `agent`, `core` |
-| [`k3s_kube_vip`](https://github.com/symintel/homelab/blob/main/ansible/roles/k3s_kube_vip/README.md) | VIP API `:6443` | `playbook-k3s.yml` | `kube_vip` |
-| [`k3s_cleanup_traefik`](https://github.com/symintel/homelab/blob/main/ansible/roles/k3s_cleanup_traefik/README.md) | Limpia Traefik/svclb | `playbook-k3s.yml` | `traefik` |
-| [`k3s_node_labels`](https://github.com/symintel/homelab/blob/main/ansible/roles/k3s_node_labels/README.md) | Etiquetas de nodos | `playbook-k3s.yml` | `labels` |
-| [`k3s_argocd`](https://github.com/symintel/homelab/blob/main/ansible/roles/k3s_argocd/README.md) | Controller Argo CD | `playbook-k3s.yml` | `argocd`, `gitops` |
-| [`k3s_fetch_kubeconfig`](https://github.com/symintel/homelab/blob/main/ansible/roles/k3s_fetch_kubeconfig/README.md) | Kubeconfig local | `playbook-k3s.yml` | `kubeconfig` |
-| [`k3s_os_hardening`](https://github.com/symintel/homelab/blob/main/ansible/roles/k3s_os_hardening/README.md) | unattended-upgrades | `playbook-k3s.yml` | `hardening` |
-| [`host_hardening`](https://github.com/symintel/homelab/blob/main/ansible/roles/host_hardening/README.md) | SSH, cuentas default, sysctl, auditd | `playbook-hardening.yml` | — |
-| [`opkssh`](https://github.com/symintel/homelab/blob/main/ansible/roles/opkssh/README.md) | SSH a los hosts con la identidad de Dex (team `devops`) | `playbook-opkssh.yml` | — |
-| [`wifi_failover`](https://github.com/symintel/homelab/blob/main/ansible/roles/wifi_failover/README.md) | WiFi de respaldo del cable (nodos con WiFi) | `playbook-wifi-failover.yml` | — |
-| [`storage_provision`](https://github.com/symintel/homelab/blob/main/ansible/roles/storage_provision/README.md) | Formatea y monta un disco libre (destructivo) | `playbook-storage-provision.yml` | — |
+| [`netplan_bridge`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/netplan_bridge/README.md) | IP fija en `br0` (Netplan) y `/etc/resolv.conf` estático | `playbook-set-static-ip.yml` | — |
+| [`incus_install`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/incus_install/README.md) | Paquete Incus (Zabbly) | `playbook-bootstrap.yml` | — |
+| [`incus_cluster`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/incus_cluster/README.md) | Bootstrap/join/groups Incus | `playbook-incus-cluster.yml` | `bootstrap`, `join`, `groups`, `scheduler` |
+| [`incus_ui`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/incus_ui/README.md) | UI nativa Incus | `playbook-incus-cluster.yml` | `ui` |
+| [`incus_ovn`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/incus_ovn/README.md) | OVN para Incus (opcional, apagado por defecto) | `playbook-incus-cluster.yml` | `ovn` |
+| [`bind_dns`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/bind_dns/README.md) | BIND en deborah: DNS de la LAN y zonas `mco.local`, su reversa y `homelab.local` | `playbook-bind-dns.yml` | — |
+| — (sin rol) | Registra en Incus el certificado de métricas que lee vmagent (lo emite cert-manager; se lee del Secret `monitoring/incus-metrics`) | `playbook-incus-metrics.yml` | — |
+| [`node_apt_metrics`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/node_apt_metrics/README.md) | Publica a Prometheus los parches de apt pendientes y si el nodo pide reinicio (solo avisa, no instala nada) | `playbook-apt-metrics.yml` | — |
+| [`k3s_prereqs`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/k3s_prereqs/README.md) | Swap, módulos kernel, sysctl, requisitos de Longhorn (open-iscsi, NFS) | `playbook-k3s.yml` | `prereqs`, `always` |
+| [`k3s_server`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/k3s_server/README.md) | Control-plane K3s | `playbook-k3s.yml` | `server`, `core` |
+| [`k3s_cni`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/k3s_cni/README.md) | CNI Canal/Calico/Cilium | `playbook-k3s.yml` | `cni`, `core` |
+| [`k3s_agent`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/k3s_agent/README.md) | Workers K3s | `playbook-k3s.yml` | `agent`, `core` |
+| [`k3s_kube_vip`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/k3s_kube_vip/README.md) | VIP API `:6443` | `playbook-k3s.yml` | `kube_vip` |
+| [`k3s_cleanup_traefik`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/k3s_cleanup_traefik/README.md) | Limpia Traefik/svclb | `playbook-k3s.yml` | `traefik` |
+| [`k3s_node_labels`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/k3s_node_labels/README.md) | Etiquetas de nodos | `playbook-k3s.yml` | `labels` |
+| [`k3s_argocd`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/k3s_argocd/README.md) | Controller Argo CD | `playbook-k3s.yml` | `argocd`, `gitops` |
+| [`k3s_fetch_kubeconfig`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/k3s_fetch_kubeconfig/README.md) | Kubeconfig local | `playbook-k3s.yml` | `kubeconfig` |
+| [`k3s_os_hardening`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/k3s_os_hardening/README.md) | unattended-upgrades | `playbook-k3s.yml` | `hardening` |
+| [`host_hardening`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/host_hardening/README.md) | SSH, cuentas default, sysctl, auditd | `playbook-hardening.yml` | — |
+| [`opkssh`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/opkssh/README.md) | SSH a los hosts con la identidad de Dex (team `devops`) | `playbook-opkssh.yml` | — |
+| [`wifi_failover`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/wifi_failover/README.md) | WiFi de respaldo del cable (nodos con WiFi) | `playbook-wifi-failover.yml` | — |
+| [`storage_provision`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/storage_provision/README.md) | Formatea y monta un disco libre (destructivo) | `playbook-storage-provision.yml` | — |
 
 ## Playbooks sin rol (tareas inline)
 
 | Playbook | Fase | Descripción |
 |---|---|---|
-| [`setup_sudo.yml`](https://github.com/symintel/homelab/blob/main/ansible/bootstrap/setup_sudo.yml) | Día 0 | Instala python3 y sudo y deja a tu usuario administrador con sudo (conecta como root; el usuario se puede indicar con `-e bootstrap_admin_user=<usuario>`) |
-| [`playbook-discovery.yml`](https://github.com/symintel/homelab/blob/main/ansible/playbook-discovery.yml) | 0 | Inventario hardware → `ansible/reports/` |
-| [`playbook-incus-cluster.yml`](https://github.com/symintel/homelab/blob/main/ansible/playbook-incus-cluster.yml) | 2 | Bootstrap/join/groups/UI Incus |
-| [`playbook-dex-oauth-secrets.yml`](https://github.com/symintel/homelab/blob/main/ansible/playbook-dex-oauth-secrets.yml) | 4 | OAuth Dex: 1Password + ArgoCD + Incus/vCluster |
-| [`playbook-rotate-root-passwords.yml`](https://github.com/symintel/homelab/blob/main/ansible/playbook-rotate-root-passwords.yml) | Seguridad | Rota password de root → 1Password (bóveda HomeLab) |
-| [`playbook-uninstall-k3s.yml`](https://github.com/symintel/homelab/blob/main/ansible/playbook-uninstall-k3s.yml) | Apéndice | Desinstala K3s en los 3 nodos |
+| [`setup_sudo.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/bootstrap/setup_sudo.yml) | Día 0 | Instala python3 y sudo y deja a tu usuario administrador con sudo (conecta como root; el usuario se puede indicar con `-e bootstrap_admin_user=<usuario>`) |
+| [`playbook-discovery.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-discovery.yml) | 0 | Inventario hardware → `ansible/reports/` |
+| [`playbook-incus-cluster.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-incus-cluster.yml) | 2 | Bootstrap/join/groups/UI Incus |
+| [`playbook-dex-oauth-secrets.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-dex-oauth-secrets.yml) | 4 | OAuth Dex: 1Password + ArgoCD + Incus/vCluster |
+| [`playbook-rotate-root-passwords.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-rotate-root-passwords.yml) | Seguridad | Rota password de root → 1Password (bóveda HomeLab) |
+| [`playbook-uninstall-k3s.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-uninstall-k3s.yml) | Apéndice | Desinstala K3s en los 3 nodos |
 
-Documentación OAuth: [`gitops/argocd/secrets/1password.md`](https://github.com/symintel/gitops/blob/main/argocd/secrets/1password.md)
+Documentación OAuth: [`gitops/argocd/secrets/1password.md`](https://github.com/maceosoft/gitops/blob/main/argocd/secrets/1password.md)
 
 ## Orden de ejecución K3s
 
@@ -76,11 +78,11 @@ flowchart LR
 
 | Archivo | Contenido |
 |---|---|
-| [`group_vars/incus_cluster/k3s_install.yml`](https://github.com/symintel/homelab/blob/main/ansible/group_vars/incus_cluster/k3s_install.yml) | Flags del playbook K3s |
-| [`group_vars/dex_oauth_secrets.yml`](https://github.com/symintel/homelab/blob/main/ansible/group_vars/dex_oauth_secrets.yml) | OAuth Dex |
-| [`group_vars/incus_cluster/vars.yml`](https://github.com/symintel/homelab/blob/main/ansible/group_vars/incus_cluster/vars.yml) | Storage Incus, groups, UI |
-| [`group_vars/all.yml`](https://github.com/symintel/homelab/blob/main/ansible/group_vars/all.yml) | Gateway, IP control-plane |
-| [`host_vars/*.yml`](https://github.com/symintel/homelab/tree/main/ansible/host_vars) | Labels, kubelet args por nodo |
+| [`group_vars/incus_cluster/k3s_install.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/group_vars/incus_cluster/k3s_install.yml) | Flags del playbook K3s |
+| [`group_vars/dex_oauth_secrets.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/group_vars/dex_oauth_secrets.yml) | OAuth Dex |
+| [`group_vars/incus_cluster/vars.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/group_vars/incus_cluster/vars.yml) | Storage Incus, groups, UI |
+| [`group_vars/all.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/group_vars/all.yml) | Gateway, IP control-plane |
+| [`host_vars/*.yml`](https://github.com/maceosoft/homelab/tree/main/ansible/host_vars) | Labels, kubelet args por nodo |
 
 ## Referencias
 

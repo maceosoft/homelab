@@ -1,0 +1,18 @@
+---
+# node_bind_metrics — valores por defecto. Ver README.md del rol.
+
+# Carpeta del "textfile collector" de node-exporter (la misma que usan los otros roles node_*_metrics).
+node_bind_metrics_dir: /var/lib/node_exporter/textfile
+
+# Cada cuánto se hace la consulta de prueba. Es una consulta UDP local: cuesta casi nada.
+node_bind_metrics_interval: 1min
+
+# A quién se consulta: la IP que usan los clientes de la LAN (group_vars/all.yml: dns_primary).
+node_bind_metrics_server: "{{ dns_primary }}"
+
+# Nombre que se resuelve. Tiene que ser un registro propio y estable del servidor (aquí, el A de un nodo
+# en la zona mco.local, que genera el rol bind_dns desde el inventario).
+node_bind_metrics_query_name: "{{ inventory_hostname }}.mco.local"
+
+# Unidad de systemd de BIND en Debian 13.
+node_bind_metrics_unit: named.service

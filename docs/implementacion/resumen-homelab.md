@@ -24,6 +24,7 @@ al terminar la Fase 4 como mínimo; las fases 5 y 6 son opcionales.
 | **Dex** (issuer) | `https://argocd.homelab.local/api/dex` | — | 4 |
 | **vCluster Platform** | [`https://vcluster.homelab.local`](https://vcluster.homelab.local) | SSO Dex → GitHub | 5 |
 | **Incus UI** | [`https://incus.homelab.local:8443`](https://incus.homelab.local:8443) | SSO Dex (o cert cliente antes Fase 4) | 2 / 4 |
+| **Grafana** *(opcional)* | [`https://grafana.homelab.local`](https://grafana.homelab.local) | `admin` y la contraseña del item `grafana-admin` de 1Password | 4 ([4.13](fase-4-gitops.md#413-monitoreo-y-alertas-opcional)) |
 | **K3s API** | `https://192.168.20.5:6443` | kubeconfig | 3 |
 
 ### Kubeconfig
@@ -36,13 +37,13 @@ al terminar la Fase 4 como mínimo; las fases 5 y 6 son opcionales.
 
 ## DNS en tu estación de trabajo
 
-Usa `192.168.20.5` (BIND en `deborah`) como DNS: `argocd`, `vcluster` y `api` (`.homelab.local`) apuntan al Gateway
+Usa `192.168.20.5` (BIND en `deborah`) como DNS: `argocd`, `vcluster`, `api` y `grafana` (`.homelab.local`) apuntan al Gateway
 (`192.168.23.200`, IP fija) e `incus.homelab.local` a invincible
 ([Fase 4 — 4.8](fase-4-gitops.md#48-dns-de-homelablocal)). Si no puedes, el respaldo
 es `/etc/hosts`:
 
 ```
-192.168.23.200  argocd.homelab.local vcluster.homelab.local
+192.168.23.200  argocd.homelab.local vcluster.homelab.local api.homelab.local grafana.homelab.local
 192.168.20.6    incus.homelab.local
 ```
 
@@ -51,6 +52,7 @@ Verificación:
 ```bash
 curl -kI https://argocd.homelab.local
 curl -kI https://vcluster.homelab.local
+curl -kI https://grafana.homelab.local   # solo si instalaste el monitoreo (4.13)
 curl -kI https://incus.homelab.local:8443
 ```
 
@@ -72,7 +74,7 @@ Detalle hardware: [Inventario](../hardware/inventory.md).
 |---|---|---|
 | CNI | **Flannel** `vxlan` (embebido en K3s) | Canal, Calico o Cilium vía rol `k3s_cni` o apps GitOps manuales |
 
-Variable Ansible: `k3s_install.core.cni` en [`group_vars/incus_cluster/k3s_install.yml`](https://github.com/symintel/homelab/blob/main/ansible/group_vars/incus_cluster/k3s_install.yml).
+Variable Ansible: `k3s_install.core.cni` en [`group_vars/incus_cluster/k3s_install.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/group_vars/incus_cluster/k3s_install.yml).
 Detalle y trade-offs: [Fase 3 — CNI](fase-3-k3s.md#cni) · [playbook-options](../k3s/playbook-options.md#cni).
 
 Verificación:
@@ -95,9 +97,9 @@ Playbook: `playbook-dex-oauth-secrets.yml`.
 !!! important "Permisos por defecto"
     En vCluster Platform, los usuarios SSO (inicio de sesión único) **no ven nada** hasta asignarles
     acceso. En Incus, quien entra por SSO tiene acceso completo: el control es que Dex solo deja
-    pasar al team `devops` de `symintel`. Ver [Fase 4](fase-4-gitops.md) y [Fase 5](fase-5-vcluster.md).
+    pasar al team `devops` de `maceosoft`. Ver [Fase 4](fase-4-gitops.md) y [Fase 5](fase-5-vcluster.md).
 
-Documentación: [Secretos OAuth](https://github.com/symintel/gitops/blob/main/argocd/secrets/1password.md)
+Documentación: [Secretos OAuth](https://github.com/maceosoft/gitops/blob/main/argocd/secrets/1password.md)
 
 ## GitOps (Argo CD)
 
@@ -107,7 +109,7 @@ Apps típicas en `Healthy` tras Fase 4:
 - Opcionales (sync manual): `vcluster-platform`, `capn-demo`
 - CNI (solo si no usas Flannel embebido): `calico-operator` + `calico-config`, `canal` o `cilium` — **una** a la vez
 
-Repo: [`gitops`](https://github.com/symintel/gitops) · [`bootstrap/root-appset.yaml`](https://github.com/symintel/gitops/blob/main/bootstrap/root-appset.yaml)
+Repo: [`gitops`](https://github.com/maceosoft/gitops) · [`bootstrap/root-appset.yaml`](https://github.com/maceosoft/gitops/blob/main/bootstrap/root-appset.yaml)
 
 ## Verificación global
 

@@ -36,7 +36,7 @@ Solo `deborah`.
 5. Genera `/var/lib/bind/db.mco.local` (un `A` por host de `incus_cluster`, con su
    `static_ip`; `ns` es `dns_primary` y `k3s` es `k3s_control_plane_host`),
    `/var/lib/bind/db.mco.local.inv` (los `PTR`) y `/var/lib/bind/db.homelab.local`
-   (dominio de servicios publicados: un registro por cada servidor de `incus_cluster` con su `static_ip`; `incus` → `incus_cluster_leader`; `argocd`, `vcluster` y `api` → `gateway_ip`, la IP fija del Gateway en MetalLB, definida en `group_vars/all.yml`).
+   (dominio de servicios publicados: un registro por cada servidor de `incus_cluster` con su `static_ip`; `incus` → `incus_cluster_leader`; `argocd`, `vcluster`, `api` y `grafana` → `gateway_ip`, la IP fija del Gateway en MetalLB, definida en `group_vars/all.yml`).
    El serial es la fecha (`YYYYMMDD01`).
 6. Habilita `named`; recarga las zonas (`rndc reload`) si cambian los archivos
    y reinicia `named` si cambia la configuración.

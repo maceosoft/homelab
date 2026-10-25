@@ -66,21 +66,21 @@ Profundización: [Discovery de hardware](../hardware/discovery.md) · [Inventari
 - [x] Tres nodos accesibles por SSH (aunque aún con DHCP está bien).
 - [x] Python 3.11+ en tu estación.
 - [x] Clave SSH (Secure Shell) configurada hacia los nodos.
-- [x] **GitHub:** la organización **`symintel`** creada, con un team
+- [x] **GitHub:** la organización **`maceosoft`** creada, con un team
       **`devops`** (sus miembros son quienes pueden entrar a ArgoCD) y una
       cuenta que sea **owner** de la organización para crear las Apps.
-      Detalle en [Plataforma symintel — GitHub](../symintel/github.md).
+      Detalle en [Plataforma maceosoft — GitHub](../maceosoft/github.md).
 - [x] **1Password:** la app de escritorio instalada, con una bóveda llamada
       **`HomeLab`** y *Settings → Developer → Integrate with other apps*
       activado. Ahí se guardan las credenciales que usan los playbooks
-      ([qué items y campos](../symintel/github.md#items-en-1password)).
+      ([qué items y campos](../maceosoft/github.md#items-en-1password)).
 
 ## Ejecutar
 
 ### Clonar repo y entorno Ansible
 
 ```bash
-git clone https://github.com/symintel/homelab.git
+git clone https://github.com/maceosoft/homelab.git
 cd homelab
 python3 -m venv .venv
 source .venv/bin/activate
@@ -120,7 +120,7 @@ playbook se detiene si no) y solo admite minúsculas, dígitos, `_` y `-`.
 
 Detalle completo (por qué conecta como `root` y dónde encaja en el resto
 del bootstrap) en
-[`ansible/bootstrap/README.md`](https://github.com/symintel/homelab/blob/main/ansible/bootstrap/README.md).
+[`ansible/bootstrap/README.md`](https://github.com/maceosoft/homelab/blob/main/ansible/bootstrap/README.md).
 Si tus 3 nodos ya tienen un usuario admin con sudo funcionando, salteá
 este paso.
 
@@ -129,7 +129,7 @@ este paso.
 Revisa [`ansible/inventory.ini`][inventory-ini]: `ansible_host`, `static_ip`,
 `bridge_iface` por nodo.
 
-[inventory-ini]: https://github.com/symintel/homelab/blob/main/ansible/inventory.ini
+[inventory-ini]: https://github.com/maceosoft/homelab/blob/main/ansible/inventory.ini
 
 ```bash
 ansible -i ansible/inventory.ini incus_cluster -m ping
@@ -151,48 +151,48 @@ ansible -i ansible/inventory.ini incus_cluster -m ping
     Recopila CPU, RAM, disco y red con `lscpu`, `free -h`, `lsblk`, `ip -br link`
     y compara con [Inventario de hardware](../hardware/inventory.md).
 
-### GitHub y 1Password — org symintel (manual, una sola vez)
+### GitHub y 1Password — org maceosoft (manual, una sola vez)
 
 Aquí se preparan, una sola vez, las cuentas y credenciales de GitHub que el
 HomeLab necesita: las Apps con las que el clúster habla con GitHub (entre
-ellas la que usa ArgoCD para leer el repo privado `symintel/gitops`) y los
+ellas la que usa ArgoCD para leer el repo privado `maceosoft/gitops`) y los
 repos base (`gitops`, `core-pipelines` e `infra`). Todo se crea a mano, y las credenciales se
 guardan en 1Password para que después los playbooks las lean desde ahí. El
 detalle de cada una (permisos, dónde encontrar cada dato en GitHub y cómo
 cargarlo en 1Password) está en
-[Plataforma symintel — GitHub](../symintel/github.md).
+[Plataforma maceosoft — GitHub](../maceosoft/github.md).
 
 Los items de 1Password van en la bóveda **`HomeLab`**, casi todos como
 **Nota segura** con campos propios. El título del item y el nombre de cada
 campo tienen que ser **exactos**, porque el playbook los busca por nombre:
-[cómo crear el item](../symintel/github.md#como-crear-un-item-con-campos-propios).
+[cómo crear el item](../maceosoft/github.md#como-crear-un-item-con-campos-propios).
 
-Con una cuenta **owner de la organización** `symintel`:
+Con una cuenta **owner de la organización** `maceosoft`:
 
-1. **GitHub App `symintel-terraform`** → item `symintel-terraform` (Nota
+1. **GitHub App `maceosoft-terraform`** → item `maceosoft-terraform` (Nota
    segura) con los campos `app_id` (Texto), `installation_id` (Texto) y
    `private_key` (Contraseña, el `.pem` completo).
-   [Permisos y dónde está cada dato](../symintel/github.md#symintel-terraform).
-2. **GitHub App `symintel-arc-runners`** → item `symintel-arc-runners`, con
+   [Permisos y dónde está cada dato](../maceosoft/github.md#maceosoft-terraform).
+2. **GitHub App `maceosoft-arc-runners`** → item `maceosoft-arc-runners`, con
    los mismos tres campos pero con los datos de esta App.
-   [Permisos y pasos](../symintel/github.md#symintel-arc-runners).
-3. **OAuth App `Symintel Dex`** → campos `GITHUB_CLIENT_ID` (Texto) y
-   `GITHUB_CLIENT_SECRET` (Contraseña) en el item `symintel-dex` (Nota segura).
-   [Pasos](../symintel/github.md#oauth-app-symintel-dex).
+   [Permisos y pasos](../maceosoft/github.md#maceosoft-arc-runners).
+3. **OAuth App `Maceosoft Dex`** → campos `GITHUB_CLIENT_ID` (Texto) y
+   `GITHUB_CLIENT_SECRET` (Contraseña) en el item `maceosoft-dex` (Nota segura).
+   [Pasos](../maceosoft/github.md#oauth-app-maceosoft-dex).
 4. **Repos privados**, con su contenido subido con git:
     - `gitops`.
     - `core-pipelines`: en *Settings → Actions → General → Access*, elige
-      "Accessible from repositories in the 'symintel' organization". No hace
+      "Accessible from repositories in the 'maceosoft' organization". No hace
       falta crear tags: mientras pruebas, los demás repos lo usan con `@main`.
     - `infra`.
-5. **GitHub App `symintel-argocd`** (solo lectura, instalada **solo en
-   `gitops`**) → item `symintel-argocd` con los mismos tres campos. Va
+5. **GitHub App `maceosoft-argocd`** (solo lectura, instalada **solo en
+   `gitops`**) → item `maceosoft-argocd` con los mismos tres campos. Va
    después de los repos porque se instala en `gitops`.
-   [Permisos y pasos](../symintel/github.md#paso-2-repos-app-de-argocd-y-ftp-manual).
+   [Permisos y pasos](../maceosoft/github.md#paso-2-repos-app-de-argocd-y-ftp-manual).
 6. **Llave de Sealed Secrets** *(opcional hasta la Fase 6)*: un par de llaves
    generado con `openssl`, en el item `sealed-secrets` (`certificate` y
    `private_key`), para que sobreviva si reinstalas K3s.
-   [Comando y pasos](../symintel/github.md#paso-2-repos-app-de-argocd-y-ftp-manual).
+   [Comando y pasos](../maceosoft/github.md#paso-2-repos-app-de-argocd-y-ftp-manual).
 7. **Credenciales FTP (File Transfer Protocol) del repo `api`**: `api` es el
    primer proyecto del mapa de repos y despliega por FTP, así que necesita su
    item `ftp-api` (Nota segura) desde el primer pipeline. Cada repo que
@@ -200,7 +200,7 @@ Con una cuenta **owner de la organización** `symintel`:
    [procedimiento de rutina — Agregar un repo](../operacion/agregar-repo.md). El item lleva 8 campos: `dev_host`, `dev_user`,
    `dev_password`, `dev_remote_dir` y los mismos cuatro con `prod_`. Los
    `*_password` van como Contraseña y el resto como Texto.
-   [Tabla con ejemplos](../symintel/github.md#paso-2-repos-app-de-argocd-y-ftp-manual).
+   [Tabla con ejemplos](../maceosoft/github.md#paso-2-repos-app-de-argocd-y-ftp-manual).
 
 Comprueba que todas las credenciales se pueden leer de 1Password. Son dos
 comandos, y ninguno toca un clúster ni muestra valores secretos:
@@ -276,7 +276,7 @@ export ONEPASSWORD_ACCOUNT_NAME="Mi Cuenta"  # tu cuenta
 | `UNREACHABLE` | `ansible_host`, firewall, clave SSH |
 | `ping` falla por Python ausente | Nodo recién instalado — correr `setup_sudo.yml` (paso "Día 0" arriba) |
 | Discovery sin reports | Ejecutar desde `ansible/`; permisos de escritura |
-| `--check` o `--dry-run` no leen 1Password | App desbloqueada con *Integrate with other apps* y `ONEPASSWORD_ACCOUNT_NAME` con el nombre de tu cuenta. Si dice *field cannot be found* o *Bóveda no encontrada*, mira la salida de `--check`: marca qué item o campo no coincide ([nombres esperados](../symintel/github.md#items-en-1password)) |
+| `--check` o `--dry-run` no leen 1Password | App desbloqueada con *Integrate with other apps* y `ONEPASSWORD_ACCOUNT_NAME` con el nombre de tu cuenta. Si dice *field cannot be found* o *Bóveda no encontrada*, mira la salida de `--check`: marca qué item o campo no coincide ([nombres esperados](../maceosoft/github.md#items-en-1password)) |
 
 ## Siguiente
 

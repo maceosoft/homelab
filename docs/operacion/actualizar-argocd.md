@@ -1,7 +1,7 @@
 # Actualizar ArgoCD
 
 ArgoCD se actualiza **solo**, siempre a la última versión estable. La
-Application `argocd` de [`symintel/gitops`](https://github.com/symintel/gitops)
+Application `argocd` de [`maceosoft/gitops`](https://github.com/maceosoft/gitops)
 instala el manifiesto oficial de la rama `stable` del repo de ArgoCD y le suma
 la configuración propia (Dex, RBAC, health check, cuenta `ci`): cuando sale una
 versión nueva, ArgoCD se aplica a sí mismo.

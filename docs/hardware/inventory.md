@@ -4,7 +4,7 @@
 > [categoría de personajes](https://invincible.fandom.com/es/wiki/Categor%C3%ADa:Personajes).
 > `deborah` fue antes `orangepi5plus`.
 
-Datos **medidos** con [`playbook-discovery.yml`](https://github.com/symintel/homelab/blob/main/ansible/playbook-discovery.yml)
+Datos **medidos** con [`playbook-discovery.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-discovery.yml)
 (2026-07-10). Donde el valor nominal difiere del medido, la columna *Medido*
 es la fuente de verdad para planificación.
 
@@ -51,7 +51,7 @@ es la fuente de verdad para planificación.
 | Interfaz física → bridge | `eno2` | `eno1` | `enP4p65s0` |
 
 Tras `playbook-set-static-ip.yml`, actualizar `ansible_host` en
-[`inventory.ini`](https://github.com/symintel/homelab/blob/main/ansible/inventory.ini)
+[`inventory.ini`](https://github.com/maceosoft/homelab/blob/main/ansible/inventory.ini)
 si la IP de conexión cambió.
 
 ## Almacenamiento e I/O (discovery 2026-10-04)

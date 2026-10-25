@@ -2,7 +2,7 @@
 
 Cómo entrar por SSH (Secure Shell, conexión cifrada por terminal) a `invincible`, `oliver` y `deborah`
 con tu cuenta de GitHub, sin pedir ni guardar llaves. Sirve si perteneces al team `devops` de la org
-`symintel`. Si eres quien lo **instala** o lo administra, ve a
+`maceosoft`. Si eres quien lo **instala** o lo administra, ve a
 [4.12 — SSH a los hosts con Dex](../implementacion/fase-4-gitops.md#412-ssh-a-los-hosts-con-dex-opcional).
 
 !!! info "Cómo es por dentro, en una línea"
@@ -11,7 +11,7 @@ con tu cuenta de GitHub, sin pedir ni guardar llaves. Sirve si perteneces al tea
 
 ## Qué necesitas
 
-- Ser miembro del team `devops` de la org `symintel` en GitHub.
+- Ser miembro del team `devops` de la org `maceosoft` en GitHub.
 - Una estación que resuelva los nombres `*.homelab.local` (usa el DNS, sistema de nombres de dominio, de la red: `192.168.20.5`) y
   que confíe en la CA (autoridad certificadora) del HomeLab.
 - El cliente `opkssh`.
@@ -111,7 +111,7 @@ y entra con `ssh oliver`.
 | `opkssh login` falla con `redirect_uri` no válido | Falta alguna de las tres direcciones de callback | Revisa `redirect_uris` del paso 4 |
 | `x509: certificate signed by unknown authority`, o `ssl_verify=20` | Tu estación no confía en la CA | Paso 2 |
 | `Too many authentication failures` | SSH ofrece otras llaves antes | Usa `-o IdentitiesOnly=yes` |
-| `Permission denied (publickey)` | El servidor no te reconoce | Comprueba con `opkssh inspect ~/.ssh/id_ecdsa-cert.pub` que el token lista el grupo `symintel:devops`. Si es así, avisa a quien administra: el problema está en el servidor ([4.12](../implementacion/fase-4-gitops.md#412-ssh-a-los-hosts-con-dex-opcional)) |
+| `Permission denied (publickey)` | El servidor no te reconoce | Comprueba con `opkssh inspect ~/.ssh/id_ecdsa-cert.pub` que el token lista el grupo `maceosoft:devops`. Si es así, avisa a quien administra: el problema está en el servidor ([4.12](../implementacion/fase-4-gitops.md#412-ssh-a-los-hosts-con-dex-opcional)) |
 | No resuelve `oliver.homelab.local` | Tu estación no usa el DNS del HomeLab | Paso 1 |
 
 Si Dex o el clúster están caídos, el SSO no funciona. Quien administra tiene una llave de emergencia en

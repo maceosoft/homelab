@@ -45,5 +45,5 @@ host_hardening_enable_time_sync: true
 
 # --- Banner legal ----------------------------------------------------
 host_hardening_banner_text: |
-  HomeLab Symintel
+  HomeLab Maceosoft
   Acceso restringido. Toda la actividad puede ser auditada.

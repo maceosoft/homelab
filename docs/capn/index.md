@@ -19,7 +19,7 @@ clusterctl init -i incus
 
 ## Credenciales de Incus como Secret
 
-Ver [`gitops/sealed-secrets/`](https://github.com/symintel/gitops/tree/main/sealed-secrets) — el secreto
+Ver [`gitops/sealed-secrets/`](https://github.com/maceosoft/gitops/tree/main/sealed-secrets) — el secreto
 `lxc-secret` se cifra con Sealed Secrets antes de commitear, nunca en texto plano.
 
 ## Generar un workload cluster
@@ -46,4 +46,4 @@ kubectl apply -f gitops/capn/clusters/demo.yaml
 > pesado por nodo. Bien para clusters efímeros de dev/test, no para 24/7 en oliver.
 
 El manifiesto generado se sincroniza vía ArgoCD con sync manual — ver
-[`capn-demo.yaml`](https://github.com/symintel/gitops/blob/main/argocd/apps/capn-demo.yaml).
+[`capn-demo.yaml`](https://github.com/maceosoft/gitops/blob/main/argocd/apps/capn-demo.yaml).

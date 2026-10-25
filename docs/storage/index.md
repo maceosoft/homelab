@@ -4,7 +4,7 @@
     Desplegado en **[Fase 4 — GitOps](../implementacion/fase-4-gitops.md)** (waves 0–1).
     Etiquetas Longhorn: **[Fase 3 — K3s](../implementacion/fase-3-k3s.md)**.
 
-Híbrido x86_64 + ARM64 (arquitectura ARM de 64 bits) — manifiestos GitOps en [`gitops/storage/`](https://github.com/symintel/gitops/tree/main/storage).
+Híbrido x86_64 + ARM64 (arquitectura ARM de 64 bits) — manifiestos GitOps en [`gitops/storage/`](https://github.com/maceosoft/gitops/tree/main/storage).
 
 ## Diagrama — tiers de storage
 
@@ -96,10 +96,10 @@ volumen de un PVC (PersistentVolumeClaim, pedido de almacenamiento). Estas son l
 
 | StorageClass | Quién la crea | Aprovisionador | Réplicas | Binding | Se puede ampliar | ¿Default? |
 |---|---|---|---|---|---|---|
-| `openebs-hostpath` | [`gitops/storage/openebs-local.yaml`](https://github.com/symintel/gitops/blob/main/storage/openebs-local.yaml) | OpenEBS LocalPV (`openebs.io/local`) | 1 (disco del nodo) | `WaitForFirstConsumer` | No | **Sí** |
+| `openebs-hostpath` | [`gitops/storage/openebs-local.yaml`](https://github.com/maceosoft/gitops/blob/main/storage/openebs-local.yaml) | OpenEBS LocalPV (`openebs.io/local`) | 1 (disco del nodo) | `WaitForFirstConsumer` | No | **Sí** |
 | `local-path` | K3s (addon `local-storage`) | `rancher.io/local-path` | 1 (disco del nodo) | `WaitForFirstConsumer` | No | **Sí** (ver aviso) |
-| `longhorn` | chart de Longhorn | Longhorn (`driver.longhorn.io`) | `defaultClassReplicaCount` (2 en [`longhorn.yaml`](https://github.com/symintel/gitops/blob/main/argocd/apps/longhorn.yaml)) | `Immediate` | Sí | No |
-| `longhorn-mixto` | [`gitops/storage/storageclasses.yaml`](https://github.com/symintel/gitops/blob/main/storage/storageclasses.yaml) | Longhorn | 2 fijas | `Immediate` | Sí | No |
+| `longhorn` | chart de Longhorn | Longhorn (`driver.longhorn.io`) | `defaultClassReplicaCount` (2 en [`longhorn.yaml`](https://github.com/maceosoft/gitops/blob/main/argocd/apps/longhorn.yaml)) | `Immediate` | Sí | No |
+| `longhorn-mixto` | [`gitops/storage/storageclasses.yaml`](https://github.com/maceosoft/gitops/blob/main/storage/storageclasses.yaml) | Longhorn | 2 fijas | `Immediate` | Sí | No |
 | `longhorn-static` | chart de Longhorn | Longhorn | — (sin parámetros) | `Immediate` | Sí | No |
 
 Todas tienen `reclaimPolicy: Delete`: **al borrar el PVC se borra el volumen y sus datos**.
@@ -216,7 +216,7 @@ ServiceAccount, no puede crear el pod y el sync queda esperándolo para siempre.
 
 Si lo que guarda Longhorn se puede perder (en el HomeLab, el caché de ARC), es más rápido **reinstalarlo desde cero** en
 la versión nueva que subir por cada versión intermedia. Usa
-[`playbook-reset-longhorn.yml`](https://github.com/symintel/homelab/blob/main/ansible/playbook-reset-longhorn.yml),
+[`playbook-reset-longhorn.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-reset-longhorn.yml),
 que es **destructivo** (borra los PVC, los volúmenes, las CRD, el namespace y `/var/lib/longhorn` de cada nodo) y seguro
 por defecto: sin `-e longhorn_reset_confirm=true` solo muestra lo que se perdería.
 

@@ -1,0 +1,13 @@
+---
+# node_smart_metrics — valores por defecto. Ver README.md del rol.
+
+# Carpeta del "textfile collector" de node-exporter. Tiene que coincidir con la que monta el chart
+# (gitops: monitoring/values-vm-stack.yaml, hostPath del DaemonSet de node-exporter).
+node_smart_metrics_dir: /var/lib/node_exporter/textfile
+
+# Cada cuánto se leen los discos. Leer SMART es barato y no escribe nada.
+node_smart_metrics_interval: 30min
+
+# Instalar smartmontools (smartctl) en los nodos que tengan discos SATA/SAS. La eMMC no lo necesita:
+# se lee de /sys. El paquete de Debian 13 no se arranca ni se configura aquí (smartd queda como esté).
+node_smart_metrics_install_smartmontools: true

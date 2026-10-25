@@ -40,7 +40,7 @@ k3s_install:
     # latest = la última versión estable (el rol la resuelve al correr). Después, ArgoCD se
     # actualiza solo: la Application "argocd" de gitops sigue el tag stable del repo oficial.
     version: latest
-    gitops_repo_url: https://github.com/symintel/gitops
+    gitops_repo_url: https://github.com/maceosoft/gitops
 
   node_labels:
     enabled: "{{ k3s_node_labels_enabled | bool }}"
