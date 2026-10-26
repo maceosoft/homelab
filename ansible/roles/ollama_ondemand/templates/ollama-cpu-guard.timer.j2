@@ -1,0 +1,11 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Medir la CPU de Ollama cada {{ ollama_ondemand_cpu_guard_interval }}
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec={{ ollama_ondemand_cpu_guard_interval }}
+AccuracySec=30s
+
+[Install]
+WantedBy=timers.target

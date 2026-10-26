@@ -1,0 +1,7 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Guardia de CPU de Ollama (detiene ollama.service tras {{ ollama_ondemand_cpu_guard_hours }} h saturando el nodo)
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/ollama-cpu-guard {{ ollama_ondemand_textfile_dir }} {{ ollama_ondemand_cpu_guard_threshold }} {{ ollama_ondemand_cpu_guard_hours }}

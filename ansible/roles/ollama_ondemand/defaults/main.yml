@@ -46,6 +46,21 @@ ollama_ondemand_keep_alive: 5m
 # supera, el kernel lo mata a él y no al resto. Vacío = sin tope. Se fija por host en host_vars.
 ollama_ondemand_memory_max: ""
 
+# Tope de CPU de ollama.service (CPUQuota de systemd), en % del total de núcleos del nodo. Ollama nunca puede ocupar
+# todo el nodo: queda aire para K3s, el DNS y el resto. 0 = sin tope.
+ollama_ondemand_cpu_quota_percent: 75
+
+# Guardia de CPU (ollama-cpu-guard): cada ollama_ondemand_cpu_guard_interval mide el uso de ollama.service; si pasa
+# ollama_ondemand_cpu_guard_hours horas seguidas por encima de ollama_ondemand_cpu_guard_threshold (% del total de
+# núcleos), detiene Ollama y su socket y lo publica en node-exporter (alerta OllamaDetenidoPorCPU). En el HomeLab
+# ninguna carga legítima tiene a Ollama horas al tope: si pasa, algo está mal y alguien tiene que mirarlo.
+ollama_ondemand_cpu_guard_enabled: true
+ollama_ondemand_cpu_guard_threshold: 60
+ollama_ondemand_cpu_guard_hours: 2
+ollama_ondemand_cpu_guard_interval: 5min
+# Carpeta del textfile collector de node-exporter (la misma que usan los roles node_*_metrics).
+ollama_ondemand_textfile_dir: /var/lib/node_exporter/textfile
+
 # Ruta de systemd-socket-proxyd. Se prueba esta y, si no existe, la alternativa (Debian usa /usr/lib/systemd
 # o /lib/systemd según el empaquetado).
 ollama_ondemand_proxyd_candidates:

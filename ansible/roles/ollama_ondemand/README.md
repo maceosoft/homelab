@@ -14,14 +14,19 @@ ollama-node-register.service -> PUT https://ollama.homelab.local/_registry/nodes
 ```
 
 - `ollama.service` está **deshabilitado y detenido**; no tiene `[Install]`. Su drop-in fija `OLLAMA_HOST=127.0.0.1:11435`,
-  `OLLAMA_MODELS`, `OLLAMA_KEEP_ALIVE`, `OLLAMA_NUM_PARALLEL=1`, `OLLAMA_MAX_LOADED_MODELS=1`, `StopWhenUnneeded=yes` y,
-  si se define, `MemoryMax`.
+  `OLLAMA_MODELS`, `OLLAMA_KEEP_ALIVE`, `OLLAMA_NUM_PARALLEL=1`, `OLLAMA_MAX_LOADED_MODELS=1`, `StopWhenUnneeded=yes`,
+  `CPUQuota` (por defecto el 75 % de los núcleos: Ollama nunca ocupa todo el nodo) y, si se define, `MemoryMax`.
 - `ollama-proxy.service` tiene `Requires=`/`After=ollama.service` y `--exit-idle-time`: al salir el proxy por inactividad,
   Ollama se detiene solo. El socket usa `FreeBind=yes` para poder enlazar la IP del nodo al arrancar.
 - `ExecStartPost` espera a que `127.0.0.1:11435` responda, para que el proxy no falle en el arranque en frío.
 - Los modelos se descargan **a través del socket** (`OLLAMA_HOST` = `ollama_ondemand_listen`): `StopWhenUnneeded=yes` haría que systemd detuviera a Ollama si se arrancara a mano. Al terminar se detienen el proxy y Ollama (tag `models`); lo ya presente no se vuelve a bajar.
 - `ollama-node-register.service` (rol [`ollama_node`](../ollama_node/README.md); `Restart=always`, usuario `ollama_node_user`) ejecuta `ollama_node.py register --loop`.
   Lee los manifests de `ollama_ondemand_models_dir` sin despertar a Ollama.
+- **Guardia de CPU** (`ollama-cpu-guard.timer`, cada 5 min): mide la CPU de `ollama.service`. Si pasa **2 horas seguidas** por
+  encima del 60 % del nodo, detiene Ollama **y su socket** (deja de aceptar peticiones), lo registra en el journal con
+  prioridad `crit` y lo publica en node-exporter (`ollama_cpu_guard_*` en `/var/lib/node_exporter/textfile`), lo que dispara
+  la alerta `OllamaDetenidoPorCPU`. Ninguna carga normal del HomeLab tiene a Ollama horas al tope: si pasa, hay que mirar
+  qué cliente lo mantiene ocupado antes de reactivarlo con `sudo systemctl start ollama-proxy.socket`.
 
 ## Playbook
 
@@ -54,6 +59,8 @@ Ver `defaults/main.yml`.
 | `ollama_ondemand_assets` | Por arquitectura (`linux-arm64`, `linux-amd64`): `name` y `checksum` (campo `digest` de GitHub) |
 | `ollama_ondemand_listen` | Socket; por defecto `{{ static_ip }}:11434` (nunca `0.0.0.0`) |
 | `ollama_ondemand_memory_max` | `MemoryMax` de `ollama.service` por host (vacío = sin tope) |
+| `ollama_ondemand_cpu_quota_percent` | `CPUQuota` de `ollama.service` en % del total de núcleos (75; 0 = sin tope) |
+| `ollama_ondemand_cpu_guard_enabled`, `_threshold`, `_hours`, `_interval` | Guardia de CPU: activa, umbral (60 % del nodo), horas (2) y cada cuánto mide (5min) |
 | `ollama_ondemand_models` | Modelos a descargar en el nodo |
 | `ollama_ondemand_keep_alive`, `_idle_time` | Tiempo de modelo cargado y de inactividad del proxy |
 | `ollama_node_priority`, `ollama_node_tags` | Preferencia del router y etiquetas del nodo |
@@ -112,4 +119,7 @@ systemctl is-active ollama                     # inactive en reposo
 curl -s http://<ip-del-nodo>:11434/api/version # despierta a Ollama
 systemctl is-active ollama                     # active; vuelve a inactive tras ~5 min sin tráfico
 systemctl status ollama-node-register          # active (running)
+systemctl list-timers ollama-cpu-guard.timer   # la guardia de CPU corre cada 5 min
+cat /var/lib/node_exporter/textfile/ollama_cpu_guard.prom
+journalctl -t ollama-cpu-guard                 # si la guardia detuvo Ollama, aquí está el motivo
 ```

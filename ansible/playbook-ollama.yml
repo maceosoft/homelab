@@ -15,6 +15,7 @@
 #   ansible-playbook -i inventory.ini playbook-ollama.yml --tags units       # unidades systemd y socket
 #   ansible-playbook -i inventory.ini playbook-ollama.yml --tags models      # solo los modelos
 #   ansible-playbook -i inventory.ini playbook-ollama.yml --tags register    # solo el agente de registro
+#   ansible-playbook -i inventory.ini playbook-ollama.yml --tags cpu_guard   # solo la guardia de CPU
 #
 # Nodo nuevo: línea en [llm_nodes] de inventory.ini, host_vars/<nodo>.yml y `-l <nodo>`.
 # Seguro de repetir: no reinicia Ollama si nada cambió.

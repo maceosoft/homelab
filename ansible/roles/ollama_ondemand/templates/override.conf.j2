@@ -13,6 +13,10 @@ Environment="OLLAMA_MAX_LOADED_MODELS=1"
 # Tope de memoria del nodo: si Ollama lo supera, el kernel lo mata a él y no al resto de servicios.
 MemoryMax={{ ollama_ondemand_memory_max }}
 {% endif %}
+{% if ollama_ondemand_cpu_quota_percent | int > 0 %}
+# Tope de CPU: {{ ollama_ondemand_cpu_quota_percent }} % de los {{ ansible_facts.processor_vcpus }} núcleos del nodo.
+CPUQuota={{ (ansible_facts.processor_vcpus | int) * (ollama_ondemand_cpu_quota_percent | int) }}%
+{% endif %}
 # Arranque en frío: no se da por iniciado hasta que el puerto interno responde.
 # ($$ evita que systemd expanda las variables del shell.)
 ExecStartPost=/bin/bash -c 'for i in $$(seq 1 {{ ollama_ondemand_start_timeout }}); do (echo > /dev/tcp/{{ ollama_ondemand_internal | regex_replace(":", "/") }}) 2>/dev/null && exit 0; sleep 1; done; exit 1'
