@@ -11,10 +11,12 @@ ansible_python_interpreter: /usr/bin/python3
 # --- Ollama (rol ollama_ondemand) ---
 # i7-8700T, 15,5 GB (~6 GB libres, aloja el monitoreo): modelo de código y el modelo general. Es el nodo preferido para
 # qwen2.5:7b-instruct (prioridad mayor que deborah): deborah es control-plane y DNS, y en su CPU ARM cada respuesta del 7B
-# la satura durante un minuto. Cabe justo en 5500M y Ollama carga un modelo a la vez.
+# la satura durante un minuto. Ollama carga un modelo a la vez; un 7B en Q4 usa ~5,6 GB (medido: con 5500M el OOM mataba
+# a llama-server). El tope es 8G y no más: sin Ollama el nodo ya usa ~9,3 GB de sus 15,5 GB (monitoreo y pods), y un tope
+# mayor dejaría que Ollama empuje al nodo a un OOM global que mataría pods.
 ollama_ondemand_models:
   - qwen2.5-coder:7b
   - qwen2.5:7b-instruct
-ollama_ondemand_memory_max: 5500M
+ollama_ondemand_memory_max: 8G
 ollama_node_priority: 80
 ollama_node_tags: [x86, code, always-on]
