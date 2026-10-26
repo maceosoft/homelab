@@ -1,0 +1,37 @@
+---
+- name: "Post-chequeo: esperar nodo Ready y Longhorn sin volúmenes degradados"
+  ansible.builtin.command: kubectl --kubeconfig {{ node_patch_kubeconfig }} -n longhorn-system get volumes.longhorn.io -o json
+  register: node_patch_post_volumes
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  check_mode: false
+  retries: "{{ (node_patch_postcheck_minutes | int * 60 / node_patch_postcheck_delay | int) | int }}"
+  delay: "{{ node_patch_postcheck_delay }}"
+  until: >-
+    node_patch_post_volumes.rc == 0
+    and ((node_patch_post_volumes.stdout | from_json)['items']
+         | selectattr('status.robustness', 'defined')
+         | selectattr('status.robustness', 'in', node_patch_longhorn_bad_states) | list | length == 0)
+
+- name: "Post-chequeo: nodo Ready y no cordoneado"
+  ansible.builtin.command: >-
+    kubectl --kubeconfig {{ node_patch_kubeconfig }} get node {{ node_patch_k8s_node }}
+    -o 'jsonpath={.status.conditions[?(@.type=="Ready")].status}/{.spec.unschedulable}'
+  register: node_patch_post_node
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  check_mode: false
+  retries: "{{ (node_patch_postcheck_minutes | int * 60 / node_patch_postcheck_delay | int) | int }}"
+  delay: "{{ node_patch_postcheck_delay }}"
+  until: node_patch_post_node.rc == 0 and node_patch_post_node.stdout in ['True/', 'True/false']
+
+- name: "Post-chequeo: salud general del clúster"
+  ansible.builtin.import_tasks: cluster_health.yml
+
+- name: "Post-chequeo: resultado"
+  ansible.builtin.assert:
+    that: node_patch_health_ok | bool
+    fail_msg: "{{ inventory_hostname }} parcheado pero el clúster no está sano: {{ node_patch_health_msg }}. Se detiene aquí."
+    success_msg: "{{ inventory_hostname }} listo: {{ node_patch_health_msg }}"

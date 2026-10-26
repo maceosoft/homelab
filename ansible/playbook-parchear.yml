@@ -1,0 +1,60 @@
+---
+# Ventana de parches de Debian, nodo por nodo. Rol: roles/node_patch.
+# Guía: docs/operacion/parchear-nodos.md.
+#
+# Por nodo: (precheck) todos los nodos Ready y ningún volumen de Longhorn degradado o en
+# fallo, si no, aborta; (upgrade) apt-get update + dist-upgrade; (reboot) solo si existe
+# /var/run/reboot-required: drain desde la estación, reinicio, esperar Ready, uncordon;
+# (postcheck) nodo Ready y Longhorn sano (reintenta hasta 15 min) antes del siguiente.
+#
+# ORDEN: oliver -> invincible -> deborah. Cada nodo es su propio play, así que el orden es
+# el de node_patch_order y no el del inventario. Los nodos críticos (control-plane de K3s y
+# deborah, que tiene BIND, el DNS de toda la LAN) van SIEMPRE al final y piden
+# confirmación antes de actualizar y antes de reiniciar.
+#
+# Requisitos en la estación: kubectl y KUBECONFIG (por defecto ~/.kube/homelab-k3s.yaml),
+# y un terminal interactivo para las confirmaciones.
+#
+#   ansible-playbook -i inventory.ini playbook-parchear.yml --check
+#   ansible-playbook -i inventory.ini playbook-parchear.yml -l oliver
+#   ansible-playbook -i inventory.ini playbook-parchear.yml
+#   ansible-playbook -i inventory.ini playbook-parchear.yml --tags precheck
+#   ansible-playbook -i inventory.ini playbook-parchear.yml -l deborah --tags upgrade,postcheck
+#
+# --check no drena ni reinicia: muestra los paquetes pendientes (apt list --upgradable,
+# según las listas de apt ya descargadas) y si haría falta reiniciar.
+# Tags: precheck, upgrade, reboot, postcheck. Otro orden:
+#   -e '{"node_patch_order": ["invincible", "oliver", "deborah"]}'
+# Con un cuarto nodo, agregar otro play igual al final (node_patch_queue[3]).
+
+- name: Parches - nodo 1
+  hosts: "{{ node_patch_queue[0] }}"
+  become: true
+  vars: &node_patch_vars
+    node_patch_order:
+      - oliver
+      - invincible
+      - deborah
+    node_patch_critical_hosts: "{{ (groups['k3s_server'] | default([])) + ['deborah'] }}"
+    node_patch_queue: >-
+      {{ (node_patch_order | reject('in', node_patch_critical_hosts) | list)
+         + (node_patch_order | select('in', node_patch_critical_hosts) | list) }}
+  any_errors_fatal: true
+  roles:
+    - node_patch
+
+- name: Parches - nodo 2
+  hosts: "{{ node_patch_queue[1] }}"
+  become: true
+  vars: *node_patch_vars
+  any_errors_fatal: true
+  roles:
+    - node_patch
+
+- name: Parches - nodo 3
+  hosts: "{{ node_patch_queue[2] }}"
+  become: true
+  vars: *node_patch_vars
+  any_errors_fatal: true
+  roles:
+    - node_patch

@@ -1,0 +1,43 @@
+---
+# Salud del clúster vista desde la estación (solo lectura): todos los nodos Ready y
+# ningún volumen de Longhorn degradado o en fallo. Deja el resultado en
+# node_patch_health_ok y el detalle en node_patch_health_msg.
+- name: Leer los nodos (kubectl, solo lectura)
+  ansible.builtin.command: kubectl --kubeconfig {{ node_patch_kubeconfig }} get nodes -o json
+  register: node_patch_nodes_raw
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  check_mode: false
+
+- name: Leer los volúmenes de Longhorn (kubectl, solo lectura)
+  ansible.builtin.command: kubectl --kubeconfig {{ node_patch_kubeconfig }} -n longhorn-system get volumes.longhorn.io -o json
+  register: node_patch_volumes_raw
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  check_mode: false
+
+- name: Evaluar la salud del clúster
+  ansible.builtin.set_fact:
+    node_patch_not_ready: >-
+      {%- set out = [] -%}
+      {%- for n in (node_patch_nodes_raw.stdout | from_json)['items'] -%}
+      {%- if (n.status.conditions | selectattr('type', 'equalto', 'Ready')
+              | map(attribute='status') | first | default('Unknown')) != 'True' -%}
+      {%- set _ = out.append(n.metadata.name) -%}
+      {%- endif -%}
+      {%- endfor -%}
+      {{ out }}
+    node_patch_bad_volumes: >-
+      {{ (node_patch_volumes_raw.stdout | from_json)['items']
+         | selectattr('status.robustness', 'defined')
+         | selectattr('status.robustness', 'in', node_patch_longhorn_bad_states)
+         | map(attribute='metadata.name') | list }}
+
+- name: Resumen de la salud del clúster
+  ansible.builtin.set_fact:
+    node_patch_health_ok: "{{ node_patch_not_ready | length == 0 and node_patch_bad_volumes | length == 0 }}"
+    node_patch_health_msg: >-
+      nodos no Ready: {{ node_patch_not_ready | join(', ') or 'ninguno' }};
+      volúmenes Longhorn degradados/en fallo: {{ node_patch_bad_volumes | join(', ') or 'ninguno' }}

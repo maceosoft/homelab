@@ -1,0 +1,11 @@
+---
+- name: "Pre-chequeo: salud del clúster"
+  ansible.builtin.import_tasks: cluster_health.yml
+
+- name: "Pre-chequeo: abortar si el clúster no está sano"
+  ansible.builtin.assert:
+    that: node_patch_health_ok | bool
+    fail_msg: >-
+      No se parchea {{ inventory_hostname }}: {{ node_patch_health_msg }}.
+      Espere a que el clúster se recupere (o repare Longhorn) antes de seguir.
+    success_msg: "Clúster sano antes de {{ inventory_hostname }}: {{ node_patch_health_msg }}"

@@ -11,3 +11,12 @@ node_smart_metrics_interval: 30min
 # Instalar smartmontools (smartctl) en los nodos que tengan discos SATA/SAS. La eMMC no lo necesita:
 # se lee de /sys. El paquete de Debian 13 no se arranca ni se configura aquí (smartd queda como esté).
 node_smart_metrics_install_smartmontools: true
+
+# Discos sobre los que se lanza y se lee el autotest SMART (tags smart_selftest y
+# smart_selftest_result). Por defecto, los SATA/SAS que detecta el rol (nunca la eMMC).
+node_smart_metrics_selftest_devices: "{{ node_smart_metrics_smart_disks }}"
+# Tipo de autotest: long (lectura completa de la superficie, minutos u horas) o short.
+node_smart_metrics_selftest_type: long
+# IDs de atributos SMART que se muestran: 5 reasignados, 187 no corregibles informados,
+# 197 pendientes, 198 no corregibles offline.
+node_smart_metrics_selftest_attributes: [5, 187, 197, 198]
