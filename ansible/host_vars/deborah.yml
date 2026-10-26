@@ -16,10 +16,11 @@ wifi_iface: wlP2p33s0
 host_hardening_regenerate_ssh_host_keys: true
 
 # --- Ollama (rol ollama_ondemand) ---
-# RK3588, 31 GB (~26 GB libres): el nodo más grande del grupo.
+# RK3588, 31 GB (~26 GB libres): el nodo con más memoria, pero es control-plane y DNS. Respaldo de qwen2.5:7b-instruct
+# (prioridad menor que invincible): el router lo usa si invincible no está o está ocupado.
 ollama_ondemand_models:
   - qwen2.5:7b-instruct
   # - qwen2.5:14b-instruct   # opcional: cabe en el tope de memoria, pero más lento en CPU
 ollama_ondemand_memory_max: 22G
-ollama_node_priority: 80
+ollama_node_priority: 60
 ollama_node_tags: [arm64, general, always-on]

@@ -73,11 +73,10 @@ token propio de cada nodo, define en su `host_vars` `ollama_node_token_field: "r
 
 ## Disponibilidad
 
-Solo deborah tiene `qwen2.5:7b-instruct`. Si deborah está caída o sin el modelo, el router responde **404** para ese modelo (no hay
-otro nodo que lo sirva). Para replicarlo, descomentar `qwen2.5:7b-instruct` en `ollama_ondemand_models` de `host_vars/invincible.yml` y
-ejecutar `ansible-playbook -i inventory.ini playbook-ollama.yml -l invincible --tags models`. Un 7B en Q4 pesa ~4,7 GB más el contexto, así
-que con `ollama_ondemand_memory_max: 5500M` cabe justo (no se midió); con `MAX_LOADED_MODELS=1` no convive con el de código. Subir el tope
-si el nodo (que aloja el monitoreo) lo permite.
+`qwen2.5:7b-instruct` está en invincible (prioridad 80, el preferido) y en deborah (prioridad 60, respaldo). Así el control-plane
+y DNS no carga con cada respuesta del 7B, y si invincible está caído u ocupado el router usa deborah. Un 7B en Q4 pesa ~4,7 GB más
+el contexto: en invincible cabe justo en `ollama_ondemand_memory_max: 5500M` y, con `MAX_LOADED_MODELS=1`, no convive con el de
+código (Ollama descarga uno para cargar el otro). Subir el tope si el nodo (que aloja el monitoreo) lo permite.
 
 ## Mac u otros equipos
 
