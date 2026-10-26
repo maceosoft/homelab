@@ -4,3 +4,5 @@
     name: ollama-proxy.socket
     enabled: true
     state: started
+  # En --check la unidad no se instala de verdad y systemd no la encuentra.
+  when: not ansible_check_mode

@@ -31,9 +31,22 @@
   delegate_to: localhost
   become: false
   register: ollama_node_token_read
+  # De a un nodo: la integración de 1Password con la app de escritorio no tolera varias sesiones del SDK a la vez.
+  throttle: 1
+  retries: 2
+  delay: 3
+  until: ollama_node_token_read.rc == 0
+  failed_when: false
   changed_when: false
   check_mode: false
   no_log: true
+
+# El script nunca escribe el token en stderr: mostrar el motivo es seguro y evita depurar a ciegas.
+- name: Fallar con el motivo si no se pudo leer el token
+  ansible.builtin.assert:
+    that: ollama_node_token_read.rc == 0
+    fail_msg: "No se pudo leer el token del registro: {{ ollama_node_token_read.stderr | default('sin detalle') }}"
+    quiet: true
 
 - name: Leer la CA del HomeLab desde cert-manager (misma fuente que el rol opkssh)
   ansible.builtin.command:

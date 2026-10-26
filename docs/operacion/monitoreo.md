@@ -8,6 +8,47 @@ ve a [4.13 — Monitoreo y alertas](../implementacion/fase-4-gitops.md#413-monit
     llega un mensaje a Discord: **🔴 críticas** en `alertas-criticas` (te llegan al móvil) y **🟡 avisos** en `alertas-avisos`.
     Cuando se resuelve, llega un **✅**.
 
+## Estado general: qué mirar primero
+
+Si solo vas a mirar un dashboard, que sea **HomeLab / Estado general**: resume en una pantalla si el HomeLab está bien. Está pensado para
+quien empieza: cada recuadro (*tile*) se pinta **verde** si todo está bien, **ámbar** si conviene mirarlo y **rojo** si hay que actuar, y
+**cada uno enlaza al dashboard de detalle** de ese tema. Se lee de arriba abajo:
+
+| Fila | Qué muestra |
+|---|---|
+| **Resumen** | Los tiles verde/ámbar/rojo de cada área: lo primero que miras |
+| **Alertas activas** | Las alertas que están sonando ahora, con su gravedad |
+| **Nodos** | CPU, memoria, disco y temperatura de cada nodo; parches de seguridad pendientes y si alguno pide reinicio |
+| **Kubernetes** | Pods con problemas, reinicios recientes, workloads con menos réplicas de las pedidas y volúmenes (PVC) sin enlazar |
+| **Almacenamiento (Longhorn)** | Estado de los volúmenes de Longhorn. Un volumen **desconectado** (*detached*, sin ninguna app usándolo) aparece como `unknown`: es normal, no es un fallo |
+| **Plataforma** | ArgoCD (apps sanas y sincronizadas), certificados, sondas de las webs, errores 5xx de Kong e Incus |
+| **IA y logs** | El router de Ollama (nodos vivos, peticiones) y la llegada de logs. Sus tiles muestran **«sin datos»** en color neutro hasta que despliegues el router y Vector: no es un error |
+
+Las tablas de problemas (pods, workloads, alertas…) que aparecen **vacías, con el texto «Sin problemas»**, son lo esperado: significa
+que no hay nada que atender. Un tile en rojo **enlaza a su dashboard de detalle**: haz clic en él para ver qué falla. Arriba, el menú
+**Paneles del HomeLab** lleva a todos los dashboards de la etiqueta `homelab`.
+
+Qué hacer si un tile se pone en rojo:
+
+| Tile en rojo | Dónde seguir |
+|---|---|
+| Nodo caído o sin métricas | [Entrar por SSH](acceso-ssh.md) y la fila de alertas; si el nodo no vuelve, [Sacar o reemplazar un nodo](sacar-nodo.md) |
+| Temperatura | Mira qué lo carga (`kubectl top pods -A`) y la ventilación; ver la tabla de alertas de abajo |
+| Disco o DNS | [Salud de los discos y del DNS](salud-de-discos.md) |
+| Parches o reinicio pendientes | [Parchear los nodos](parchear-nodos.md) |
+| Pods o workloads con problemas | `kubectl get pods -A`, y el dashboard de detalle del tile |
+| Longhorn degradado o fallido | La UI de Longhorn ([URLs y accesos](urls-y-accesos.md)) y [Agregar un disco](agregar-disco.md) si se llena |
+| ArgoCD | `kubectl get applications -n argocd` y la UI de ArgoCD; para actualizarlo, [Actualizar ArgoCD](actualizar-argocd.md) |
+| Certificados | `kubectl describe certificate -A`; si es una credencial vencida, [Rotar credenciales](rotar-credenciales.md) |
+| Calico | [Calico (CNI) con ArgoCD](actualizar-calico.md) |
+| Kong 5xx o webs inaccesibles | Los logs del servicio y de Kong, y [URLs y accesos](urls-y-accesos.md) |
+| IA (router sin nodos) | [Asistente de IA local](ia-ollama.md) y [Agregar un nodo de Ollama](agregar-nodo-ollama.md) |
+| Logs sin ingesta | [Logs centralizados y reportes con IA](logs.md) |
+
+Es el **dashboard de inicio** de Grafana: lo fija el repo `gitops` (`default_home_dashboard_path` en
+[`values-vm-stack.yaml`](https://github.com/maceosoft/gitops/blob/main/monitoring/values-vm-stack.yaml)), así que se abre al entrar.
+Si quieres otro inicio solo para tu usuario, elígelo en *Profile → Preferences → Home Dashboard*.
+
 ## Ver las temperaturas y el uso
 
 Entra a [`https://grafana.homelab.local`](https://grafana.homelab.local) (solo desde la red local) y pulsa
@@ -32,28 +73,35 @@ Para una consulta puntual usa *Explore* con estas expresiones:
 
 ## Paneles de Grafana
 
-Los de la etiqueta **`homelab`** son los que se añadieron para esta plataforma; el resto vienen con el chart.
+Hay **13 dashboards** propios o de la comunidad (los de la etiqueta **`homelab`**), versionados como código en
+[`monitoring/config/dashboards`](https://github.com/maceosoft/gitops/tree/main/monitoring/config/dashboards) del repo `gitops`: no se
+editan a mano en Grafana. Los de grafana.com se guardan con la revisión fijada.
 
-| Panel | Para qué sirve | Origen |
+| Dashboard | Para qué sirve | Origen |
 |---|---|---|
-| **HomeLab / Temperaturas** | Temperatura de `deborah` y de los dos Intel, ahora y en 24 horas, con líneas en los umbrales de las alertas, y las alertas de temperatura activas | propio (`homelab`) |
-| **ArgoCD** | Estado de sincronización y salud de las apps, operaciones de sync, uso del repo-server | grafana.com 14584 (`homelab`) |
-| **Longhorn Example** | Volúmenes, réplicas, uso y salud de los discos | grafana.com 13032 (`homelab`) |
-| **Cert-manager-Kubernetes** | Certificados, su vencimiento y su estado | grafana.com 20842 (`homelab`) |
-| **Incus** | CPU, memoria, disco y red de cada proyecto e instancia de Incus (sin la fila de logs de Loki, que no se usa) | grafana.com 19727 (`homelab`) |
-| **Node Exporter Full** | CPU, memoria, disco y red de cada nodo, y sensores de hardware | chart |
-| **Kubernetes / Views** (Global, Namespaces, Pods, Nodes) | Uso de recursos del clúster | chart |
-| **VictoriaMetrics** (single node, vmagent, vmalert, operator) y **Alertmanager** | Salud del propio monitoreo | chart |
+| **HomeLab / Estado general** | La pantalla de inicio: el resumen de [arriba](#estado-general-que-mirar-primero) | propio |
+| **HomeLab / Temperaturas** | Temperatura de `deborah` y de los dos Intel, ahora y en 24 horas, con los umbrales de las alertas | propio |
+| **HomeLab / Sealed Secrets** | El controlador de Sealed Secrets: descifrados, errores, CPU y memoria | propio (no hay ninguno en grafana.com) |
+| **HomeLab / Logs** | Volumen de logs por nivel, errores por servicio y por nodo, reinicios ([Logs](logs.md)) | propio |
+| **HomeLab / Ollama** | Router de Ollama: nodos con latido, peticiones en curso, errores 5xx, tokens y latencia por modelo y nodo ([IA local](ia-ollama.md)) | propio |
+| **ArgoCD** | Sincronización y salud de las apps, operaciones de sync, uso del repo-server | grafana.com 14584 |
+| **Kong (official)** | Peticiones, códigos HTTP y latencia por servicio y ruta | grafana.com 7424 |
+| **Longhorn Example v1.1.0** | Volúmenes, réplicas, uso y salud de los discos | grafana.com 13032 |
+| **Calico: Felix** | El agente de Calico en cada nodo: reglas aplicadas, tiempos y errores del dataplane | grafana.com 12175 |
+| **Cert-manager-Kubernetes** | Certificados, su vencimiento y su estado | grafana.com 20842 |
+| **Metallb** | Speakers de MetalLB, anuncios L2 y uso de los pools de IP | grafana.com 20162 |
+| **Incus** | CPU, memoria, disco y red de cada proyecto e instancia (sin la fila de logs de Loki, que no se usa) | grafana.com 19727 |
+| **GitHub Actions ARC - Runner Scale Set** | Runners de CI: en cola, ocupados, jobs y tiempos | grafana.com 25015 |
 
-!!! warning "Revísalos tras el primer despliegue"
-    Los cinco de la etiqueta `homelab` se probaron cargándolos en un Grafana de la misma versión, pero **no contra las métricas reales de
-    tu clúster**. Si un panel sale vacío, mira en *Explore* si existe la métrica base (por ejemplo `argocd_app_info`,
-    `longhorn_volume_robustness` o `certmanager_certificate_expiration_timestamp_seconds`): puede faltar el scrape o que las etiquetas no
-    coincidan. El de Longhorn es de 2020, hecho para la versión 1.1: con la 1.13 algunos paneles pueden salir vacíos.
+Además, el chart de VictoriaMetrics trae unos **41 dashboards** propios: *Node Exporter Full* (CPU, memoria, disco y red de cada nodo),
+*Kubernetes / Views* (global, namespaces, pods, nodos), *Alertmanager / Overview* y los del propio VictoriaMetrics (single node,
+vmagent, vmalert, operator), entre otros.
 
-!!! note "Kong: alertas sí, panel todavía no"
-    El plugin `prometheus` de Kong ya está activo (códigos HTTP y latencia por servicio) y hay alertas de errores 5xx, pero no se ha generado
-    el panel oficial de Kong (grafana.com 7424). Hay que revisar que sus consultas coincidan con las etiquetas reales antes de fijarlo.
+!!! tip "Si un panel sale vacío"
+    Mira en *Explore* si existe la métrica base (por ejemplo `argocd_app_info`, `longhorn_volume_robustness`,
+    `kong_http_requests_total` o `certmanager_certificate_expiration_timestamp_seconds`): puede faltar el scrape o que las etiquetas no
+    coincidan. El de Longhorn está hecho para la versión 1.1 y con la actual algunos paneles salen vacíos. Los de IA y logs muestran «sin
+    datos» hasta desplegar el router y Vector.
 
 Las temperaturas de referencia, leídas del propio hardware: `deborah` (SoC, system on chip, el chip que reúne CPU y gráficos)
 reduce velocidad a 75 °C y otra vez a 85 °C; `invincible` y `oliver` tienen como límite del fabricante 100 °C.
@@ -85,6 +133,14 @@ reduce velocidad a 75 °C y otra vez a 85 °C; `invincible` y `oliver` tienen co
 | 🟡 `ReinicioPendiente` | Una actualización ya instalada pide reiniciar el nodo, desde hace más de 7 días | Reinicia el nodo con el mismo procedimiento |
 | 🟡 `ListasDePaquetesViejas` | Las listas de apt llevan más de 7 días sin actualizarse: los avisos de parches pueden no ser reales | Mira `systemctl status node-apt-metrics.timer` en el nodo |
 | 🟡 `SinDatosDePaquetes` | `node-exporter` responde pero no publica los paquetes pendientes | Falta aplicar `playbook-apt-metrics.yml` en ese nodo |
+| 🟡 `KongLatenciaUpstreamAlta` / `KongLatenciaPropiaAlta` / `KongControladorConErrores` | Un servicio responde lento, Kong añade demasiada latencia o su controlador acumula errores | Dashboard *Kong (official)* y `kubectl -n kong logs deploy/kong-controller` |
+| 🟡 `PlataformaMetricasCaidas` / `PlataformaComponenteSinReplicas` | Un componente de la plataforma dejó de publicar métricas o se quedó sin réplicas | `kubectl -n <namespace> get pods` del componente que nombra la alerta |
+| 🟡 `ActualizacionK3sFallida` | Falló un job de actualización de K3s del SUC (*System Upgrade Controller*) | [Actualizar K3s](actualizar-k3s.md) |
+| 🟡 `SondasSinDatos` | No llegan métricas de las sondas externas: la web podría estar rota sin que nada avise | `kubectl -n monitoring get pods` (blackbox-exporter) |
+| 🟡 `RafagaDeErroresEnLogs` | Un namespace escribió más de 200 errores en 5 minutos | Dashboard *HomeLab / Logs*; consulta de ejemplo en [Logs](logs.md) |
+| 🟡 `OOMKillerEnNodo` | El kernel mató procesos por falta de memoria | Logs del kernel del nodo ([Logs](logs.md)) y qué consume memoria (`kubectl top pods -A`); si es Ollama, baja su `MemoryMax` |
+| 🟡 `LogsSinIngestaEnNodo` / `VectorCaido` | Vector no envía logs desde un nodo, o no se leen sus métricas | `kubectl -n monitoring get pods -o wide` (el pod de Vector de ese nodo) y [Logs](logs.md) |
+| 🟡 `OllamaRouterCaido` / `OllamaRouterSinNodos` | El router de Ollama no responde, o no tiene ningún nodo con latido | `kubectl -n ai get pods` y [Asistente de IA local](ia-ollama.md); para los nodos, [Agregar un nodo de Ollama](agregar-nodo-ollama.md) |
 
 Además llegan las alertas estándar de Kubernetes y de los nodos que trae el chart (disco llenándose, memoria alta,
 reloj sin sincronizar por NTP o Network Time Protocol, pods que se reinician sin parar o con réplicas de menos). Su
@@ -125,11 +181,10 @@ Alertmanager envía un ping a [healthchecks.io](https://healthchecks.io/), y si 
 
 1. Comprueba si el clúster responde: `kubectl get nodes`.
 2. Si responde, mira los pods de monitoreo: `kubectl -n monitoring get pods`.
-3. Si no responde, revisa `deborah` (control plane y DNS) y el acceso por llave de emergencia, porque el SSO por Dex también vive en el clúster.
+3. Si no responde, revisa el nodo del control plane (hoy `deborah`, que además es el DNS) y el acceso por llave de emergencia, porque el SSO por Dex también vive en el clúster.
 
 ## Lo que todavía no cubre
 
-- Los paneles de Kong, MetalLB y ARC de grafana.com (hay métricas y alertas, no panel).
 - Qué hace cada login en Dex (solo publica telemetría gRPC), las entregas fallidas de las notificaciones de ArgoCD y el estado de los planes de actualización de K3s.
 - OpenEBS, que no publica métricas útiles; solo lo cubren las alertas de réplicas.
 - Silenciar alertas o consultar el estado desde Discord (hoy se hace con `kubectl` y la interfaz de Alertmanager).
