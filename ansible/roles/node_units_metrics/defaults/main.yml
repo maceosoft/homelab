@@ -1,0 +1,21 @@
+---
+# node_units_metrics — valores por defecto. Ver README.md del rol.
+
+# Carpeta del "textfile collector" de node-exporter (la misma que node_apt_metrics y la que monta el chart en gitops).
+node_units_metrics_dir: /var/lib/node_exporter/textfile
+
+# Unidades systemd del host a medir (memoria, CPU y si están activas). Las que no existen en un nodo se omiten solas.
+node_units_metrics_units:
+  - ollama.service
+  - ollama-proxy.service
+  - k3s.service
+  - k3s-agent.service
+  - incus.service
+  - named.service
+  - systemd-journald.service
+
+# Cuántos procesos fuera de Kubernetes publicar en el top de memoria.
+node_units_metrics_top: 5
+
+# Cada cuánto se miden. Un minuto basta para ver un pico de varios minutos (el de invincible del 26-10 duró 30).
+node_units_metrics_interval: 1min

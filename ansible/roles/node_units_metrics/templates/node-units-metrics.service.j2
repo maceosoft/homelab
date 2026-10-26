@@ -1,0 +1,9 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Memoria y CPU de los servicios del host para node-exporter
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/node-units-metrics {{ node_units_metrics_dir }} {{ node_units_metrics_units | join(',') }} {{ node_units_metrics_top }}
+Nice=10
+IOSchedulingClass=idle
