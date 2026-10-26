@@ -2,7 +2,7 @@
 
 Debian patches **are not installed automatically**: monitoring only warns. Each node publishes how many patches are
 pending (and how many are security patches) and whether it needs a reboot; when something has gone unattended for too long, an
-alert arrives on Discord (`ParchesDeSeguridadPendientes`, `ReinicioPendiente`; see [Monitoring and alerts](monitoreo.md#que-te-puede-llegar)).
+alert arrives on Discord (`ParchesDeSeguridadPendientes`, `ReinicioPendiente`; see [Monitoring and alerts](monitoreo.md#what-you-might-receive)).
 This procedure is what you do when you receive it.
 
 ## Once: enable the notice

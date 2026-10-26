@@ -167,7 +167,7 @@ flowchart TB
 ## 3.4 — Storage
 
 Logical components of the hybrid tier **OpenEBS LocalPV** (default, 3 nodes) +
-**Longhorn v1** (cross-arch replica between `invincible` and `deborah`; see [Longhorn v1](../storage/index.md#longhorn-v1-ha-selectiva-cross-arch)). The pods
+**Longhorn v1** (cross-arch replica between `invincible` and `deborah`; see [Longhorn v1](../storage/index.md#longhorn-v1-selective-ha-cross-arch)). The pods
 run in K3s; here they are modeled as a separate Level 2 C4 container for clarity.
 
 Details: [Storage](../storage/index.md).
@@ -258,7 +258,7 @@ flowchart TB
 
 ## 3.6 — Monitoring
 
-Observability stack in the namespace `monitoring`, deployed by Argo CD. **VictoriaMetrics** (Prometheus-compatible metrics database) stores the series; **vmagent** scrapes them every 30 seconds from the nodes, the platform, and Incus; **vmalert** evaluates the rules and **Alertmanager** sends the alerts to Discord. The **probes** are executed by **blackbox-exporter** (HTTP and DNS seen from inside the cluster). On each node, **node-exporter** publishes CPU, memory, and temperatures, and also reads the **textfile collectors**: files `.prom` that some timers
+Observability stack in the namespace `monitoring`, deployed by Argo CD. **VictoriaMetrics** (Prometheus-compatible metrics database) stores the series; **vmagent** scrapes them every 60 seconds from the nodes, the platform, and Incus; **vmalert** evaluates the rules and **Alertmanager** sends the alerts to Discord. The **probes** are executed by **blackbox-exporter** (HTTP and DNS seen from inside the cluster). On each node, **node-exporter** publishes CPU, memory, and temperatures, and also reads the **textfile collectors**: files `.prom` that some timers
 (`systemd timers`) write to the node with pending apt patches and the DNS (BIND) status; the SMART role is prepared in the repo.
 
 ```mermaid
@@ -278,7 +278,7 @@ flowchart LR
 
     subgraph monitoreo["Monitoreo (namespace monitoring)"]
         direction TB
-        vmagent["<span style='color:#000'><b>vmagent</b><br/><small>[Component: scraper]</small><br/>Recoge métricas cada 30 s</span>"]
+        vmagent["<span style='color:#000'><b>vmagent</b><br/><small>[Component: scraper]</small><br/>Recoge métricas cada 60 s</span>"]
         vmsingle["<span style='color:#000'><b>VictoriaMetrics (vmsingle)</b><br/><small>[Component: base de series temporales]</small><br/>Almacena las series (PVC Longhorn)</span>"]
         vmalert["<span style='color:#000'><b>vmalert</b><br/><small>[Component: rules]</small><br/>Evalúa reglas de alerta</span>"]
         alertmanager["<span style='color:#000'><b>Alertmanager</b><br/><small>[Component: notifier]</small><br/>Agrupa, enruta y repite avisos</span>"]

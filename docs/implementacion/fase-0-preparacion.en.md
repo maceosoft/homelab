@@ -69,7 +69,7 @@ Further reading: [Hardware Discovery](../hardware/discovery.md) · [Inventory](.
 - [x] **1Password:** the desktop app installed, with a vault called
       **`HomeLab`** and *Settings → Developer → Integrate with other apps*
       activated. There it stores the credentials used by the playbooks
-      ([which items and fields](../maceosoft/github.md#items-en-1password)).
+      ([which items and fields](../maceosoft/github.md#items-in-1password)).
 
 ## Run
 
@@ -167,11 +167,11 @@ With an **organization owner** account `maceosoft`:
     - `core-pipelines`: in *Settings → Actions → General → Access*, choose "Accessible from repositories in the 'maceosoft' organization". No need to create tags: while testing, other repos use it with `@main`.
     - `infra`.
 5. **GitHub App `maceosoft-argocd`** (read-only, installed **only in `gitops`**) → item `maceosoft-argocd` with the same three fields. Comes after the repos because it is installed in `gitops`.
-   [Permissions and steps](../maceosoft/github.md#step-2-repos-app-of-argocd-and-manual-ftp).
+   [Permissions and steps](../maceosoft/github.md#paso-2-repos-app-de-argocd-y-ftp-manual).
 6. **Sealed Secrets Key** *(optional until Phase 6)*: a key pair generated with `openssl`, in the item `sealed-secrets` (`certificate` and `private_key`), so that it survives if you reinstall K3s.
-   [Command and steps](../maceosoft/github.md#step-2-repos-app-of-argocd-and-manual-ftp).
+   [Command and steps](../maceosoft/github.md#paso-2-repos-app-de-argocd-y-ftp-manual).
 7. **FTP (File Transfer Protocol) credentials for the repo `api`**: `api` is the first project in the repo map and deploys via FTP, so it needs its item `ftp-api` (Secure Note) from the first pipeline. Each repo you add later follows the [routine procedure — Add a repo](../operacion/agregar-repo.md). The item has 8 fields: `dev_host`, `dev_user`, `dev_password`, `dev_remote_dir`, and the same four with `prod_`. The `*_password` go as Password and the rest as Text.
-   [Table with examples](../maceosoft/github.md#step-2-repos-app-of-argocd-and-manual-ftp).
+   [Table with examples](../maceosoft/github.md#paso-2-repos-app-de-argocd-y-ftp-manual).
 
 All commands to create these items with the CLI `op` (and the GitHub commands with `gh`) are in the sections of [Plataforma maceosoft — GitHub](../maceosoft/github.md): the Apps and the OAuth App are **created only from the web**, and from there on saving the data in 1Password, listing installations, and creating the repos is done with `op` and `gh`.
 

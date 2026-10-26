@@ -1,6 +1,6 @@
 # Hardware Inventory
 
-> Hostnames follow the *Invincible* series — see
+> The hostnames follow the *Invincible* series — see
 > [character category](https://invincible.fandom.com/es/wiki/Categor%C3%ADa:Personajes).
 > `deborah` was previously `orangepi5plus`.
 
@@ -35,7 +35,7 @@ Where the nominal value differs from the measured, the *Measured* column is the 
 </div>
 
 !!! note "Nominal specs vs measured"
-    Measured on the nodes themselves with `playbook-discovery.yml` (and verified with `lscpu`, `free`, `dmidecode`, and `lsblk`); RAM is given in GiB, as reported by the discovery:
+    Measured on the nodes themselves with `playbook-discovery.yml` (and verified with `lscpu`, `free`, `dmidecode`, and `lsblk`); RAM is given in GiB, as reported by discovery:
     **invincible** is the M920q with i7-8700T and 15.5 GB, and **oliver** is the M700 with i3-6100T and 7.7 GB.
 
 ## IP Scheme
@@ -62,8 +62,8 @@ Test: `dd` of 40 MB in 4k blocks with direct write (`oflag=direct`). The NVMe WD
 
 ## RAM Budget (recalculated)
 
-- **invincible (15.5 GB)**: K3s (lightweight Kubernetes distribution) agent + Argo CD controller + Incus leader. This is the x86 node with the most margin and the fastest disk: it supports CAPN (Cluster API Provider for Incus) management and Longhorn simultaneously.
-- **oliver (7.7 GB)**: K3s agent (and future control plane, see [Move the control plane](../operacion/mover-control-plane.md)) (CoreDNS, metrics-server) + Incus in `scheduler.instance manual`. RAM adjusted: that's why it remains a light node and, in the design, outside of Longhorn (see [Longhorn v1](../storage/index.md#longhorn-v1-ha-selectiva-cross-arch)).
+- **invincible (15.5 GB)**: K3s (lightweight Kubernetes distribution) agent + Argo CD controller + Incus leader. It is the x86 node with the most margin and the fastest disk: it supports CAPN (Cluster API Provider for Incus) management and Longhorn simultaneously.
+- **oliver (7.7 GB)**: K3s agent (and future control plane, see [Move the control plane](../operacion/mover-control-plane.md)) (CoreDNS, metrics-server) + Incus in `scheduler.instance manual`. RAM adjusted: that's why it remains a light node and, in the design, outside of Longhorn (see [Longhorn v1](../storage/index.md#longhorn-v1-selective-ha-cross-arch)).
 - **deborah (31 GB)**: K3s control plane + BIND (role `bind_dns`) + Ollama on demand (role `ollama_ondemand`, group `llm_nodes`, alongside `invincible` and `oliver`): it only uses RAM while responding and releases it about 5 minutes later (see [Local AI Assistant](../operacion/ia-ollama.md)). Root on eMMC; the NVMe (SSD via PCIe) is not detected (see [Storage and I/O](#storage-and-io)).
 
 ## Decision: control plane on oliver
@@ -71,12 +71,12 @@ Test: `dd` of 40 MB in 4k blocks with direct write (`oflag=direct`). The NVMe WD
 !!! info "The control plane is moved to oliver"
     `deborah` now also runs Ollama models and is the DNS for the LAN, so the K3s control plane is moved to
     `oliver` and `deborah` remains as a worker. This is done once, during a maintenance window, using the procedure in
-    [Move the control plane](../operation/move-control-plane.md). This section describes the original decision.
+    [Moving the control plane](../operacion/mover-control-plane.md). This section describes the original decision.
 
 **Status:** the API server responds on `192.168.20.5:6443` (deborah).
 Workers on invincible (`192.168.20.6`) and oliver (`192.168.20.7`). Installed with
-**K3s v1.36.5+k3s1** (`k3s_install.core.version`); afterwards, the SUC (System Upgrade Controller) updates it automatically
-([Update K3s](../operation/update-k3s.md)). Actual version: `kubectl get nodes`.
+**K3s v1.36.5+k3s1** (`k3s_install.core.version`); afterwards the SUC (System Upgrade Controller) updates it automatically
+([Updating K3s](../operacion/actualizar-k3s.md)). Actual version: `kubectl get nodes`.
 
 <div class="card">
   <div class="card-kicker">Trade-off Analysis</div>
@@ -88,8 +88,8 @@ Workers on invincible (`192.168.20.6`) and oliver (`192.168.20.7`). Installed wi
     </div>
     <div class="card-col">
       <div class="card-title">B: invincible</div>
-      <div class="text-muted">I/O 78.4 MB/s (best measured); 15.5 GB RAM; i7-8700T</div>
-      <div class="text-muted">Incus leader; costly control plane migration</div>
+      <div class="text-muted">I/O 78.4 MB/s (the best measured); 15.5 GB RAM; i7-8700T</div>
+      <div class="text-muted">It is the Incus leader; costly control plane migration</div>
     </div>
     <div class="card-col">
       <div class="card-title">C: oliver</div>
@@ -99,10 +99,10 @@ Workers on invincible (`192.168.20.6`) and oliver (`192.168.20.7`). Installed wi
   </div>
 </div>
 
-**Discovery note:** without NVMe, `deborah` measures the lowest I/O (59.5 MB/s on eMMC) and `invincible` the highest (78.4 MB/s); the report itself suggests considering `invincible` as the control plane. The decision to keep `deborah` is maintained until measuring fsync latency (`fio`), which is what matters for etcd.
+**Discovery note:** without NVMe, `deborah` measures the lowest I/O (59.5 MB/s on eMMC) and `invincible` the highest (78.4 MB/s); the report itself suggests considering `invincible` as the control plane. The decision to keep `deborah` is maintained until fsync latency (`fio`) is measured, which is what matters for etcd.
 
 !!! warning "deborah after reboot"
-    If after a reboot `deborah` has the binary `k3s` but no active service or port `:6443`, check
+    If after a reboot `deborah` has the `k3s` binary but no active service or port `:6443`, check
     `sudo systemctl enable --now k3s` and the logs (`sudo journalctl -u k3s -n 50`).
 
 ## See also

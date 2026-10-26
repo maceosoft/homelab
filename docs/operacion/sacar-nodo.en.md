@@ -25,8 +25,7 @@ kubectl cordon nolan
 kubectl drain nolan --ignore-daemonsets --delete-emptydir-data
 ```
 
-If the node contributes a disk to Longhorn (`node.longhorn.io/create-default-disk:
-"true"`), in the Longhorn UI: *Node → nolan → Edit* → turn off
+If the node contributes a disk to Longhorn (`node.longhorn.io/create-default-disk: "true"`), in the Longhorn UI: *Node → nolan → Edit* → turn off
 *Scheduling* and check *Eviction Requested*. Wait for its replicas to
 move to other nodes before continuing.
 

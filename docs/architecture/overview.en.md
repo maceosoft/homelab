@@ -16,7 +16,7 @@ Executable guide: **[Implementation](../implementacion/index.md)**.
     - Sealed Secrets controller
 4. **Workload Clusters** — ephemeral kubeadm clusters provisioned by CAPN as Incus (LXC or VM) instances for dev/test/isolation.
 5. **Storage** — OpenEBS LocalPV (default, on all 3 nodes) + Longhorn v1
-   (replicated between `invincible` and `deborah`; `oliver` stays out due to RAM if `createDefaultDiskLabeledNodes` is activated, see [Longhorn v1](../storage/index.md#longhorn-v1-ha-selectiva-cross-arch)).
+   (replicated between `invincible` and `deborah`; `oliver` stays out due to RAM if `createDefaultDiskLabeledNodes` is activated, see [Longhorn v1](../storage/index.md#longhorn-v1-selective-ha-cross-arch)).
 
 ## Key Design Decision
 

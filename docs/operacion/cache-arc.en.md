@@ -30,8 +30,7 @@ What is stored and where:
 !!! warning "The `setup-python` and `setup-node` tool cache is NOT shared"
     `setup-python` deletes and reinstalls the folder of the version it is going to use. With the tool
     cache on the shared volume, two parallel jobs (for example `render` and
-    `security` in `gitops`) stepped on the same folder and failed with `rm: cannot
-    remove … Stale file handle`. That is why `RUNNER_TOOL_CACHE` keeps its default
+    `security` in `gitops`) stepped on the same folder and failed with `rm: cannot remove … Stale file handle`. That is why `RUNNER_TOOL_CACHE` keeps its default
     value (`_work/_tool`, local to each runner) and Python/Node are downloaded in every job
     (~20 s). What is shared is safe in parallel: pip, npm, Helm and the tarballs
     in `/cache/dl` (they are written to a temporary file and renamed).

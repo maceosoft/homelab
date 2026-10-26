@@ -15,7 +15,7 @@ be shown without risk (it is the public part); the private key is never shared.
 
 **What it is for here.** Each Incus node publishes the CPU, memory, disk and network usage of its instances at
 `https://<nodo>:8443/1.0/metrics`. The monitoring agent (`vmagent`, the one that collects metrics) uses this certificate to
-get in and read that page every 30 seconds.
+get in and read that page every 60 seconds.
 
 **Why it is read-only.** Incus allows certificates of different types. The `metrics` type can only read
 metrics: it cannot create, delete or change instances. So if someone stole the monitoring key, they could see how much

@@ -209,7 +209,7 @@ Ansible installs `incus-ui-canonical` and `core.https_address` on **invincible**
     Only the team `devops` of `maceosoft` (Dex filter) can log in, and with the default
     Incus configuration, those OIDC users have full access.
 
-Further reading: [Incus Cluster — UI](../incus/cluster-setup.md#ui-of-administration)
+Further reading: [Incus Cluster — UI](../incus/cluster-setup.md#admin-ui)
 
 ## Backup and snapshots (optional)
 

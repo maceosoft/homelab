@@ -61,4 +61,4 @@ sudo incus admin sql global .dump > /backup/incus-global.sql
   backup that was never restored is not tested.
 
 More detail and official links:
-[Incus — Backup and snapshots](../incus/cluster-setup.md#backup-y-snapshots-opcional).
+[Incus — Backup and snapshots](../incus/cluster-setup.md#backup-and-snapshots-optional).
