@@ -24,13 +24,18 @@ bind_dns_chroot_mounts:
   - { src: /run/named, path: run/named, kind: dir }
   - { src: /run/systemd/notify, path: run/systemd/notify, kind: file }
 
-# Clientes que pueden consultar y usar recursión (ACL "lan" de named.conf.options):
-# la LAN y los CIDR de pods/servicios de K3s (CoreDNS consulta con IP de pod).
+# Este DNS es para todos (LAN, otras subredes del router, VPN…): por defecto NO se limita
+# por origen. Con bind_dns_restrict_clients: true solo atienden los de bind_dns_allowed_clients.
+bind_dns_restrict_clients: false
+# Clientes de la ACL "lan" (solo se usa con bind_dns_restrict_clients: true): la LAN y los
+# CIDR de pods/servicios de K3s (CoreDNS consulta con IP de pod).
 bind_dns_allowed_clients:
   - "{{ lan_cidr }}"
   - "{{ ((k3s_install | default({})).get('core', {})).get('cluster_cidr', '10.42.0.0/16') }}"
   - "{{ ((k3s_install | default({})).get('core', {})).get('service_cidr', '10.43.0.0/16') }}"
-# Rate-limit de respuestas (por segundo y por cliente) y clientes exentos (la LAN incluida:
-# los nodos comparten una agrupación /24 y sumarían un solo cupo).
+# Rate-limit de respuestas idénticas (anti-amplificación), APAGADO por defecto para no limitar
+# a nadie (una VPN o un NAT concentra muchos usuarios en una IP). Si se activa, los clientes de
+# bind_dns_rate_limit_exempt quedan exentos (la LAN incluida: los nodos comparten una /24).
+bind_dns_rate_limit_enabled: false
 bind_dns_rate_limit_rps: 20
 bind_dns_rate_limit_exempt: "{{ bind_dns_allowed_clients }}"

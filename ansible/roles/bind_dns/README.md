@@ -48,3 +48,14 @@ ansible deborah -m command -a "dig @192.168.20.5 oliver.mco.local +short"
 ansible deborah -m command -a "dig @192.168.20.5 deb.debian.org +short"
 ansible deborah -m command -a "ps -o pid,args -C named"   # named -u bind -t /var/lib/named
 ```
+
+## Quién puede consultar el DNS
+
+Este DNS sirve a toda la red: la LAN, otras subredes del mismo router y las VPN. Por defecto
+`allow-query` y `allow-recursion` son `any` y el límite de respuestas está apagado, porque
+limitarlos dejó sin DNS a equipos de otra subred. Lo que sí se endurece sin bloquear a nadie es
+`allow-transfer { none; }` y la versión oculta (`version "none"`).
+
+Para restringir por origen hay que activarlo de forma explícita: `bind_dns_restrict_clients: true`
+(usa la lista `bind_dns_allowed_clients`) y, para limitar ráfagas, `bind_dns_rate_limit_enabled: true`.
+Antes de hacerlo, revisa en `journalctl -u named` qué IP de cliente consultan realmente.

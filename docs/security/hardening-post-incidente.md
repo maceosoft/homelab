@@ -71,7 +71,7 @@ etapas (NetworkPolicy `default-deny`, etiquetas PSA, `oauth2-proxy`) se indica c
 | `adbd` (Android Debug Bridge, sin credenciales) escuchando en `deborah:5555`, lanzado por `usbdevice.service` | Deshabilitar y enmascarar esa unidad y verificar que el puerto cierra |
 | node-exporter y métricas de MetalLB y FRR abiertos a la LAN | Escuchar solo en la IP del nodo y `nftables` hacia el recolector |
 | `alert-triage` y `mcpo` sin token | Token Bearer o clave de API, NetworkPolicy |
-| BIND con recursión y consultas abiertas | ACL `lan`, sin transferencias, versión oculta, límite de tasa |
+| BIND sin transferencias de zona y con la versión visible | `allow-transfer { none; }` y versión oculta. El DNS sirve a toda la red (otras subredes del router, VPN): no se limita por origen ni se activa el límite de tasa (opt-in con `bind_dns_restrict_clients` y `bind_dns_rate_limit_enabled`) |
 | K3s sin Dex ni cifrado de Secrets | Al mover el control plane ([guía](../operacion/mover-control-plane.md)): banderas `oidc-*`, `--secrets-encryption` e instalador con suma de verificación |
 | `rpcbind`, `dnsmasq`, SSH con `AllowUsers` sin definir, `auditd` mínimo | Deshabilitar lo que no se usa, `AllowUsers devops amaceo` y reglas de `auditd` enviadas a [VictoriaLogs](../operacion/logs.md) |
 

@@ -6,7 +6,7 @@ vez que aparecen en cada página llevan el significado entre paréntesis.
 
 | Sigla | Significado | Qué es |
 |---|---|---|
-| **ACL** | Access Control List | Lista de control de acceso: quién puede consultar un servicio (en BIND, la lista `lan` limita las consultas a la red local). |
+| **ACL** | Access Control List | Lista de control de acceso: quién puede consultar un servicio (en BIND, una lista `lan` podría limitar las consultas a ciertas redes; en este HomeLab el DNS queda abierto a toda la red). |
 | **API** | Application Programming Interface | Interfaz por la que un programa expone operaciones a otros (p. ej. la API de Kubernetes en :6443). |
 | **ARC** | [Actions Runner Controller](https://github.com/actions/actions-runner-controller) | Controlador que corre runners de GitHub Actions dentro de Kubernetes. |
 | **ARM64** | arquitectura ARM de 64 bits | Arquitectura de CPU del Orange Pi (deborah); los otros nodos son x86_64. |
