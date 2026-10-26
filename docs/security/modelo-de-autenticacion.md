@@ -17,7 +17,7 @@ y documentada cuando la autenticación no es posible.**
 | Servicio | Quién lo usa | Cómo se autentica |
 |---|---|---|
 | ArgoCD, Grafana | Personas | Dex (GitHub, team `devops`). Queda un acceso local de emergencia (`admin` de Grafana); el `admin` local de ArgoCD se desactiva (`admin.enabled: "false"`) y el pipeline usa un token propio (`ci`) con caducidad |
-| Open WebUI | Personas | Dex (SSO, *Single Sign-On*: inicio de sesión único, con GitHub): cliente público con PKCE (*Proof Key for Code Exchange*, una protección para clientes sin secreto), sin secreto compartido. Registro cerrado, solo el team `devops`; el formulario local queda como acceso de emergencia |
+| Open WebUI | Personas | Dex (SSO, *Single Sign-On*: inicio de sesión único, con GitHub): cliente público con PKCE (*Proof Key for Code Exchange*, una protección para clientes sin secreto), sin secreto compartido. Solo SSO: sin formulario local ni registro con contraseña, ni siquiera para el primer administrador; solo entra el team `devops` |
 | vCluster, Incus | Personas | Dex (OIDC). Incus además limita el puerto `8443` por firewall |
 | SSH a los nodos | Personas | opkssh con la identidad de Dex (grupo `maceosoft:devops`); sin contraseña ni root |
 | API de K3s (`6443`) | Personas y máquinas | Certificados de K3s para las máquinas; Dex (banderas `oidc-*`) para personas |

@@ -21,10 +21,6 @@ httproutes:
     name: argocd-server
     auth: dex-native
     reason: "ArgoCD con Dex (SSO GitHub). El admin local debe estar deshabilitado (admin.enabled=false)."
-  - namespace: argocd
-    name: argocd-server-redirect
-    auth: none
-    reason: "Solo redirige HTTP -> HTTPS, sin backend."
   - namespace: monitoring
     name: grafana
     auth: dex-native
@@ -32,7 +28,7 @@ httproutes:
   - namespace: ai
     name: open-webui
     auth: dex-native
-    reason: "Open WebUI con Dex (OAUTH_*), registro cerrado."
+    reason: "Open WebUI solo con Dex (OAUTH_*): sin formulario local ni registro (ENABLE_LOGIN_FORM y ENABLE_PASSWORD_AUTH en False)."
   - namespace: ai
     name: ollama-router
     auth: machine-token

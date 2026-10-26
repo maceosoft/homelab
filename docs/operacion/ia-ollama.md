@@ -186,9 +186,10 @@ Open WebUI no tiene cuentas propias: se entra con **SSO** (*Single Sign-On*, ini
 
 - Solo puede entrar el team `devops` de la organización `maceosoft`; los administradores de Open WebUI son los
   de ese mismo team (el rol llega en el claim `groups`).
-- El registro abierto está desactivado (`ENABLE_SIGNUP=False`); un usuario nuevo sin rol queda pendiente.
+- Nadie puede registrarse ni entrar con contraseña: no hay formulario local (`ENABLE_LOGIN_FORM=False`), el registro
+  está cerrado (`ENABLE_SIGNUP=False`) y la API rechaza el login con contraseña (`ENABLE_PASSWORD_AUTH=False`). Ni
+  siquiera el primer administrador se crea a mano: es la primera persona del team que entra por SSO.
 - El cliente de Dex es público y usa PKCE (*Proof Key for Code Exchange*, una protección para clientes sin secreto).
-- Se conserva el formulario local como acceso de emergencia (igual que el administrador local de Grafana).
 - Open WebUI corre sin privilegios (usuario no root) y con el sistema de archivos de solo lectura.
 - Las herramientas MCP (*Model Context Protocol*, un estándar para darle herramientas a un modelo) solo las ven los administradores.
 - El pod confía en la CA (autoridad certificadora) del HomeLab, que es la que firma el certificado de Dex.
