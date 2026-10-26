@@ -2,8 +2,8 @@
 
 !!! info "Parte de la guía de implementación"
     - **[Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets)** — Fase 4 wave 0; CAPN (Cluster API Provider for Incus) Fase 6.
-    - **OAuth Dex** — [Fase 4 paso 4.7](../implementacion/fase-4-gitops.md#47-secretos-oauth-github-vcluster-incus-ui).
-    - **Plataforma maceosoft** (Apps de ArgoCD, ARC y OpenTofu, FTP) — [1Password → clúster](../maceosoft/github.md#paso-3-cluster-y-secretos-de-plataforma).
+    - **OAuth (Open Authorization) Dex** — [Fase 4 paso 4.7](../implementacion/fase-4-gitops.md#47-secretos-oauth-github-vcluster-incus-ui).
+    - **Plataforma maceosoft** (Apps de Argo CD, ARC —Actions Runner Controller— y OpenTofu, FTP) — [1Password → clúster](../maceosoft/github.md#paso-3-cluster-y-secretos-de-plataforma).
 
 ## Diagrama — tres vías de secretos
 
@@ -38,7 +38,7 @@ rm secret-plano.yaml
 !!! warning "La llave de cifrado vive en 1Password"
     Por defecto el controller genera su par de llaves dentro del clúster (y lo
     renueva cada 30 días): si reinstalas K3s, se pierde y los `SealedSecret`
-    de git ya no se pueden descifrar. Aquí el par se genera **una vez**, se
+    de Git ya no se pueden descifrar. Aquí el par se genera **una vez**, se
     guarda en 1Password (item `sealed-secrets`) y
     `playbook-platform-secrets.yml` lo lleva al clúster; la renovación
     automática está desactivada (`keyrenewperiod: "0"`). Cómo generarlo:
@@ -50,7 +50,7 @@ rm secret-plano.yaml
 
 ## SOPS + age (complemento, cero pods)
 
-[SOPS](https://github.com/getsops/sops) — config pre-bootstrap (tokens Incus, etc.).
+[SOPS (Secrets OPerationS)](https://github.com/getsops/sops) — config pre-bootstrap (tokens Incus, etc.).
 
 ```bash
 age-keygen -o key.txt
@@ -60,7 +60,7 @@ sops --encrypt --age <public-key> secrets.yaml > secrets.enc.yaml
 ## OAuth Dex (GitHub + vCluster + Incus UI) — 1Password SDK local
 
 Credenciales de **GitHub OAuth App** y clientes Dex **vCluster Platform** e
-**Incus UI (interfaz de usuario)** no van en git.
+**Incus UI (interfaz de usuario)** no van en Git.
 
 | Origen | Campos |
 |---|---|
@@ -68,14 +68,14 @@ Credenciales de **GitHub OAuth App** y clientes Dex **vCluster Platform** e
 | **Ansible** (`playbook-dex-oauth-secrets.yml`) | `VCLUSTER_CLIENT_SECRET` (genera en 1Password si falta; aplica en Dex y Helm) |
 
 `VCLUSTER_CLIENT_SECRET` **no** se crea en GitHub: Ansible lo genera en 1Password si falta.
-Incus no usa secreto (es un cliente OIDC público en Dex).
+Incus no usa secreto (es un cliente OIDC —OpenID Connect— público en Dex).
 
 Se leen con el **[1Password Python SDK](https://github.com/1Password/onepassword-sdk-python)**
 y **DesktopAuth** en la estación donde la app 1Password está desbloqueada.
 
 Por defecto: **cuenta personal** (`ONEPASSWORD_ACCOUNT_NAME=Personal`), bóveda
-**`HomeLab`**, un ítem con campos `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`,
-`VCLUSTER_CLIENT_SECRET`. Probar: `ansible/scripts/test-1password.py`.
+**`HomeLab`**, un item con campos `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`,
+`VCLUSTER_CLIENT_SECRET`. Probar: `ansible/scripts/check_1password.py`.
 
 Homepage `https://argocd.homelab.local` (informativa); Redirect URIs
 `https://argocd.homelab.local/api/dex/callback` (crítico).
@@ -91,12 +91,12 @@ Detalle: [Fase 4 — 4.7](../implementacion/fase-4-gitops.md#47-secretos-oauth-g
 
 Opcional ([Fase 4 — 4.13](../implementacion/fase-4-gitops.md#413-monitoreo-y-alertas-opcional)). Cómo crear las credenciales:
 [Discord y healthchecks.io](../maceosoft/discord-healthchecks.md). `playbook-platform-secrets.yml` crea,
-en el namespace `monitoring`, tres Secrets desde 1Password; sus valores nunca pasan por git: `homelab` es público y `gitops`, aunque es privado, no guarda secretos.
+en el namespace `monitoring`, tres Secrets desde 1Password; sus valores nunca pasan por Git: `homelab` es público y `gitops`, aunque es privado, no guarda secretos.
 
 | Item de 1Password | Campos | Secret en el clúster |
 |---|---|---|
 | `discord-webhooks` | `critical`, `warnings` | `monitoring/discord-webhooks` |
-| `discord-webhooks` | `deployments` *(opcional)* | claves `discord-despliegues-url` y `discord-avisos-url` en `argocd/argocd-notifications-secret` (notificaciones de ArgoCD, [4.14](../implementacion/fase-4-gitops.md#414-notificaciones-de-argocd-a-discord-opcional)) |
+| `discord-webhooks` | `deployments` *(opcional)* | claves `discord-despliegues-url` y `discord-avisos-url` en `argocd/argocd-notifications-secret` (notificaciones de Argo CD, [4.14](../implementacion/fase-4-gitops.md#414-notificaciones-de-argocd-a-discord-opcional)) |
 | `healthchecks-ping` | `url` | `monitoring/healthchecks-ping` |
 | `grafana-admin` | `password` (y `username`, opcional) | `monitoring/grafana-admin` |
 | `discord-webhooks` | `ai` *(opcional)* | clave `ai` en `monitoring/discord-webhooks` (canal `#ia` de los [reportes con IA](../operacion/logs.md#reportes-diario-y-semanal-en-ia)) |
@@ -108,12 +108,12 @@ en el namespace `monitoring`, tres Secrets desde 1Password; sus valores nunca pa
 
 Los tokens se generan con `openssl rand -hex 32` (el script exige al menos 32 caracteres y sin espacios). El campo `translate` no
 crea ningún Secret en el clúster: es el valor del secreto `OLLAMA_TOKEN` de GitHub Actions. Si el cliente de Dex de Open WebUI
-resulta ser confidencial (porque no admita PKCE), su secreto se genera con `playbook-dex-oauth-secrets.yml`, como `VCLUSTER_CLIENT_SECRET`.
+resulta ser confidencial (porque no admita PKCE —Proof Key for Code Exchange—), su secreto se genera con `playbook-dex-oauth-secrets.yml`, como `VCLUSTER_CLIENT_SECRET`.
 
 El playbook aplica los Secrets con `--server-side` y funciona con Python 3.9 o posterior. Todos los items de IA son
 opcionales (Open Terminal, el canal `#ia`, los tokens): si falta uno, solo se omite lo que depende de él. Los namespaces
 `ai` y `ai-sandbox` se crean sin etiquetas de Pod Security Admission y con las anotaciones `Prune=false,Delete=false` de
-ArgoCD, para que ArgoCD no los borre al sincronizar.
+Argo CD, para que Argo CD no los borre al sincronizar.
 
 Alertmanager lee las URL como archivos montados (`webhook_url_file`), así que ni siquiera aparecen en su configuración. El script
 exige que las dos URL de Discord tengan el formato `https://discord.com/api/webhooks/<id>/<token>`. Para rotar un webhook, bórralo y
@@ -122,7 +122,7 @@ créalo de nuevo en Discord, actualiza el item y vuelve a correr el playbook.
 ## IA local: crear los tokens con `op`
 
 La IA local (router de Ollama, Open WebUI, Open Terminal, reportes) usa tokens aleatorios que viven en 1Password, bóveda `HomeLab`,
-y que `playbook-platform-secrets.yml` lleva al clúster. Con el CLI de 1Password (`op`) y la app desbloqueada, cada item se crea con un
+y que `playbook-platform-secrets.yml` lleva al clúster. Con la CLI de 1Password (`op`) y la app desbloqueada, cada item se crea con un
 comando; cada campo recibe un valor distinto de `openssl rand -hex 32` (64 caracteres hexadecimales):
 
 | Item | Campos | Para qué |
@@ -196,7 +196,7 @@ Después vuelve a correr `playbook-platform-secrets.yml` y reinicia los pods que
 genera una password nueva por nodo (no idempotente a propósito — cada
 corrida rota), la aplica en el `root` local de cada host (`become` +
 `ansible.builtin.user`, hasheada con `password_hash('sha512')`) y la guarda
-en la bóveda **`HomeLab`**, un ítem por host (`root@invincible`,
+en la bóveda **`HomeLab`**, un item por host (`root@invincible`,
 `root@oliver`, `root@deborah`, campo `password`). No toca SSH (Secure Shell) — el login de
 `root` por SSH ya está deshabilitado por `host_hardening`
 (`PermitRootLogin no`); esto es defensa en profundidad para consola/`su -`.
@@ -208,7 +208,7 @@ ansible-playbook -i inventory.ini playbook-rotate-root-passwords.yml \
   --limit deborah
 ```
 
-Para leer una contraseña cuando la necesites (por ejemplo, por consola), con el CLI de 1Password y sin dejarla en el historial:
+Para leer una contraseña cuando la necesites (por ejemplo, por consola), con la CLI de 1Password y sin dejarla en el historial:
 `op read "op://HomeLab/root@deborah/password" | pbcopy` (en Linux, `xclip -selection clipboard` o `wl-copy`). Si tienes más de una
 cuenta de 1Password, exporta `OP_ACCOUNT` antes.
 
@@ -217,7 +217,7 @@ cuenta de 1Password, exporta `OP_ACCOUNT` antes.
   <div class="option-grid">
     <div class="card-col">
       <div class="card-title">Sealed Secrets</div>
-      <div class="text-muted">Cifrado en git; controller ligero (~30 MB)</div>
+      <div class="text-muted">Cifrado en Git; controller ligero (~30 MB)</div>
       <div class="text-muted">Solo en clúster; no sirve pre-bootstrap</div>
     </div>
     <div class="card-col">
@@ -227,7 +227,7 @@ cuenta de 1Password, exporta `OP_ACCOUNT` antes.
     </div>
     <div class="card-col">
       <div class="card-title">1Password SDK</div>
-      <div class="text-muted">OAuth fuera de git; DesktopAuth</div>
+      <div class="text-muted">OAuth fuera de Git; DesktopAuth</div>
       <div class="text-muted">App desbloqueada; no para SealedSecret en CAPN</div>
     </div>
     <div class="card-col">

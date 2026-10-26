@@ -60,7 +60,7 @@
   check_mode: false
   when: host_hardening_disable_dnsmasq
 
-- name: Deshabilitar dnsmasq.service (si esta presente)
+- name: Deshabilitar dnsmasq.service (si está presente)
   ansible.builtin.systemd:
     name: dnsmasq.service
     state: stopped

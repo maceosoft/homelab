@@ -16,8 +16,8 @@ alcanzables entre hosts sin necesitar OVN (Open Virtual Network).
 | oliver | `eno1` | 192.168.20.7 |
 | deborah | `enP4p65s0` | 192.168.20.5 |
 
-> Confirmá con `ip -br link` en el nodo antes de aplicar — el nombre de la
-> interfaz física puede diferir de esta tabla tras una actualización de OS.
+> Confirma con `ip -br link` en el nodo antes de aplicar — el nombre de la
+> interfaz física puede diferir de esta tabla tras una actualización del SO.
 
 Ejemplo netplan — invincible:
 
@@ -157,8 +157,8 @@ lugar de la IP de un nodo concreto. Así el control plane se puede mover sin toc
 Cada nodo tiene un firewall de host con `nftables` (rol `host_firewall`): una tabla propia, evaluada antes de
 kube-proxy y sin modificar las cadenas de Calico. La política es `accept` con denegaciones explícitas (para no cortar a K3s, Calico, Longhorn ni MetalLB si cambian sus puertos), y el tráfico entre nodos es de confianza. Se restringe lo siguiente:
 
-- SSH (`22`) desde la LAN (red local), con autenticación por Dex.
-- El API de K3s (`6443`), el kubelet (`10250`), el tráfico de BGP (`179`), de FRR (`2623`) y de MetalLB (`7946`), y Typha
+- SSH (`22`) desde la LAN, con autenticación por Dex.
+- La API de K3s (`6443`), el kubelet (`10250`), el tráfico de BGP (`179`), de FRR (`2623`) y de MetalLB (`7946`), y Typha
   (`5473`): solo entre los nodos y el rango de pods.
 - Las métricas (`9100`, `9120`, `9140`, `9141`): solo hacia el recolector y los nodos.
 - Incus (`8443`): nodos, pods y operador. Ollama (`11434`): nodos de K3s, pods y los equipos que se agreguen a `host_firewall_ollama_extra_cidrs` (el Mac).

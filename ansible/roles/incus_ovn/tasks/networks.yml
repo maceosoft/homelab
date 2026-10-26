@@ -13,43 +13,58 @@
   when: incus_ovn_confirm | bool
 
 - name: Configurar la conexión de Incus a OVN
-  ansible.builtin.command: "incus config set network.ovn.northbound_connection {{ incus_ovn_nb_conn }}"
-  changed_when: true
+  ansible.builtin.shell: |
+    set -e
+    [ "$(incus config get network.ovn.northbound_connection)" = "{{ incus_ovn_nb_conn }}" ] && exit 0
+    incus config set network.ovn.northbound_connection "{{ incus_ovn_nb_conn }}"
+    echo CHANGED
+  args:
+    executable: /bin/bash
+  register: incus_ovn_nb
+  changed_when: "'CHANGED' in incus_ovn_nb.stdout"
   when: incus_ovn_confirm | bool
 
 - name: Crear la red uplink en cada miembro (pendiente)
   ansible.builtin.shell: |
+    set -e
     incus network show {{ incus_ovn_uplink_name }} >/dev/null 2>&1 && exit 0
     for m in {{ groups['incus_cluster'] | join(' ') }}; do
       incus network create {{ incus_ovn_uplink_name }} --type=physical parent={{ incus_ovn_uplink_parent }} --target=$m
     done
+    echo CHANGED
   args:
     executable: /bin/bash
-  changed_when: true
+  register: incus_ovn_uplink_pending
+  changed_when: "'CHANGED' in incus_ovn_uplink_pending.stdout"
   when: incus_ovn_confirm | bool
 
 - name: Confirmar la red uplink (segmento LB en ipv4.routes, segmento OVN externo en ipv4.ovn.ranges)
   ansible.builtin.shell: |
-    set -o pipefail
+    set -eo pipefail
     incus network show {{ incus_ovn_uplink_name }} | grep -q '^status: Created' && exit 0
     incus network create {{ incus_ovn_uplink_name }} --type=physical \
       ipv4.gateway={{ incus_ovn_uplink_gateway }} \
       ipv4.ovn.ranges={{ incus_ovn_external_ranges }} \
       ipv4.routes={{ incus_ovn_lb_routes }} \
       dns.nameservers={{ incus_ovn_dns }}
+    echo CHANGED
   args:
     executable: /bin/bash
-  changed_when: true
+  register: incus_ovn_uplink_created
+  changed_when: "'CHANGED' in incus_ovn_uplink_created.stdout"
   when: incus_ovn_confirm | bool
 
 - name: Crear la red OVN (segmento interno, con NAT)
   ansible.builtin.shell: |
+    set -e
     incus network show {{ incus_ovn_network_name }} >/dev/null 2>&1 && exit 0
     incus network create {{ incus_ovn_network_name }} --type=ovn network={{ incus_ovn_uplink_name }} \
       ipv4.address={{ incus_ovn_internal_cidr }} ipv4.nat=true ipv6.address=none
+    echo CHANGED
   args:
     executable: /bin/bash
-  changed_when: true
+  register: incus_ovn_network_created
+  changed_when: "'CHANGED' in incus_ovn_network_created.stdout"
   when: incus_ovn_confirm | bool
 
 - name: Resultado

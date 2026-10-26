@@ -30,7 +30,7 @@ primero en 1Password (bóveda `HomeLab`) y después se lleva al clúster.
 | Webhook del canal `#ia` (reportes con IA) | `discord-webhooks` (campo `ai`) | `playbook-platform-secrets.yml` ([crear el canal](logs.md#crear-el-canal-ia-y-su-webhook-una-sola-vez)) |
 | Contraseña de root de los nodos | `root@<nodo>` (la crea el playbook) | `playbook-rotate-root-passwords.yml` |
 | Llave de Sealed Secrets | `sealed-secrets` | `playbook-platform-secrets.yml` ([ojo: ver abajo](#llave-de-sealed-secrets)) |
-| Token de ArgoCD del pipeline de `gitops` (cuenta `ci`) | `argocd-ci` | `playbook-platform-secrets.yml` ([cómo generarlo](pipeline-gitops.md#activar-el-diff-contra-el-cluster-una-vez)) |
+| Token de Argo CD del pipeline de `gitops` (cuenta `ci`) | `argocd-ci` | `playbook-platform-secrets.yml` ([cómo generarlo](pipeline-gitops.md#activar-el-diff-contra-el-cluster-una-vez)) |
 
 ## Private key de una GitHub App
 
@@ -94,13 +94,13 @@ primero en 1Password (bóveda `HomeLab`) y después se lleva al clúster.
     ansible-playbook -i inventory.ini playbook-dex-oauth-secrets.yml --tags argocd
     ```
 
-4. Prueba el login con GitHub en ArgoCD y después borra el secret viejo en la
+4. Prueba el login con GitHub en Argo CD y después borra el secret viejo en la
    OAuth App.
 
 ## Monitoreo: webhooks de Discord, ping de healthchecks.io y Grafana
 
 Son opcionales ([4.13](../implementacion/fase-4-gitops.md#413-monitoreo-y-alertas-opcional)). Los tres viven en 1Password y el
-playbook los lleva al namespace `monitoring`; nunca se escriben en git.
+playbook los lleva al namespace `monitoring`; nunca se escriben en Git.
 
 1. Genera el valor nuevo:
     - **Webhook de Discord:** Discord no permite regenerar el token de un webhook. En *Server Settings → Integrations → Webhooks*, usa
@@ -186,7 +186,7 @@ ansible-playbook -i inventory.ini playbook-rotate-root-passwords.yml --limit deb
 
 ## Llave de Sealed Secrets
 
-**No se rota a la ligera.** Los `SealedSecret` que ya están en git se cifraron
+**No se rota a la ligera.** Los `SealedSecret` que ya están en Git se cifraron
 con la llave actual: si la cambias, esos archivos dejan de poder
 descifrarse. La llave no vence en la práctica (el certificado vale 10 años) y
 la renovación automática está desactivada.
@@ -203,13 +203,13 @@ Solo hay que tocarla si se filtró la llave **privada**. En ese caso:
    `kubectl -n kube-system rollout restart deploy/sealed-secrets`.
 
 **Reinstalar K3s** no es una rotación: con el item en 1Password, el playbook
-vuelve a crear el mismo Secret y los `SealedSecret` de git siguen
+vuelve a crear el mismo Secret y los `SealedSecret` de Git siguen
 funcionando. Hazlo **antes** de activar `sealed-secrets` en
 `root-appset.yaml`.
 
 ## Verificar
 
 - `apply_platform_secrets.py --check` muestra todo en ✓.
-- ArgoCD sigue sincronizando `gitops` (`kubectl get applications -n argocd`).
+- Argo CD sigue sincronizando `gitops` (`kubectl get applications -n argocd`).
 - El runner aparece *Online* en *maceosoft → Settings → Actions → Runners* (con la CLI: `gh api orgs/maceosoft/actions/runners --jq '.runners[] | [.name, .status] | @tsv'`).
-- El login con GitHub funciona en ArgoCD.
+- El login con GitHub funciona en Argo CD.

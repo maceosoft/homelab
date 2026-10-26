@@ -19,16 +19,16 @@ pasos en orden, cómo verificar y qué revisar si algo falla.
 | [Backups y snapshots de Incus](backups-incus.md) | Programar respaldos o recuperar una instancia | Incus |
 | [Actualizar K3s](actualizar-k3s.md) | Revisar las actualizaciones automáticas o fijar una versión | GitOps + Ansible |
 | [Parchear los nodos](parchear-nodos.md) | Instalar parches de seguridad de Debian cuando el monitoreo avisa | Ansible + `apt` |
-| [Actualizar ArgoCD](actualizar-argocd.md) | Se actualiza solo a la última versión; primera actualización, fijar una versión, qué hacer si falla | GitOps + Ansible |
+| [Actualizar Argo CD](actualizar-argocd.md) | Se actualiza solo a la última versión; primera actualización, fijar una versión, qué hacer si falla | GitOps + Ansible |
 | [Cambiar el controlador de Gateway](cambiar-gateway.md) | Cambiar entre Kong, Traefik y NGINX; TLS de `*.homelab.local` | GitOps + `kubectl` |
 | [Actualizar Debian en deborah (12 → 13)](actualizar-debian-deborah.md) | Pasar el control plane a Debian 13, con respaldo y compuerta de arranque | Ansible (`homelab`) |
-| [Calico (CNI) con ArgoCD](actualizar-calico.md) | Cómo ArgoCD administra y actualiza la red de los pods | GitOps + `kubectl` |
+| [Calico (CNI) con Argo CD](actualizar-calico.md) | Cómo Argo CD administra y actualiza la red de los pods | GitOps + `kubectl` |
 | [Caché de los runners (ARC)](cache-arc.md) | Qué se cachea entre jobs, cómo verificarla, limpiarla o vaciarla | `kubectl` + GitOps |
 | [Salud de los discos y del DNS](salud-de-discos.md) | Qué hacer cuando salta una alerta de SMART, de desgaste de la eMMC o de BIND | Ansible (`homelab`) + nodos |
 | [Certificado de métricas de Incus](certificado-metricas-incus.md) | Qué es el certificado cliente de solo lectura que usa el monitoreo y cómo registrarlo en Incus | `kubectl` + Ansible (`homelab`) |
 | [Avisos de versiones nuevas (Renovate)](actualizaciones-de-productos.md) | Qué productos tienen versión nueva, avisos en Discord y cómo atender cada PR | GitHub + Discord + GitOps |
 | [Rotar credenciales](rotar-credenciales.md) | Periódicamente, o si una credencial se filtró | 1Password + playbooks |
-| [Pipeline de gitops](pipeline-gitops.md) | Qué valida cada PR de `gitops`; activar el diff de ArgoCD (una vez) | GitHub Actions + 1Password |
+| [Pipeline de gitops](pipeline-gitops.md) | Qué valida cada PR de `gitops`; activar el diff de Argo CD (una vez) | GitHub Actions + 1Password |
 
 !!! note "Desde dónde se corren los comandos"
     Salvo que el procedimiento diga otra cosa, los comandos de Ansible se

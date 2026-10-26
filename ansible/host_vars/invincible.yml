@@ -1,5 +1,5 @@
 ---
-incus_role: "Bootstrap / leader (pendiente instalación)"
+incus_role: "Bootstrap / leader"
 incus_cluster_role: bootstrap
 incus_cluster_groups: [x86-nodes, default]
 k3s_role: agent

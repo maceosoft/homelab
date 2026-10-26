@@ -1,7 +1,7 @@
 """Helpers 1Password SDK para homelab (DesktopAuth — app local).
 
 Usado por:
-  ansible/scripts/test-1password.py
+  ansible/scripts/check_1password.py
   ansible/scripts/ensure_dex_oauth_secrets.py
   ansible/scripts/apply_dex_oauth_to_argocd.py
   gitops/argocd/secrets/apply-from-1password.py

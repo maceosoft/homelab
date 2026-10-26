@@ -56,8 +56,8 @@ flowchart LR
 ```
 
 - **Un solo punto de entrada.** Los clientes dentro del clúster usan el Service interno
-  `http://ollama-router.ai.svc`; los de fuera, `https://ollama.homelab.local` (HTTPS, por Kong). Ya no hay un
-  Service por nodo ni la caché de `/api/tags` en Kong: el router responde `/api/tags` desde su registro, sin
+  `http://ollama-router.ai.svc`; los de fuera, `https://ollama.homelab.local` (HTTPS, por Kong). No hay un
+  Service por nodo ni caché de `/api/tags` en Kong: el router responde `/api/tags` desde su registro, sin
   despertar a nadie.
 - **Autenticación obligatoria.** Cada cliente tiene su propio token (`Authorization: Bearer ...`). Sin token, el
   router responde `401`. Ver [Seguridad](#seguridad-y-firewall).
@@ -78,7 +78,7 @@ Cómo funciona el "dormir y despertar" de cada nodo:
 ## Crear la clave de Open WebUI (una sola vez)
 
 Open WebUI firma las sesiones de sus usuarios con una clave secreta, `WEBUI_SECRET_KEY`. Sin ella el pod no arranca.
-Como el resto de los secretos de la plataforma, vive en 1Password y **no** pasa por git (`homelab` es público y `gitops`, aunque es privado, no guarda secretos):
+Como el resto de los secretos de la plataforma, vive en 1Password y **no** pasa por Git (`homelab` es público y `gitops`, aunque es privado, no guarda secretos):
 
 1. Genera la clave. Tiene que ser aleatoria, de 64 caracteres hexadecimales:
 
@@ -104,7 +104,7 @@ Como el resto de los secretos de la plataforma, vive en 1Password y **no** pasa 
     ansible-playbook -i inventory.ini playbook-platform-secrets.yml
     ```
 
-Hazlo antes de que ArgoCD sincronice la Application `open-webui`. Para rotar la clave, repite los pasos 1, 2 y 4 y reinicia el
+Hazlo antes de que Argo CD sincronice la Application `open-webui`. Para rotar la clave, repite los pasos 1, 2 y 4 y reinicia el
 pod de Open WebUI; los usuarios tendrán que iniciar sesión de nuevo. Más sobre el flujo en
 [Gestión de secretos](../secrets/index.md) y [Rotar credenciales](rotar-credenciales.md).
 
@@ -115,8 +115,8 @@ es (se ajusta midiendo tokens por segundo y memoria en cada nodo):
 
 | Nodo | Modelos | Para qué |
 |---|---|---|
-| `deborah` | `qwen2.5:7b-instruct` (y un 14B opcional); la réplica del 7B en `invincible` está comentada en su `host_vars` y es una decisión pendiente | Modelo por defecto: chat con el asistente y traducción de la documentación |
-| `invincible` | `qwen2.5-coder:7b` | Ayuda con código: Ansible, YAML y manifiestos de Kubernetes |
+| `deborah` | `qwen2.5:7b-instruct` de respaldo (y un 14B opcional) | Modelo por defecto cuando `invincible` no responde: chat con el asistente y traducción de la documentación |
+| `invincible` | `qwen2.5-coder:7b` y `qwen2.5:7b-instruct` (nodo preferido para el 7B, prioridad 80 contra 60 de `deborah`) | Ayuda con código (Ansible, YAML y manifiestos de Kubernetes) y el modelo por defecto |
 | `oliver` | `nomic-embed-text` y modelos de hasta 3B | *Embeddings* (convertir textos en números para buscar en la documentación) y tareas livianas |
 | Mac | Modelos grandes | Tareas pesadas, solo mientras el interruptor esté en `on` |
 
@@ -182,7 +182,7 @@ systemctl is-active ollama
 
 ## Open WebUI con Dex
 
-Open WebUI no tiene cuentas propias: se entra con **SSO** (*Single Sign-On*, inicio de sesión único, con GitHub) a través de Dex, como en Grafana.
+Open WebUI no tiene cuentas propias: se entra con **SSO** (inicio de sesión único) (*Single Sign-On*, inicio de sesión único, con GitHub) a través de Dex, como en Grafana.
 
 - Solo puede entrar el team `devops` de la organización `maceosoft`; los administradores de Open WebUI son los
   de ese mismo team (el rol llega en el claim `groups`).
@@ -222,7 +222,7 @@ Consultar métricas o Kubernetes no despierta ningún nodo; solo lo despierta el
 !!! danger "El asistente nunca aplica cambios"
     Su política es **solo proponer**. Si le pides un cambio, te devuelve el diff o el borrador de un pull
     request para el repo [`maceosoft/gitops`](https://github.com/maceosoft/gitops); **tú lo revisas y lo
-    apruebas**. Aunque pudiera escribir, ArgoCD (con `selfHeal`) revertiría cualquier cambio manual.
+    apruebas**. Aunque pudiera escribir, Argo CD (con `selfHeal`) revertiría cualquier cambio manual.
 
 Para verificar los permisos de la cuenta de servicio de las herramientas:
 
@@ -249,7 +249,7 @@ de Ollama.
 
 !!! warning "K8sGPT está etapado: la decisión es tuya"
     Su línea está comentada en `root-appset.yaml`. El chart del operador trae un ClusterRole con permisos `*/*/*`
-    (en la práctica, administrador de todo el clúster) y no ofrece una opción para quitarlo; además el RBAC dinámico
+    (en la práctica, administrador de todo el clúster) y no ofrece una opción para quitarlo; además el RBAC (control de acceso por roles) dinámico
     lee los Secrets de todo el clúster. Para activarlo hay tres caminos, descritos en
     [`security/k8sgpt-rbac/`](https://github.com/maceosoft/gitops/tree/main/security/k8sgpt-rbac): aceptar el riesgo y
     descomentar la línea; usar el rol acotado que ahí se propone (no está probado); y activar la NetworkPolicy del
@@ -334,7 +334,7 @@ Ver [Rotar credenciales](rotar-credenciales.md).
 
 - **Clientes con token.** El router exige `Authorization: Bearer <token>` en `/api/*` y `/v1/*`. Hay un token por
   cliente (`open-webui`, `k8sgpt`, `translate`, `reports`, `alert-triage`), todos en el item `ollama-router` de
-  1Password; cada uno se rota por separado ([Rotar credenciales](rotar-credenciales.md)). Open WebUI y K8sGPT ya
+  1Password; cada uno se rota por separado ([Rotar credenciales](rotar-credenciales.md)). Open WebUI y K8sGPT (cuando está activo)
   mandan su clave así; los scripts leen `OLLAMA_TOKEN`.
 - **Registro con otro token.** `/_registry` usa un token distinto del de los clientes (campo `registry_token` del
   mismo item). Con él no se puede usar la inferencia.
@@ -362,7 +362,7 @@ Ver [Rotar credenciales](rotar-credenciales.md).
 | Playbook | [`ansible/playbook-ollama.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-ollama.yml) (grupo `llm_nodes`) |
 | Agente de nodo y bundle de macOS | [`ollama-node/`](https://github.com/maceosoft/homelab/tree/main/ollama-node) |
 | Router | [`ai/ollama-router/`](https://github.com/maceosoft/gitops/tree/main/ai/ollama-router) |
-| Applications de ArgoCD | `ollama-router`, `open-webui`, `open-terminal`, `ai-tools` y `k8sgpt` en [`argocd/apps/`](https://github.com/maceosoft/gitops/tree/main/argocd/apps) |
+| Applications de Argo CD | `ollama-router`, `open-webui`, `open-terminal`, `ai-tools` y `k8sgpt` en [`argocd/apps/`](https://github.com/maceosoft/gitops/tree/main/argocd/apps) |
 | Manifiestos | Carpeta [`ai/`](https://github.com/maceosoft/gitops/tree/main/ai) (`ollama-router`, `open-webui`, `open-terminal`, `tools`, `alert-triage`, `k8sgpt` y `log-report`) |
 
 Ver también [Agregar un nodo al clúster de Ollama](agregar-nodo-ollama.md), [Logs](logs.md),

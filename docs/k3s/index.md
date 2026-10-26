@@ -10,13 +10,13 @@ Clúster K3s (distribución ligera de Kubernetes) híbrido sobre los 3 nodos del
 > Los hostnames del HomeLab siguen la serie *Invincible* — ver
 > [personajes](https://invincible.fandom.com/es/wiki/Categor%C3%ADa:Personajes).
 
-## Estado actual del clúster
+## Nodos del clúster
 
-| Nodo | IP | Rol K3s | Pods destacados (discovery) |
-|---|---|---|---|
-| deborah | 192.168.20.5 | server (control-plane) | API `:6443` |
-| invincible | 192.168.20.6 | agent (worker) | ArgoCD application-controller, svclb-traefik |
-| oliver | 192.168.20.7 | agent (worker) | CoreDNS, metrics-server, local-path-provisioner |
+| Nodo | IP | Rol K3s |
+|---|---|---|
+| deborah | 192.168.20.5 | server (control plane; pasa a worker tras [mover el control plane](../operacion/mover-control-plane.md)) |
+| invincible | 192.168.20.6 | agent (worker) |
+| oliver | 192.168.20.7 | agent (worker; futuro control plane) |
 
 Verificación desde un nodo con acceso al API (Application Programming Interface) server:
 
@@ -26,7 +26,7 @@ kubectl get pods -A
 ```
 
 !!! warning "Traefik residual"
-    El cluster se instaló con `--disable traefik`, pero persisten pods
+    El clúster se instaló con `--disable traefik`, pero persisten pods
     `svclb-traefik-*` (ServiceLB de K3s). Eliminarlos con el rol
     `k3s_cleanup_traefik` o `ansible-playbook playbook-k3s.yml --tags traefik`.
 
@@ -67,11 +67,11 @@ pods.
 
 Automatizable con: `ansible-playbook -i inventory.ini playbook-k3s.yml --tags prereqs`
 
-Opciones bootstrap (kube-vip, ArgoCD controller, labels, …):
+Opciones bootstrap (kube-vip, Argo CD controller, labels, …):
 [`playbook-options.md`](playbook-options.md). GitOps:
 [`Fase 4 — GitOps`](../implementacion/fase-4-gitops.md).
 
-## 2. Instalación del control-plane (deborah)
+## 2. Instalación del control plane (deborah)
 
 ```bash
 curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=v1.36.5+k3s1 \
@@ -111,8 +111,7 @@ curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=v1.36.5+k3s1 \
   INSTALL_K3S_EXEC="agent --node-ip 192.168.20.6" sh -
 ```
 
-**oliver (7.7 GB — perfil ligero, mismo criterio que su `scheduler.instance
-manual` en Incus):**
+**oliver (7.7 GB — perfil ligero, mismo criterio que su `scheduler.instance manual` en Incus):**
 
 ```bash
 curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=v1.36.5+k3s1 \
@@ -166,30 +165,13 @@ kubectl apply -f gitops/k3s-upgrade/
 `concurrency: 1` es intencional en un clúster de 3 nodos: nunca deja el
 clúster sin capacidad de failover completa. El controlador revisa el
 canal `stable` periódicamente y, al detectar versión nueva, cordona y
-drena un nodo a la vez — `deborah` (control-plane) primero, luego
+drena un nodo a la vez — `deborah` (control plane) primero, luego
 `invincible`/`oliver`.
 
 ### 6.2 Sistema operativo base (los 3 nodos)
 
-```bash
-sudo apt install -y unattended-upgrades
-sudo dpkg-reconfigure -plow unattended-upgrades
-```
-
-En `/etc/apt/apt.conf.d/50unattended-upgrades`, solo parches de seguridad
-y reinicio automático **escalonado** por nodo para que nunca los tres se
-reinicien a la vez:
-
-```
-Unattended-Upgrade::Automatic-Reboot "true";
-Unattended-Upgrade::Automatic-Reboot-Time "04:30";
-```
-
-| Nodo | Hora de reinicio sugerida |
-|---|---|
-| deborah | 04:00 (control-plane primero, ventana de mantenimiento más corta) |
-| invincible | 04:20 |
-| oliver | 04:40 |
+En este HomeLab los parches de Debian **no se instalan solos**: cada nodo publica cuántos tiene pendientes y
+el monitoreo avisa por Discord. El procedimiento está en [Parchear los nodos](../operacion/parchear-nodos.md).
 
 ### 6.3 Incus
 
@@ -201,14 +183,14 @@ sudo apt update && sudo apt upgrade -y incus incus-client
 
 Si el clustering de Incus está activo, verificar que las 3 versiones
 mayores coincidan antes de actualizar — un desfase de versión mayor entre
-miembros del clúster Incus puede romper el quorum.
+miembros del clúster Incus puede romper el quórum.
 
 ### 6.4 Resumen de cadencia
 
 | Componente | Mecanismo | Frecuencia | Ventana |
 |---|---|---|---|
-| K3s (server/agents) | system-upgrade-controller, canal stable | Automático al detectar release | Continuo, 1 nodo a la vez, control-plane primero |
-| SO base | unattended-upgrades | Diario (solo seguridad) | 04:00–04:40, escalonado por nodo |
+| K3s (server/agents) | system-upgrade-controller, canal stable | Automático al detectar release | Continuo, 1 nodo a la vez, control plane primero |
+| SO base | Aviso por métricas + [Parchear los nodos](../operacion/parchear-nodos.md) | Al llegar la alerta | Un nodo a la vez |
 | Incus | apt manual o cron mensual | Mensual | Mantenimiento programado |
 
 ## 7. Checklist post-instalación
@@ -216,10 +198,10 @@ miembros del clúster Incus puede romper el quorum.
 - [x] K3s v1.36.5+k3s1 instalado (canal stable)
 - [x] Workers invincible/oliver unidos al API en `192.168.20.5:6443`
 - [x] Módulos overlay/br_netfilter cargados en workers
-- [x] ArgoCD desplegado (application-controller en invincible)
+- [x] Argo CD desplegado (application-controller en invincible)
 - [ ] `kubectl get nodes` muestra 3 nodos en `Ready` (verificar CP tras reboot)
 - [ ] Etiquetas de arquitectura, tier y Longhorn aplicadas
 - [ ] Traefik svclb eliminado
 - [ ] `system-upgrade-controller` desplegado con ambos `Plan` aplicados
-- [ ] `unattended-upgrades` activo con horarios escalonados por nodo
+- [ ] Métricas de parches activas ([`playbook-apt-metrics.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-apt-metrics.yml))
 - [ ] kubeconfig respaldado fuera del clúster (nunca commiteado — ver `.gitignore`)

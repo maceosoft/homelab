@@ -32,7 +32,7 @@ ella y cita de dónde sale cada respuesta, así que es difícil que se invente c
 **Lo que conviene saber (plan gratuito):**
 
 - Necesitas una **cuenta de Google**.
-- Cada cuenta tiene un límite diario (hoy: unas 50 preguntas de chat y 3 resúmenes en audio por día).
+- Cada cuenta tiene un límite diario de preguntas de chat y de resúmenes en audio (revisa el límite vigente en NotebookLM).
 - El cuaderno lo mantiene el equipo del proyecto; si la guía cambió hace poco, puede tardar en ponerse al día.
 
 ## Si no quieres usar NotebookLM
@@ -73,11 +73,11 @@ Si prefieres escribirla tú, estas sirven con cualquier asistente. Cambia lo que
 ```text
 Actúa como mi tutor de estudio. Sigo la documentación de un HomeLab (Incus, K3s y GitOps con Argo CD).
 Soy [principiante / intermedio / experto]. Quiero entender [concepto o paso]. Empieza por los conceptos
-previos con una analogía, avanza de a poco y hazme una pregunta para comprobar que lo entendí antes de seguir.
+previos con una analogía, avanza poco a poco y hazme una pregunta para comprobar que lo entendí antes de seguir.
 ```
 
 ```text
-Hazme un cuestionario de 5 preguntas sobre [fase o sección], de a una, esperando mi respuesta.
+Hazme un cuestionario de 5 preguntas sobre [fase o sección], una a una, esperando mi respuesta.
 Corrige cada respuesta y explica por qué.
 ```
 

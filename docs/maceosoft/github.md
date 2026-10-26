@@ -1,11 +1,12 @@
 # Plataforma maceosoft — GitHub
 
 Cómo se conecta la org GitHub **`maceosoft`** con el clúster HomeLab:
-- **ArgoCD** despliega desde el repo privado `maceosoft/gitops`.
+- **Argo CD** despliega desde el repo privado `maceosoft/gitops`.
 - **ARC (Actions Runner Controller)** corre un runner self-hosted de GitHub Actions dentro del clúster
-  (un solo scale set, `arc-runners`, para CI, deploys y OpenTofu).
+  (un scale set por organización: `arc-runners` para `maceosoft` y `arc-runners-symintel` para la org antigua; ver
+  [Dos organizaciones](#dos-organizaciones-un-scale-set-por-org)).
 - **OpenTofu** gestiona la org desde un pipeline que corre en uno de esos
-  runners, y guarda su state en el clúster.
+  runners, y guarda su estado en el clúster.
 
 !!! tip "Dónde se ejecuta en la guía de implementación"
     - **Pasos 1 y 2 (manuales):** [Fase 0 — GitHub y 1Password](../implementacion/fase-0-preparacion.md#github-y-1password-org-maceosoft-manual-una-sola-vez)
@@ -17,8 +18,8 @@ Cómo se conecta la org GitHub **`maceosoft`** con el clúster HomeLab:
 !!! info "Repos involucrados"
     | Repo | Qué contiene |
     |---|---|
-    | [`maceosoft/homelab`](https://github.com/maceosoft/homelab) | Este sitio. Ansible: k3s, ArgoCD y los **secretos de plataforma** (1Password → clúster) |
-    | [`maceosoft/gitops`](https://github.com/maceosoft/gitops) | Applications de ArgoCD, incluidos ARC y el runner de OpenTofu |
+    | [`maceosoft/homelab`](https://github.com/maceosoft/homelab) | Este sitio. Ansible: k3s, Argo CD y los **secretos de plataforma** (1Password → clúster) |
+    | [`maceosoft/gitops`](https://github.com/maceosoft/gitops) | Applications de Argo CD, incluidos ARC y el runner de OpenTofu |
     | [`maceosoft/core-pipelines`](https://github.com/maceosoft/core-pipelines) | Workflows reutilizables (`tofu.yml`, CI, deploy FTP) |
     | [`maceosoft/infra`](https://github.com/maceosoft/infra) | OpenTofu: repos, environments y secrets de la org |
 
@@ -37,14 +38,14 @@ flowchart LR
   RT -->|App maceosoft-terraform| GH[org maceosoft]
 ```
 
-Hay piezas que **tienen que existir antes** de que ArgoCD o el pipeline
+Hay piezas que **tienen que existir antes** de que Argo CD o el pipeline
 puedan funcionar. Esas se crean **a mano, una sola vez**, y OpenTofu no las
 gestiona ni las importa:
 
 | Qué | Por qué a mano |
 |---|---|
 | Repos `gitops`, `infra`, `core-pipelines` | Sin ellos no hay de dónde desplegar ni pipeline que corra OpenTofu |
-| App `maceosoft-argocd` | ArgoCD la necesita para leer el repo privado que despliega todo lo demás |
+| App `maceosoft-argocd` | Argo CD la necesita para leer el repo privado que despliega todo lo demás |
 | GitHub Apps y OAuth App | GitHub no permite crear OAuth Apps por API, y las GitHub Apps piden confirmación en el navegador |
 
 Todo lo demás (el repo `api` y los repos futuros) lo crea el pipeline de
@@ -68,12 +69,12 @@ export ONEPASSWORD_ACCOUNT_NAME="Mi Cuenta"
 |---|---|---|---|
 | `maceosoft-terraform` | Nota segura | `app_id`, `installation_id`, `private_key` | Runner de OpenTofu (`TF_VAR_github_app_*`) |
 | `maceosoft-arc-runners` | Nota segura | `app_id`, `installation_id`, `private_key` | ARC (registro del runner) |
-| `maceosoft-argocd` | Nota segura | `app_id`, `installation_id`, `private_key` | ArgoCD lee `maceosoft/gitops` (`argocd/repo-gitops`) |
+| `maceosoft-argocd` | Nota segura | `app_id`, `installation_id`, `private_key` | Argo CD lee `maceosoft/gitops` (`argocd/repo-gitops`) |
 | `symintel-arc-runners` *(opcional)* | Nota segura | `app_id`, `installation_id`, `private_key` | ARC de la **org antigua** (`symintel`): registro de su scale set. Ver [Dos organizaciones](#dos-organizaciones-un-scale-set-por-org) |
 | `symintel-terraform` *(opcional)* | Nota segura | `app_id`, `installation_id`, `private_key` | OpenTofu de la org antigua; sin él, esos runners no tienen credenciales de OpenTofu |
 | `sealed-secrets` | Nota segura | `certificate`, `private_key` *(opcional hasta la Fase 6)* | Llave de cifrado de Sealed Secrets: sobrevive si reinstalas K3s |
 | `maceosoft-dex` | Nota segura | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` (+ `VCLUSTER_CLIENT_SECRET`, que genera el playbook) | Dex (login con GitHub) |
-| `discord-webhooks` | Nota segura | `critical`, `warnings`: URL de un webhook de Discord por canal; `deployments` *(opcional)*: el del canal `despliegues` para las notificaciones de ArgoCD *(opcional: monitoreo)* | Alertmanager envía las alertas ([4.13](../implementacion/fase-4-gitops.md#413-monitoreo-y-alertas-opcional)). Cómo crearlos: [Discord y healthchecks.io](discord-healthchecks.md#parte-1-discord) |
+| `discord-webhooks` | Nota segura | `critical`, `warnings`: URL de un webhook de Discord por canal; `deployments` *(opcional)*: el del canal `despliegues` para las notificaciones de Argo CD *(opcional: monitoreo)* | Alertmanager envía las alertas ([4.13](../implementacion/fase-4-gitops.md#413-monitoreo-y-alertas-opcional)). Cómo crearlos: [Discord y healthchecks.io](discord-healthchecks.md#parte-1-discord) |
 | `healthchecks-ping` | Nota segura | `url`: ping URL del check de healthchecks.io *(opcional: monitoreo)* | Alertmanager le manda un ping cada 5 minutos para avisar que el monitoreo sigue vivo. Cómo crearla: [Discord y healthchecks.io](discord-healthchecks.md#parte-2-healthchecksio) |
 | `grafana-admin` | Nota segura | `password` y, si quieres, `username` (por defecto `admin`) *(opcional: monitoreo)* | Administrador de Grafana |
 | `ftp-<repo>` | Nota segura | `dev_host`, `dev_user`, `dev_password`, `dev_remote_dir`, `prod_host`, `prod_user`, `prod_password`, `prod_remote_dir` | OpenTofu → secrets FTP de `<repo>` (`TF_VAR_ftp`) |
@@ -97,7 +98,7 @@ que **el título del item y el nombre de cada campo tienen que ser exactos**
 Usa **Contraseña** para los valores secretos (se ocultan) y **Texto** para
 el resto. Cada tabla de abajo dice qué tipo lleva cada campo.
 
-También puedes crear el item con el CLI de 1Password (`op`), con 1Password desbloqueado. Cada campo se escribe como
+También puedes crear el item con la CLI de 1Password (`op`), con 1Password desbloqueado. Cada campo se escribe como
 `nombre[tipo]=valor`, donde el tipo es `password` (valor secreto) o `text`; `op` crea los campos sueltos, sin sección:
 
 ```bash
@@ -308,10 +309,10 @@ maceosoft-dex              (Nota segura · bóveda HomeLab)
     `gh api -X PUT orgs/maceosoft/teams/devops/memberships/<usuario> -f role=member`.
 
 Solo puede entrar el team **`devops`** de `maceosoft`, y sus miembros quedan
-como admin de ArgoCD. Se aplica en el
+como admin de Argo CD. Se aplica en el
 [paso 4.7 de la Fase 4](../implementacion/fase-4-gitops.md#47-secretos-oauth-github-vcluster-incus-ui).
 
-## Paso 2 — Repos, App de ArgoCD y FTP (manual)
+## Paso 2 — Repos, App de Argo CD y FTP (manual) {#paso-2-repos-app-de-argocd-y-ftp-manual}
 
 1. **Repos** (privados), creados en `maceosoft` y con su contenido subido con git. Con la CLI de GitHub, desde la carpeta de
    cada proyecto:
@@ -330,7 +331,7 @@ como admin de ArgoCD. Se aplica en el
       crea cuando todo funcione (ver el README de `core-pipelines`). Con la
       CLI: `gh api -X PUT repos/maceosoft/core-pipelines/actions/permissions/access -f access_level=organization`.
     - `infra`.
-2. **GitHub App `maceosoft-argocd`**, con la que ArgoCD lee el repo privado
+2. **GitHub App `maceosoft-argocd`**, con la que Argo CD lee el repo privado
    `gitops`. Va después de los repos porque se instala **solo** en `gitops`.
    (Las deploy keys están deshabilitadas en la organización, por eso se usa
    una App.)
@@ -386,10 +387,10 @@ como admin de ArgoCD. Se aplica en el
     [Agregar un repo](../operacion/agregar-repo.md#2-solo-si-despliega-credenciales-ftp-en-1password).
 
 4. **Llave de Sealed Secrets** *(opcional: hace falta cuando empieces a
-   guardar `SealedSecret` en git, p. ej. en la Fase 6)*. Sealed Secrets
+   guardar `SealedSecret` en Git, p. ej. en la Fase 6)*. Sealed Secrets
    cifra los secretos con un par de llaves que, por defecto, el controlador
    genera dentro del clúster: si reinstalas K3s se pierde, y los
-   `SealedSecret` que ya estaban en git dejan de poder descifrarse. Por eso
+   `SealedSecret` que ya estaban en Git dejan de poder descifrarse. Por eso
    se genera **una sola vez**, se guarda en 1Password, y el playbook de
    secretos la lleva al clúster antes de que el controlador arranque.
 
@@ -435,7 +436,7 @@ como admin de ArgoCD. Se aplica en el
 
 ## Paso 3 — Clúster y secretos de plataforma
 
-Con k3s instalado ([Fase 3](../implementacion/fase-3-k3s.md), ArgoCD incluido):
+Con k3s instalado ([Fase 3](../implementacion/fase-3-k3s.md), Argo CD incluido):
 
 ```bash
 # tu cuenta
@@ -450,7 +451,7 @@ crea los namespaces `argocd`, `arc-runners` (PSS `baseline`) y `terraform`
 
 | Secret | Namespace | Contenido |
 |---|---|---|
-| `repo-gitops` | `argocd` | App `maceosoft-argocd`: ArgoCD puede clonar `https://github.com/maceosoft/gitops.git` |
+| `repo-gitops` | `argocd` | App `maceosoft-argocd`: Argo CD puede clonar `https://github.com/maceosoft/gitops.git` |
 | `arc-runners-github-app` | `arc-runners` | App de ARC |
 | `terraform-app` | `arc-runners` | `TF_VAR_github_app_id`, `TF_VAR_github_app_installation_id`, `TF_VAR_github_app_private_key` |
 | `tofu-vars` | `arc-runners` | `TF_VAR_ftp` (todos los items `ftp-<repo>`) |
@@ -470,7 +471,7 @@ crea los namespaces `argocd`, `arc-runners` (PSS `baseline`) y `terraform`
     escribe secretos en otro clúster. Para otro kubeconfig:
     `-e platform_kubeconfig=/ruta`.
 
-Es idempotente: re-córrelo cada vez que rotes algo en 1Password o agregues
+Es idempotente: vuelve a correrlo cada vez que rotes algo en 1Password o agregues
 un item `ftp-<repo>`.
 
 ## Dos organizaciones: un scale set por org
@@ -505,7 +506,7 @@ crea el namespace ni el Secret y el scale set de la org antigua no arranca. Para
 kubectl apply -f gitops/bootstrap/root-appset.yaml
 ```
 
-ArgoCD sincroniza, entre otras, estas Applications:
+Argo CD sincroniza, entre otras, estas Applications:
 
 | Application | Qué despliega |
 |---|---|

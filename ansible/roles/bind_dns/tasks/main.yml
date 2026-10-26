@@ -14,7 +14,7 @@
     path: /etc/bind
   register: bind_dns_etc_bind
 
-- name: Detener named antes de mover la configuracion al chroot
+- name: Detener named antes de mover la configuración al chroot
   ansible.builtin.systemd:
     name: named
     state: stopped

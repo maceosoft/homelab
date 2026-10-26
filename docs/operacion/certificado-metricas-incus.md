@@ -15,14 +15,14 @@ puede mostrar sin riesgo (es la parte pública); la llave privada no se comparte
 
 **Para qué sirve aquí.** Cada nodo de Incus publica el uso de CPU, memoria, disco y red de sus instancias en
 `https://<nodo>:8443/1.0/metrics`. El agente de monitoreo (`vmagent`, el que recoge las métricas) usa este certificado para
-entrar y leer esa página cada 30 segundos.
+entrar y leer esa página cada 60 segundos.
 
 **Por qué es de solo lectura.** Incus permite crear certificados de distintos tipos. El tipo `metrics` solo puede leer
 métricas: no puede crear, borrar ni cambiar instancias. Así, si alguien robara la llave del monitoreo, podría ver cuánta
 CPU usa una instancia, pero no administrarla. Por eso no se usa para esto el certificado de un administrador.
 
 **Quién lo emite.** Lo emite `cert-manager` (el componente de Kubernetes que crea y renueva certificados), firmado por
-la CA (autoridad certificadora) interna del HomeLab, `homelab-ca`. Se declara en git como un recurso `Certificate` llamado
+la CA (autoridad certificadora) interna del HomeLab, `homelab-ca`. Se declara en Git como un recurso `Certificate` llamado
 `incus-metrics` en el namespace `monitoring`
 ([`incus-certificate.yaml`](https://github.com/maceosoft/gitops/blob/main/monitoring/config/scrapes/incus-certificate.yaml)
 en el repo `gitops`). El par de llaves queda guardado en el Secret `monitoring/incus-metrics` y **la llave privada no sale

@@ -1,6 +1,6 @@
 # Actualizar Debian en deborah (12 → 13)
 
-`deborah` (Orange Pi 5 Plus, ARM64) corre **Debian 12 (bookworm)**; los otros dos nodos ya están en **Debian 13
+`deborah` (Orange Pi 5 Plus, ARM64 —arquitectura ARM de 64 bits—) corre **Debian 12 (bookworm)**; los otros dos nodos ya están en **Debian 13
 (trixie)**. El playbook
 [`playbook-upgrade-debian13.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-upgrade-debian13.yml)
 la actualiza con respaldo, una simulación previa y una **compuerta de arranque** que se valida antes de reiniciar.
@@ -8,11 +8,11 @@ la actualiza con respaldo, una simulación previa y una **compuerta de arranque*
 !!! danger "Es la operación más delicada del HomeLab"
     `deborah` es el **control plane de K3s**, el **DNS de la LAN** (BIND) y miembro de **Incus**. Mientras dura, el
     API de Kubernetes y el DNS no responden (los pods de los otros nodos siguen corriendo). Y si el equipo no arranca
-    tras el reinicio, hace falta **acceso físico** (HDMI o consola serie). Haz esto con ventana de mantenimiento.
+    tras el reinicio, hace falta **acceso físico** (HDMI —salida de video— o consola serie). Haz esto con ventana de mantenimiento.
 
 !!! tip "Más sencillo si el control plane ya se mudó"
     Una vez que el control plane esté en `oliver` ([Mover el control plane](mover-control-plane.md)), `deborah` es
-    solo un worker: el API de Kubernetes sigue respondiendo durante la actualización y solo cae su parte de
+    solo un worker: la API de Kubernetes sigue respondiendo durante la actualización y solo cae su parte de
     carga (el DNS de la LAN, Ollama y los pods que viven en ella). Conviene hacer la mudanza **antes** de esta
     actualización.
 
@@ -20,7 +20,7 @@ la actualiza con respaldo, una simulación previa y una **compuerta de arranque*
 
 | Cambia | No cambia |
 |---|---|
-| Los paquetes de Debian pasan a trixie (~611 se actualizan; ~42 librerías viejas se eliminan) | **El kernel del fabricante** (`5.10.160-rockchip-rk3588`) y el arranque con u-boot: no vienen de Debian y apt no los toca |
+| Los paquetes de Debian pasan a trixie (unos 600 se actualizan y unas 40 librerías viejas se eliminan) | **El kernel del fabricante** (`5.10.160-rockchip-rk3588`) y el arranque con u-boot: no vienen de Debian y apt no los toca |
 | `systemd`, `glibc`, `openssh`, `bind9`… a las versiones de trixie | K3s (su binario es independiente), Incus (se conserva la versión) y los pods |
 | `/tmp` pasa a ser memoria (`tmpfs`) tras el reinicio | `docker-ce` y `containerd.io` (no son de Debian; quedan como están) |
 
@@ -29,15 +29,15 @@ documenta la actualización para sistemas «puros», no para imágenes de fabric
 
 ## Antes de empezar
 
-- [ ] **Incus alineado en los tres nodos.** El clúster exige la misma versión en todos los miembros. Hoy `deborah`
-  tenía Incus 7.4 y el repositorio ofrecía 7.5.1: actualiza primero Incus en los tres nodos con
+- [ ] **Incus alineado en los tres nodos.** El clúster exige la misma versión en todos los miembros. Si `deborah`
+  tiene una versión de Incus distinta de la que ofrece el repositorio, actualiza primero Incus en los tres nodos con
   [`playbook-upgrade-incus.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-upgrade-incus.yml)
   (`-e incus_upgrade_confirm=true`; ver [Actualizar o desinstalar Incus](../incus/cluster-setup.md#actualizar-o-desinstalar-incus)).
   El playbook se detiene si no coincide (`upgrade_skip_incus_check=true` lo salta, solo para ensayar).
 - [ ] **Acceso físico** a `deborah` (HDMI o consola serie) y, si puedes, una **imagen de la eMMC** (`dd` desde otro
   equipo). Es la única vuelta atrás completa.
 - [ ] K3s sano: `kubectl get nodes` con los tres `Ready`, e `incus cluster list` con los tres `ONLINE`.
-- [ ] Nadie va a necesitar el DNS ni el API de Kubernetes durante ~30–60 minutos.
+- [ ] Nadie va a necesitar el DNS ni la API de Kubernetes durante ~30–60 minutos.
 
 ## Paso 1 — Preflight y simulación (no cambia nada)
 
@@ -48,7 +48,7 @@ ansible-playbook -i inventory.ini playbook-upgrade-debian13.yml
 ```
 
 Sin `-e upgrade_confirm=true` solo corre `preflight`: comprueba que es Debian 12 en ARM64, espacio libre
-(6 GB en `/`, 300 MB en `/boot`), que `dpkg` no tenga problemas, **el arranque** (u-boot, `uInitrd` en gzip, UUID de la
+(6 GB en `/`, 300 MB en `/boot`), que `dpkg` no tenga problemas, **el arranque** (u-boot, `uInitrd` en gzip, UUID —identificador único— de la
 raíz) y la versión de Incus. Después baja los índices de trixie a un directorio aparte (`/var/tmp`), **simula** la
 actualización y **falla si eliminaría el kernel, el arranque o un servicio del HomeLab** (`linux-image`, `orangepi`,
 `k3s`, `incus`, `bind9`, `openssh-server`, `netplan`…). Luego borra ese directorio.
@@ -61,7 +61,7 @@ ansible-playbook -i inventory.ini playbook-upgrade-debian13.yml -e upgrade_confi
 
 | Fase (tag) | Qué hace |
 |---|---|
-| `backup` | Respalda `/etc`, `/boot`, el estado de `dpkg`/`apt`, BIND y K3s (SQLite, certificados y token; **detiene K3s** antes). Trae los archivos a `ansible/backups/` (ignorada por git) |
+| `backup` | Respalda `/etc`, `/boot`, el estado de `dpkg`/`apt`, BIND y K3s (SQLite, certificados y token; **detiene K3s** antes). Trae los archivos a `ansible/backups/` (ignorada por Git) |
 | `upgrade` | Pausa las actualizaciones automáticas, deja Debian 12 al día, cambia los repositorios a trixie (Debian y Zabbly) y hace `upgrade` y `full-upgrade` conservando tus archivos de configuración (`--force-confold`) |
 | `gate` | **Antes de reiniciar:** regenera y valida el `initrd`, comprueba `uInitrd`, `boot.scr`, el DTB, los módulos del kernel, el UUID de la raíz, `sshd -t`, `netplan generate` y la IP de `br0` |
 | `reboot` | Reinicia y espera hasta 20 minutos |
@@ -98,8 +98,7 @@ comprimido de otra forma, u-boot no podría descomprimirlo y el equipo **no arra
   previa para considerar OVN: ver [Balanceo de carga y OVN](../incus/cluster-setup.md#balanceo-de-carga-y-ovn)).
 - **Dos unidades pueden quedar en `failed` tras el reinicio** (`systemctl --failed`), sin afectar al clúster:
   `smartmontools` (la eMMC no tiene SMART y en Debian 13 el servicio viene habilitado) y `dnsmasq` (el puerto 53 ya lo
-  ocupa BIND, que es el DNS de la LAN). Si no usas esas unidades, deshabilítalas con `systemctl disable --now dnsmasq
-  smartmontools`.
+  ocupa BIND, que es el DNS de la LAN). Si no usas esas unidades, deshabilítalas con `systemctl disable --now dnsmasq smartmontools`.
 - El paquete `wiringpi` está retenido (`apt-mark hold`) y los `docker-ce` / `containerd.io` no son de Debian: siguen
   como estaban; revísalos si dan problemas.
 

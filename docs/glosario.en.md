@@ -11,7 +11,7 @@ page they include the meaning in parentheses.
 | **ARC** | [Actions Runner Controller](https://github.com/actions/actions-runner-controller) | Controller that runs GitHub Actions runners inside Kubernetes. |
 | **ARM64** | 64-bit ARM architecture | CPU architecture of the Orange Pi (deborah); the other nodes are x86_64. |
 | **ARP** | Address Resolution Protocol | Protocol that translates IPs to MAC addresses on the local network. |
-| **BD** | database |  |
+| **BD** | database | Where a service stores its data; in the HomeLab, dqlite (Incus), SQLite (K3s) and the VictoriaMetrics and VictoriaLogs volumes. |
 | **BGP** | Border Gateway Protocol | Routing protocol; MetalLB/Calico can announce IPs via BGP (L2 is used here). |
 | **BIND** | [Berkeley Internet Name Domain](https://www.isc.org/bind/) | DNS server that resolves internal zones in the homelab. |
 | **BPF** | [Berkeley Packet Filter](https://ebpf.io/) | Linux kernel technology (eBPF) used by Cilium for networking. |

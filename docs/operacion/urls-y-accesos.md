@@ -71,7 +71,7 @@ Para **ver cómo está** el HomeLab y atender las alertas. La principal es Grafa
 
 | Prioridad | Producto | Dirección | Cómo se entra | Acceso | Para qué |
 |---|---|---|---|---|---|
-| ⭐ | **Grafana** | [`https://grafana.homelab.local`](https://grafana.homelab.local) | 🌐 | SSO con GitHub (team `devops`, rol Admin); respaldo: usuario `admin` del item `grafana-admin` | Paneles de nodos, temperaturas, ArgoCD, Longhorn, Kong, Incus… ([qué mirar](monitoreo.md)) |
+| ⭐ | **Grafana** | [`https://grafana.homelab.local`](https://grafana.homelab.local) | 🌐 | SSO con GitHub (team `devops`, rol Admin); respaldo: usuario `admin` del item `grafana-admin` | Paneles de nodos, temperaturas, Argo CD, Longhorn, Kong, Incus… ([qué mirar](monitoreo.md)) |
 | 🔧 | **Alertmanager** | [`http://127.0.0.1:9093`](http://127.0.0.1:9093) | 🔌 | Sin login | Alertas activas y **silenciar** una un rato |
 | 🔍 | **vmui** (en `vmsingle`) | [`http://127.0.0.1:8428/vmui/`](http://127.0.0.1:8428/vmui/) | 🔌 | Sin login | Consultar métricas; *Cardinality explorer* para ver qué ocupa más |
 | 🔍 | **vmagent** | [`http://127.0.0.1:8429/targets`](http://127.0.0.1:8429/targets) | 🔌 | Sin login | Qué se recoge y cuáles fallan |
@@ -99,9 +99,9 @@ Piezas de las que dependen las demás. Sirven para diagnosticar.
 | 🔍 | **Pipelines reutilizables** | [`maceosoft/core-pipelines`](https://github.com/maceosoft/core-pipelines) |
 
 !!! note "Cada nombre tiene su registro en BIND"
-    La zona `homelab.local` apunta `argocd`, `vcluster`, `api` y `grafana` a la IP del Gateway (`192.168.23.200`), `incus` al líder del clúster
+    La zona `homelab.local` apunta `argocd`, `vcluster`, `api`, `grafana`, `open-webui` y `ollama` a la IP del Gateway (`192.168.23.200`), `incus` al líder del clúster
     (`invincible`, `192.168.20.6`) y cada servidor (`invincible`, `oliver`, `deborah`) a su propia IP. No hay comodín: un nombre
-    nuevo no resuelve hasta que se añade su registro. Solo tienen ruta en el Gateway Argo CD y Grafana; por eso `vcluster.homelab.local` resuelve pero responde 404.
+    nuevo no resuelve hasta que se añade su registro. Solo tienen ruta en el Gateway Argo CD, Grafana, Open WebUI y Ollama; por eso `vcluster.homelab.local` resuelve pero responde 404.
 
 !!! info "Si añades una interfaz nueva"
     Documéntala aquí en el mismo cambio: una fila en el grupo que corresponda (con su prioridad y cómo se entra) y, si no está publicada, su comando
@@ -178,11 +178,11 @@ Cada uno necesita su propia terminal, y el puerto de `vmalert` es `8880` para no
 | **vmagent** | `http://127.0.0.1:8429/targets` | Qué se está recogiendo, cuáles fallan y con qué error. Es lo primero que se mira cuando un panel sale vacío |
 | **vmalert** | `http://127.0.0.1:8880` | Las reglas de alerta, su estado (`firing`, `pending`) y el último error de evaluación |
 | **Alertmanager** | `http://127.0.0.1:9093` | Alertas activas, silencios (para callar una alerta un rato) y la configuración de rutas a Discord |
-| **blackbox-exporter** | `http://127.0.0.1:9115` | Resultado de las sondas externas (ArgoCD, Dex, Grafana, redirecciones y DNS) y sus módulos |
+| **blackbox-exporter** | `http://127.0.0.1:9115` | Resultado de las sondas externas (Argo CD, Dex, Grafana, redirecciones y DNS) y sus módulos |
 
 !!! warning "Por qué no están publicadas"
     Ninguna de estas consolas pide usuario: quien llegue a la dirección podría ver todas las métricas o crear silencios en Alertmanager. Grafana y
-    ArgoCD sí tienen SSO. Si algún día se publican, hay que ponerles delante autenticación (por ejemplo, un proxy con Dex) y un registro en BIND
+    Argo CD sí tienen SSO. Si algún día se publican, hay que ponerles delante autenticación (por ejemplo, un proxy con Dex) y un registro en BIND
     ([cada nombre tiene el suyo](#catalogo)).
 
 Qué se vigila y qué hacer ante cada aviso: [Monitoreo y alertas](monitoreo.md).

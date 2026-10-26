@@ -2,14 +2,14 @@
 
 ## Objetivo
 
-Management cluster **K3s (distribución ligera de Kubernetes)** en 3 nodos (CP en deborah, workers en invincible y
-oliver; el CP se puede mudar a oliver, ver
+Management cluster **K3s (distribución ligera de Kubernetes)** en 3 nodos (control plane en deborah, workers en invincible y
+oliver; el control plane se puede mudar a oliver, ver
 [Mover el control plane](../operacion/mover-control-plane.md)), con controller **Argo CD** listo para GitOps.
 
 ## Qué aprendes
 
 K3s como Kubernetes ligero bare-metal: server/agent, CNI (Container Network Interface) configurable
-(Flannel por defecto), deshabilitar Traefik/ServiceLB para controlar el Gateway y
+(Flannel por defecto en K3s; en este HomeLab, Calico), deshabilitar Traefik/ServiceLB para controlar el Gateway y
 LoadBalancer vía GitOps después.
 
 !!! abstract "Aprende esta fase"
@@ -23,7 +23,7 @@ LoadBalancer vía GitOps después.
     - **Nodo:** un equipo del clúster; puede ser control plane (decide) o worker (ejecuta).
     - **Pod:** la unidad mínima de ejecución: uno o más contenedores que viven juntos.
     - **Deployment:** declara cuántas copias de un pod deben existir y las mantiene.
-    - **CNI (Container Network Interface):** el componente que da red a los pods; aquí, Calico.
+    - **CNI:** el componente que da red a los pods; aquí, Calico.
     - **`kubectl` y kubeconfig:** la herramienta de línea de comandos y el archivo con los datos de acceso al clúster.
 
     **Reto práctico (seguro):** crea un deployment de prueba, borra uno de sus pods y mira cómo Kubernetes lo repone.
@@ -82,7 +82,7 @@ Profundización: [Opciones del playbook](../k3s/playbook-options.md) · [Catálo
 ## Antes de empezar
 
 - [ ] [Fases 0](fase-0-preparacion.md), [1](fase-1-red.md) y [2](fase-2-incus.md) completadas.
-- [ ] Incus cluster healthy (opcional pero recomendado antes de CAPN).
+- [ ] Clúster de Incus sano (opcional pero recomendado antes de CAPN —Cluster API Provider for Incus—).
 
 ## Ejecutar
 
@@ -90,9 +90,9 @@ Profundización: [Opciones del playbook](../k3s/playbook-options.md) · [Catálo
 
     Las opciones del playbook se activan en
     [`group_vars/incus_cluster/k3s_install.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/group_vars/incus_cluster/k3s_install.yml),
-    no por línea de comandos. Hoy vienen activadas ArgoCD
+    no por línea de comandos. Hoy vienen activadas Argo CD
     (`gitops_argocd`), las etiquetas de nodos (`node_labels`) y el kubeconfig
-    local (`fetch_kubeconfig`), con CNI (Container Network Interface) Calico.
+    local (`fetch_kubeconfig`), con CNI Calico.
     Revisa el archivo y corre:
 
     ```bash
@@ -102,9 +102,9 @@ Profundización: [Opciones del playbook](../k3s/playbook-options.md) · [Catálo
 
     !!! warning "No uses `-e k3s_install.<opción>=…`"
         Ansible lo ignora: `k3s_install` es un diccionario y una clave con
-        puntos en `-e` no lo modifica (se instalaba el CNI por defecto sin avisar). Y pasar `-e`
+        puntos en `-e` no lo modifica (se instalaría el CNI por defecto sin avisar). Y pasar `-e`
         con JSON es peor: reemplaza el diccionario entero y se pierden `core.version`,
-        `cluster_cidr`, etc. El playbook ahora **falla** en ambos casos. Para cambiar el CNI usa
+        `cluster_cidr`, etc. Por eso el playbook **falla** en ambos casos. Para cambiar el CNI usa
         `-e k3s_cni=canal` (o edita el archivo); ver
         [opciones del playbook](../k3s/playbook-options.md).
 
@@ -120,7 +120,7 @@ Profundización: [Opciones del playbook](../k3s/playbook-options.md) · [Catálo
 | VIP estable del API | `kube_vip.enabled: true` | desactivado | [playbook-options](../k3s/playbook-options.md) |
 | Etiquetas Longhorn/arch | `node_labels.enabled: true` | activado | [playbook-options](../k3s/playbook-options.md) |
 | Kubeconfig local | `fetch_kubeconfig.enabled: true` | activado | [playbook-options](../k3s/playbook-options.md) |
-| OS hardening | `os_hardening.enabled: true` | desactivado | [playbook-options](../k3s/playbook-options.md) |
+| Endurecimiento del SO | `os_hardening.enabled: true` | desactivado | [playbook-options](../k3s/playbook-options.md) |
 
 | Decisión | Opción A (default) | Opción B |
 |---|---|---|
@@ -215,7 +215,7 @@ Espera pods `argocd-server` en `Running` antes de la Fase 4.
 
 | Síntoma | Revisar |
 |---|---|
-| Agent no une | Token, `K3S_URL`, firewall `:6443` |
+| El agent no se une | Token, `K3S_URL`, firewall `:6443` |
 | Traefik residual | `--tags traefik` o rol `k3s_cleanup_traefik` |
 | CP caído tras reboot | `systemctl enable --now k3s` en deborah |
 

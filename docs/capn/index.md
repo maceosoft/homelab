@@ -46,5 +46,5 @@ kubectl apply -f gitops/capn/clusters/demo.yaml
 > Nota: CAPN provisiona clusters **kubeadm** vainilla (no K3s anidado) — más
 > pesado por nodo. Bien para clusters efímeros de dev/test, no para 24/7 en oliver.
 
-El manifiesto generado se sincroniza vía ArgoCD con sync manual — ver
+El manifiesto generado se sincroniza vía Argo CD con sync manual — ver
 [`capn-demo.yaml`](https://github.com/maceosoft/gitops/blob/main/argocd/apps/capn-demo.yaml).

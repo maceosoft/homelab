@@ -6,11 +6,10 @@ lxc-secret.yaml
 *.key
 !**/kubernetes/**/*.key.example
 
-# Estado local de OpenTofu/Terraform
+# Estado local de OpenTofu/Terraform (el .terraform.lock.hcl SÍ se versiona: fija el provider)
 opentofu/.terraform/
 opentofu/*.tfstate
 opentofu/*.tfstate.backup
-opentofu/.terraform.lock.hcl
 
 # Llaves SOPS/age locales
 key.txt
@@ -47,3 +46,7 @@ __pycache__/
 *.pyc
 CLAUDE.md
 .claude
+
+# Estado local de herramientas (Ansible, editor)
+.ansible/
+.vscode/

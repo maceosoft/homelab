@@ -7,6 +7,7 @@ Invocado por playbook-dex-oauth-secrets.yml --tags vcluster.
 from __future__ import annotations
 
 import asyncio
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -26,15 +27,21 @@ CHART_REPO = "loft"
 CHART_REPO_URL = "https://charts.loft.sh"
 CHART = "loft/vcluster-platform"
 HELM_SET_KEY = "config.auth.oidc.clientSecret"
+CHART_PREFIX = "vcluster-platform-"
 
 
-def helm_release_exists() -> bool:
+def installed_chart_version() -> str | None:
+    """Versión del chart del release instalado, o None si el release no existe."""
     result = subprocess.run(
-        ["helm", "status", RELEASE, "-n", NAMESPACE],
+        ["helm", "list", "-n", NAMESPACE, "--filter", f"^{RELEASE}$", "-o", "json"],
         capture_output=True,
         text=True,
+        check=True,
     )
-    return result.returncode == 0
+    releases = json.loads(result.stdout or "[]")
+    if not releases:
+        return None
+    return releases[0]["chart"].removeprefix(CHART_PREFIX)
 
 
 async def main() -> int:
@@ -43,7 +50,8 @@ async def main() -> int:
     await ensure_generated_oauth_fields(client)
     secret = await resolve_field(client, "VCLUSTER_CLIENT_SECRET")
 
-    if not helm_release_exists():
+    version = installed_chart_version()
+    if version is None:
         print(
             f"Release Helm {RELEASE!r} no encontrado en {NAMESPACE}. "
             "Despliega vcluster-platform (Fase 5) antes de --tags vcluster.",
@@ -58,6 +66,8 @@ async def main() -> int:
     )
     subprocess.run(["helm", "repo", "update", CHART_REPO], check=False)
 
+    # --version fija el chart instalado: rotar el secreto no debe subir vCluster Platform de versión.
+    # El valor va por stdin (-f -): en argv quedaría visible en `ps` y en el mensaje de CalledProcessError.
     subprocess.run(
         [
             "helm",
@@ -66,10 +76,14 @@ async def main() -> int:
             CHART,
             "-n",
             NAMESPACE,
+            "--version",
+            version,
             "--reuse-values",
-            "--set-string",
-            f"{HELM_SET_KEY}={secret}",
+            "-f",
+            "-",
         ],
+        input=json.dumps({"config": {"auth": {"oidc": {"clientSecret": secret}}}}),
+        text=True,
         check=True,
     )
     print(f"Helm {RELEASE}: {HELM_SET_KEY} actualizado.")

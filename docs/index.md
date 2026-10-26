@@ -25,12 +25,12 @@ por qué se hace y cómo comprobar que funcionó, y **te acompaña con inteligen
 
 === "En técnico"
 
-    Clúster K3s híbrido (control plane ARM64, workers x86_64) sobre un clúster Incus de tres miembros (quórum con
-    dqlite, cluster groups por arquitectura). Red de pods con Calico (VXLAN cross-subnet), `LoadBalancer` con MetalLB
-    en L2 y entrada HTTPS por Gateway API (Kong) con TLS de una CA propia (cert-manager). Almacenamiento con OpenEBS
+    Clúster K3s híbrido (control plane ARM64 —arquitectura ARM de 64 bits—, workers x86_64) sobre un clúster Incus de tres miembros (quórum con
+    dqlite, cluster groups por arquitectura). Red de pods con Calico (VXLAN —Virtual Extensible LAN— entre subredes), `LoadBalancer` con MetalLB
+    en L2 (capa 2) y entrada HTTPS por Gateway API (Kong) con TLS (Transport Layer Security) de una CA (autoridad certificadora) propia (cert-manager). Almacenamiento con OpenEBS
     LocalPV y Longhorn. La plataforma se despliega por GitOps: un ApplicationSet de Argo CD activa las apps por olas
-    desde el repositorio `maceosoft/gitops`, con secretos en 1Password (nunca en git) y SSO con Dex y GitHub. Ansible hace el bootstrap de los nodos,
-    OpenTofu gestiona los repositorios de GitHub y ARC ejecuta los pipelines en el propio clúster. Cluster API (CAPN)
+    desde el repositorio `maceosoft/gitops`, con secretos en 1Password (nunca en Git) y SSO (inicio de sesión único) con Dex y GitHub. Ansible hace el bootstrap de los nodos,
+    OpenTofu gestiona los repositorios de GitHub y ARC (Actions Runner Controller) ejecuta los pipelines en el propio clúster. Cluster API (con CAPN, Cluster API Provider for Incus)
     crea clústeres efímeros sobre Incus.
 
     IA local con Ollama en varios nodos detrás de un router propio (`ollama-router`): los nodos se registran solos
@@ -53,7 +53,7 @@ por qué se hace y cómo comprobar que funcionó, y **te acompaña con inteligen
 | **cert-manager** | La oficina que emite los carnets | Emite certificados TLS con una CA propia del HomeLab |
 | **Longhorn y OpenEBS** | Bodegas: una rápida y otra con copia de seguridad | Almacenamiento local y replicado entre nodos |
 | **Argo CD (GitOps)** | El inspector que compara el edificio con el plano | Sincroniza el clúster con lo que declara Git |
-| **Dex** | El mostrador de identificación | SSO: inicia sesión con GitHub en ArgoCD, Grafana, Open WebUI, vCluster, Incus y SSH |
+| **Dex** | El mostrador de identificación | SSO: inicia sesión con GitHub en Argo CD, Grafana, Open WebUI, vCluster, Incus y SSH |
 | **Ollama + router** | El asistente y su recepción | Modelos de lenguaje locales en varios nodos; un router con token elige el nodo según el modelo |
 | **Open WebUI y Open Terminal** | La sala de consulta y el taller | Chat con el asistente (entrada con Dex) y un terminal aislado donde el asistente ejecuta código |
 | **Vector, VictoriaLogs y Grafana** | El archivo central y sus pantallas | Junta los logs de nodos y pods, los guarda 30 días y los muestra; reportes con IA en Discord |
@@ -78,7 +78,7 @@ por qué se hace y cómo comprobar que funcionó, y **te acompaña con inteligen
     </div>
     <div class="card-col">
       <div class="card-title">Vengo a operar</div>
-      <div class="text-muted">Procedimientos de rutina: agregar un nodo (también al clúster de Ollama), rotar credenciales, actualizar K3s y ArgoCD, revisar logs.</div>
+      <div class="text-muted">Procedimientos de rutina: agregar un nodo (también al clúster de Ollama), rotar credenciales, actualizar K3s y Argo CD, revisar logs.</div>
       <div class="text-muted"><a href="operacion/">Operación</a> · <a href="operacion/ia-ollama/">Asistente de IA</a> · <a href="operacion/logs/">Logs</a> · <a href="security/modelo-de-autenticacion/">Seguridad</a> · <a href="secrets/">Secretos</a></div>
     </div>
   </div>
@@ -99,8 +99,8 @@ audio. Elige tu nivel, pulsa el botón y pega la pregunta en el chat.
 | Nodo | Modelo | CPU | RAM (medida) | IP (`br0`) | Rol |
 |---|---|---|---|---|---|
 | `invincible` | Lenovo M920q | i7-8700T x86_64 | 15.5 GB | 192.168.20.6 | Incus leader · K3s worker · Ollama |
-| `oliver` | Lenovo M700 | i3-6100T x86_64 | 7.7 GB | 192.168.20.7 | Incus quorum · K3s worker (futuro control plane) · Ollama |
-| `deborah` | Orange Pi 5 Plus | RK3588 ARM64 | 31 GB | 192.168.20.5 | K3s control-plane (pasará a worker) · Incus arm64 · DNS · Ollama |
+| `oliver` | Lenovo M700 | i3-6100T x86_64 | 7.7 GB | 192.168.20.7 | Incus quórum · K3s worker (futuro control plane) · Ollama |
+| `deborah` | Orange Pi 5 Plus | RK3588 ARM64 | 31 GB | 192.168.20.5 | K3s control plane (pasará a worker) · Incus ARM64 · DNS · Ollama |
 
 Detalle medido y presupuesto RAM: [Inventario de hardware](hardware/inventory.md). El control plane se muda de
 `deborah` a `oliver` con un procedimiento guiado que todavía no se ha ejecutado:
@@ -110,7 +110,7 @@ Detalle medido y presupuesto RAM: [Inventario de hardware](hardware/inventory.md
 > Hostnames de la serie *Invincible* — ver
 > [personajes](https://invincible.fandom.com/es/wiki/Categor%C3%ADa:Personajes).
 
-## Empieza por acá
+## Empieza por aquí
 
 **Guía principal — implementación paso a paso:**
 

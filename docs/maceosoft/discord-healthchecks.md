@@ -20,7 +20,7 @@ las lleva al clúster.
 | La contraseña del administrador de Grafana | 1Password | `grafana-admin` | Entrar a Grafana |
 
 Un webhook es una URL con la que cualquiera puede **publicar mensajes** en ese canal; no permite leer nada. La ping URL permite
-mandar pings al check. Las dos son secretos: no las pegues en git, en el chat ni en un ticket.
+mandar pings al check. Las dos son secretos: no las pegues en Git, en el chat ni en un ticket.
 
 ## Parte 1 — Discord
 
@@ -96,7 +96,7 @@ Debe aparecer "Prueba del webhook" en el canal; `curl` no imprime nada si todo v
 
 ### 7. Un webhook para el canal de despliegues (opcional)
 
-Solo si quieres las [notificaciones de ArgoCD](../implementacion/fase-4-gitops.md#414-notificaciones-de-argocd-a-discord-opcional). Aquí se usa
+Solo si quieres las [notificaciones de Argo CD](../implementacion/fase-4-gitops.md#414-notificaciones-de-argocd-a-discord-opcional). Aquí se usa
 tu canal `despliegues`, que ya existe y **no está en la categoría privada**: lo ve todo el equipo. Es un webhook más, como los del paso 4:
 
 1. *Server Settings → Integrations → Webhooks → **Create Webhook*** (o **New Webhook**).
@@ -170,14 +170,14 @@ script los busca por nombre. Cómo crear un item con campos propios: [Plataforma
 |---|---|---|
 | `discord-webhooks` | `critical` | Webhook de `alertas-criticas` (parte 1, paso 4) |
 | | `warnings` | Webhook de `alertas-avisos` |
-| | `deployments` | *(opcional)* Webhook del canal `despliegues`, para las notificaciones de ArgoCD (parte 1, paso 7) |
+| | `deployments` | *(opcional)* Webhook del canal `despliegues`, para las notificaciones de Argo CD (parte 1, paso 7) |
 | | `ai` | *(opcional)* Webhook del canal `#ia`, para los reportes con IA ([crearlo](../operacion/logs.md#crear-el-canal-ia-y-su-webhook-una-sola-vez)) |
 | `healthchecks-ping` | `url` | La ping URL del check (parte 2, paso 3) |
 | `grafana-admin` | `password` | Una contraseña generada con el generador de 1Password |
 | | `username` | *(opcional)* usuario del administrador; por defecto `admin` |
 
 ??? tip "Con la CLI de 1Password (`op`)"
-    Con la app de 1Password desbloqueada y el CLI `op` instalado, los tres items se crean con un comando cada uno. Las URL
+    Con la app de 1Password desbloqueada y la CLI `op` instalado, los tres items se crean con un comando cada uno. Las URL
     son secretas: se leen con `read -s` (no se ven al pegarlas ni quedan en el historial) y se borran de la variable al terminar.
     Si tienes más de una cuenta de 1Password, exporta antes `OP_ACCOUNT`.
 

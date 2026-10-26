@@ -8,6 +8,7 @@
 #
 # Ejecutar:
 #   ansible-playbook -i inventory.ini playbook-k3s-uninstall.yml
+#   ansible-playbook -i inventory.ini playbook-k3s-uninstall.yml --limit <worker>   # solo un agent
 
 - name: Confirmar antes de desinstalar K3s
   hosts: incus_cluster
@@ -17,10 +18,10 @@
     - name: Pausa de seguridad -- esto borra el cluster K3s completo  # noqa: run-once[task]
       ansible.builtin.pause:
         prompt: >-
-          Se va a desinstalar K3s (server y agents) en TODOS los nodos de
-          incus_cluster. Esto borra el estado del cluster (sqlite/etcd,
-          kubeconfig, reglas de iptables). Enter para seguir, Ctrl+C+A
-          para abortar.
+          Se va a desinstalar K3s en {{ ansible_play_hosts | join(', ') }}
+          (todo incus_cluster salvo que uses --limit). En el server esto borra
+          el estado del cluster (sqlite/etcd, kubeconfig, reglas de iptables).
+          Enter para seguir, Ctrl+C+A para abortar.
       when: not ansible_check_mode
       run_once: true
 
@@ -28,7 +29,7 @@
   hosts: k3s_server
   become: true
   tasks:
-    - name: Verificar si existe el script de desinstalacion del server
+    - name: Verificar si existe el script de desinstalación del server
       ansible.builtin.stat:
         path: /usr/local/bin/k3s-uninstall.sh
       register: k3s_uninstall_script
@@ -44,7 +45,7 @@
   hosts: k3s_agent
   become: true
   tasks:
-    - name: Verificar si existe el script de desinstalacion del agent
+    - name: Verificar si existe el script de desinstalación del agent
       ansible.builtin.stat:
         path: /usr/local/bin/k3s-agent-uninstall.sh
       register: k3s_agent_uninstall_script
@@ -55,3 +56,17 @@
         - k3s_agent_uninstall_script.stat.exists
         - not ansible_check_mode
       changed_when: true
+
+- name: Limpiar directorios residuales de K3s
+  hosts: k3s_server:k3s_agent
+  become: true
+  tasks:
+    - name: Eliminar directorios de configuración y estado de K3s
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/rancher
+        - /var/lib/rancher
+        - /var/lib/kubelet
+        - /run/k3s

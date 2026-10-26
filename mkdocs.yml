@@ -1,5 +1,5 @@
 site_name: HomeLab — K3s + Incus + CAPN
-site_description: Documentación de un HomeLab híbrido x86_64 + ARM64 (Incus, K3s, CAPN, ArgoCD)
+site_description: Documentación de un HomeLab híbrido x86_64 + ARM64 (Incus, K3s, CAPN, Argo CD)
 site_url: https://homelab.maceo.cl/
 repo_url: https://github.com/maceosoft/homelab
 repo_name: maceosoft/homelab
@@ -116,7 +116,7 @@ plugins:
           name: English
           build: true
           site_name: HomeLab — K3s + Incus + CAPN
-          site_description: Documentation for a hybrid x86_64 + ARM64 HomeLab (Incus, K3s, CAPN, ArgoCD)
+          site_description: Documentation for a hybrid x86_64 + ARM64 HomeLab (Incus, K3s, CAPN, Argo CD)
           copyright: <a href="/en/privacidad/">Privacy policy</a> · <a href="#__consent">Change cookie preferences</a>
           theme:
             palette:
@@ -164,10 +164,10 @@ plugins:
             Backups y snapshots de Incus: Incus backups and snapshots
             Parchear los nodos: Patch the nodes
             Actualizar K3s: Upgrade K3s
-            Actualizar ArgoCD: Upgrade ArgoCD
+            Actualizar Argo CD: Upgrade Argo CD
             Cambiar el controlador de Gateway: Change the Gateway controller
             Caché de los runners (ARC): Runner cache (ARC)
-            Calico (CNI) con ArgoCD: Calico (CNI) with ArgoCD
+            Calico (CNI) con Argo CD: Calico (CNI) with Argo CD
             Actualizar Debian en deborah (12 a 13): Upgrade Debian on deborah (12 to 13)
             Salud de los discos y del DNS: Disk and DNS health
             Certificado de métricas de Incus: Incus metrics certificate
@@ -180,6 +180,7 @@ plugins:
             Overview + C4 (Nivel 1-2): Overview + C4 (Level 1-2)
             Nivel 3 — Componentes: Level 3 — Components
             Nivel 4 — Despliegue: Level 4 — Deployment
+            Particiones de las VMs de CAPN: CAPN VM partitioning
             Referencia técnica: Technical reference
             Inventario: Inventory
             Red: Network
@@ -274,10 +275,10 @@ nav:
       - Backups y snapshots de Incus: operacion/backups-incus.md
       - Parchear los nodos: operacion/parchear-nodos.md
       - Actualizar K3s: operacion/actualizar-k3s.md
-      - Actualizar ArgoCD: operacion/actualizar-argocd.md
+      - Actualizar Argo CD: operacion/actualizar-argocd.md
       - Cambiar el controlador de Gateway: operacion/cambiar-gateway.md
       - Caché de los runners (ARC): operacion/cache-arc.md
-      - Calico (CNI) con ArgoCD: operacion/actualizar-calico.md
+      - Calico (CNI) con Argo CD: operacion/actualizar-calico.md
       - Actualizar Debian en deborah (12 a 13): operacion/actualizar-debian-deborah.md
       - Salud de los discos y del DNS: operacion/salud-de-discos.md
       - Certificado de métricas de Incus: operacion/certificado-metricas-incus.md
@@ -290,6 +291,7 @@ nav:
       - "Overview + C4 (Nivel 1-2)": architecture/overview.md
       - "Nivel 3 — Componentes": architecture/nivel-3-componentes.md
       - "Nivel 4 — Despliegue": architecture/nivel-4-despliegue.md
+      - "Particiones de las VMs de CAPN": architecture/vm-partition-scheme.md
   - Referencia técnica:
       - Hardware:
           - Inventario: hardware/inventory.md

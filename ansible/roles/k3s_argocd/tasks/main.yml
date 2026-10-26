@@ -1,16 +1,16 @@
 ---
+# Sin API no se puede instalar ArgoCD: mejor fallar aquí que saltarse el rol en silencio.
 - name: Comprobar acceso kubectl en server
   ansible.builtin.command: k3s kubectl get nodes
   register: k3s_argocd_kubectl
   changed_when: false
-  failed_when: false
+  check_mode: false
 
 - name: Crear namespace argocd
   ansible.builtin.command: k3s kubectl create namespace argocd
   register: k3s_argocd_ns
   failed_when: k3s_argocd_ns.rc != 0 and 'AlreadyExists' not in k3s_argocd_ns.stderr
   changed_when: k3s_argocd_ns.rc == 0
-  when: k3s_argocd_kubectl.rc == 0
 
 # version: latest -> la última versión estable de ArgoCD (archivo VERSION de la
 # rama "stable" del repo oficial). Un tag fijo (p. ej. v3.5.3) la pisa.
@@ -32,22 +32,30 @@
 
 # --server-side --force-conflicts: obligatorio desde ArgoCD 3.3, cuyo CRD de
 # ApplicationSet supera el límite de anotación del apply normal.
+# El apply server-side responde "serverside-applied" aunque no cambie nada: kubectl diff
+# (rc 0 = igual, 1 = hay diferencias) decide si hace falta aplicar.
+- name: Comparar ArgoCD con lo instalado ({{ k3s_argocd_version }})
+  ansible.builtin.command: >-
+    k3s kubectl diff -n argocd --server-side --force-conflicts
+    -f https://raw.githubusercontent.com/argoproj/argo-cd/{{ k3s_argocd_version }}/manifests/install.yaml
+  register: k3s_argocd_diff
+  changed_when: false
+  failed_when: k3s_argocd_diff.rc > 1
+  check_mode: false
+
 - name: Instalar ArgoCD controller ({{ k3s_argocd_version }})
   ansible.builtin.command: >-
     k3s kubectl apply -n argocd --server-side --force-conflicts
     -f https://raw.githubusercontent.com/argoproj/argo-cd/{{ k3s_argocd_version }}/manifests/install.yaml
-  register: k3s_argocd_install
-  changed_when: "'created' in k3s_argocd_install.stdout or 'serverside-applied' in k3s_argocd_install.stdout"
-  when: k3s_argocd_kubectl.rc == 0
+  changed_when: true
+  when: k3s_argocd_diff.rc == 1
 
 - name: Esperar argocd-server Ready
   ansible.builtin.command: >-
     k3s kubectl wait --for=condition=available deployment/argocd-server
     -n argocd --timeout=300s
   changed_when: false
-  when:
-    - not ansible_check_mode
-    - k3s_argocd_kubectl.rc == 0
+  when: not ansible_check_mode
 
 - name: Recordar paso GitOps post-bootstrap
   ansible.builtin.debug:
@@ -55,4 +63,3 @@
       ArgoCD {{ k3s_argocd_version }} listo. Aplica el ApplicationSet de bootstrap desde gitops:
       kubectl apply -f bootstrap/root-appset.yaml
       (repo: {{ k3s_install.gitops_argocd.gitops_repo_url }})
-  when: k3s_argocd_kubectl.rc == 0

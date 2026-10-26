@@ -30,7 +30,7 @@ jobs:
 
       - name: Build de prueba de MkDocs (sin publicar)
         run: |
-          pip install -r requirements.txt
+          pip install -r requirements-docs.txt
           mkdocs build --strict --clean
 
   ansible:
@@ -64,6 +64,38 @@ jobs:
           for pb in playbook-*.yml; do
             ansible-playbook --syntax-check -i inventory.ini "$pb"
           done
+
+  python:
+    runs-on: arc-runners
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+
+      - name: Instalar ruff y shellcheck
+        run: |
+          # Mismas versiones que requirements.txt, para que la CI y tu equipo midan igual.
+          pip install $(grep -E '^(ruff|shellcheck-py)==' requirements.txt)
+
+      - name: ruff (config en ruff.toml)
+        run: ruff check ansible/scripts ansible/roles ollama-node hooks translate_docs.py
+
+      - name: shellcheck
+        run: shellcheck ansible/scripts/*.sh ansible/roles/ollama_ondemand/files/*.sh ansible/roles/node_units_metrics/files/*.sh ollama-node/macos/install.sh ollama-node/macos/ollama-node
+
+      # Los tests de los roles de métricas (ansible/roles/node_*_metrics/tests/test.sh) necesitan Docker,
+      # que el runner no trae: se corren a mano.
+      - name: Tests de ollama-node
+        working-directory: ollama-node
+        run: python -m unittest discover -s tests
+
+      - name: Tests de la guardia de CPU de Ollama
+        run: python -m unittest discover -s ansible/roles/ollama_ondemand/tests
+
+      - name: Tests de las métricas de servicios del host
+        run: python -m unittest discover -s ansible/roles/node_units_metrics/tests
 
   opentofu:
     runs-on: arc-runners

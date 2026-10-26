@@ -9,8 +9,8 @@ Referencia de **Applications** Argo CD y resolución de problemas. Manifiestos e
 
 Documentación relacionada:
 
-- [Opciones del playbook K3s](../k3s/playbook-options.md) — flags Ansible (kube-vip, ArgoCD controller, …)
-- [vCluster Platform](../vcluster/index.md) — SSO (inicio de sesión único) Dex + kubeconfig web (K3s host + vclusters)
+- [Opciones del playbook K3s](../k3s/playbook-options.md) — flags Ansible (kube-vip, Argo CD controller, …)
+- [vCluster Platform](../vcluster/index.md) — SSO (inicio de sesión único) Dex + kubeconfig web (K3s host + vClusters)
 - [Clúster Incus](../incus/cluster-setup.md#ui-de-administracion) — UI (interfaz de usuario) web + OIDC (OpenID Connect) Dex
 - [Storage](../storage/index.md) / [Secretos](../secrets/index.md)
 - [Stack tecnológico](../implementacion/stack-tecnologico.md)
@@ -19,7 +19,7 @@ Documentación relacionada:
 
 | Repo | Qué instala | Herramienta |
 |---|---|---|
-| [`homelab`](https://github.com/maceosoft/homelab) | K3s binario, kube-vip CP, controller ArgoCD, red SO | [Ansible](https://docs.ansible.com/) |
+| [`homelab`](https://github.com/maceosoft/homelab) | K3s binario, kube-vip CP, controller Argo CD, red SO | [Ansible](https://docs.ansible.com/) |
 | [`gitops`](https://github.com/maceosoft/gitops) | MetalLB, Gateway API, storage, vCluster, CAPN, … | [Argo CD](https://argo-cd.readthedocs.io/) |
 
 ```mermaid
@@ -34,14 +34,14 @@ flowchart LR
 
 ## Catálogo de componentes GitOps
 
-Cada fila es una **Application** de ArgoCD (salvo manifiestos auxiliares).
+Cada fila es una **Application** de Argo CD (salvo manifiestos auxiliares).
 Sync **auto** = la sincroniza `homelab-root` (si está descomentada en `root-appset.yaml`); **manual** = queda comentada hasta que la actives.
 
 ### Bootstrap
 
 | Manifiesto | Sync | Para qué sirve |
 |---|---|---|
-| [`bootstrap/root-appset.yaml`](https://github.com/maceosoft/gitops/blob/main/bootstrap/root-appset.yaml) | Una vez, a mano | **ApplicationSet**: genera la Application raíz `homelab-root` con las apps descomentadas de su lista, desplegadas por olas. Es el único `kubectl apply` GitOps tras tener el controller; ArgoCD no lo gestiona, así que se vuelve a aplicar con `kubectl apply -f` cada vez que cambia la lista. |
+| [`bootstrap/root-appset.yaml`](https://github.com/maceosoft/gitops/blob/main/bootstrap/root-appset.yaml) | Una vez, a mano | **ApplicationSet**: genera la Application raíz `homelab-root` con las apps descomentadas de su lista, desplegadas por olas. Es el único `kubectl apply` GitOps tras tener el controller; Argo CD no lo gestiona, así que se vuelve a aplicar con `kubectl apply -f` cada vez que cambia la lista. |
 
 ### Wave 0 — Fundamentos (storage + LB controller)
 
@@ -63,17 +63,17 @@ Sync **auto** = la sincroniza `homelab-root` (si está descomentada en `root-app
 | **`kong`** (o `traefik`, `nginx-gateway`) | [Kong Ingress Controller](https://developer.konghq.com/kubernetes-ingress-controller/) | Controlador de [Gateway API](https://gateway-api.sigs.k8s.io/) y `Gateway homelab` (HTTP/HTTPS, `*.homelab.local`). Se activa solo uno; ver [Cambiar el controlador de Gateway](../operacion/cambiar-gateway.md). |
 | **`longhorn`** | [Longhorn](https://longhorn.io/docs/) | Storage replicado cross-arch. |
 
-### Wave 2 — ArgoCD accesible + Dex
+### Wave 2 — Argo CD accesible + Dex
 
 | Application / carpeta | Producto | Para qué sirve |
 |---|---|---|
 | **`argocd-route`** | [Gateway API](https://gateway-api.sigs.k8s.io/) | `HTTPRoute`: UI en [`https://argocd.homelab.local`](https://argocd.homelab.local). |
 | **`argocd/config/`** (`argocd`) | [Dex](https://dexidp.io/docs/) | Connector GitHub + staticClients vCluster e Incus UI. |
 | **`victoria-metrics`** *(opcional)* | [VictoriaMetrics](https://docs.victoriametrics.com/helm/victoria-metrics-k8s-stack/) | Monitoreo: métricas, Alertmanager (alertas a Discord) y Grafana en [`https://grafana.homelab.local`](https://grafana.homelab.local). Necesita los Secrets de `playbook-platform-secrets.yml` antes de activarla ([4.13](../implementacion/fase-4-gitops.md#413-monitoreo-y-alertas-opcional)). |
-| [`argocd/config/notifications/`](https://github.com/maceosoft/gitops/tree/main/argocd/config/notifications) | ArgoCD Notifications | Servicios, disparadores y plantillas de las notificaciones a Discord ([4.14](../implementacion/fase-4-gitops.md#414-notificaciones-de-argocd-a-discord-opcional)); `test.sh` las prueba sin enviar nada. |
+| [`argocd/config/notifications/`](https://github.com/maceosoft/gitops/tree/main/argocd/config/notifications) | Argo CD Notifications | Servicios, disparadores y plantillas de las notificaciones a Discord ([4.14](../implementacion/fase-4-gitops.md#414-notificaciones-de-argocd-a-discord-opcional)); `test.sh` las prueba sin enviar nada. |
 | [`argocd/secrets/`](https://github.com/maceosoft/gitops/tree/main/argocd/secrets) | [1Password SDK](https://github.com/1Password/onepassword-sdk-python) | OAuth desde app local |
 
-**Cómo se ve.** La UI de ArgoCD en [`https://argocd.homelab.local`](https://argocd.homelab.local) pide iniciar sesión con GitHub (Dex):
+**Cómo se ve.** La UI de Argo CD en [`https://argocd.homelab.local`](https://argocd.homelab.local) pide iniciar sesión con GitHub (Dex):
 
 ??? note "Ver captura: inicio de sesión de Argo CD"
     ![Pantalla de inicio de sesión de Argo CD con el botón «Log in via GitHub»](../assets/screenshots/argocd-login.jpg){ loading=lazy }
@@ -88,7 +88,7 @@ La aplicación raíz `homelab-root` agrupa todas las demás: en su vista de árb
 | Application | Producto | Para qué sirve |
 |---|---|---|
 | **`k3s-upgrade`** | [system-upgrade-controller](https://github.com/rancher/system-upgrade-controller) | Upgrades K3s escalonados. |
-| **`victoria-metrics-config`** *(opcional)* | [VictoriaMetrics](https://docs.victoriametrics.com/operator/) | Reglas de alerta (`VMRule`), scrapes de cert-manager, Longhorn y ArgoCD, y la `HTTPRoute` de Grafana. Va después de `victoria-metrics` porque sus CRD los instala ese chart. |
+| **`victoria-metrics-config`** *(opcional)* | [VictoriaMetrics](https://docs.victoriametrics.com/operator/) | Reglas de alerta (`VMRule`), scrapes de cert-manager, Longhorn y Argo CD, y la `HTTPRoute` de Grafana. Va después de `victoria-metrics` porque sus CRD los instala ese chart. |
 
 ### Asistente de IA (carpeta `ai/`)
 
@@ -112,7 +112,7 @@ Ver [Logs centralizados y reportes con IA](../operacion/logs.md).
 
 ### Seguridad (carpeta `security/` y NetworkPolicies por namespace)
 
-Manifiestos de seguridad, casi todos **por activar** de a uno (comentados en `root-appset.yaml`, con README de
+Manifiestos de seguridad, casi todos **por activar** uno a uno (comentados en `root-appset.yaml`, con README de
 comprobaciones y rollback):
 
 - NetworkPolicies `default-deny` con permisos explícitos (Applications `netpol-ai`, `netpol-monitoring`,
@@ -127,7 +127,7 @@ comprobaciones y rollback):
 
 **Activa:** `security-rbac`, que da solo lectura (`view`) al grupo `oidc:maceosoft:devops` cuando se entra con Dex. Las
 NetworkPolicy de logs, `ai/tools`, `alert-triage` y Open Terminal ya viajan con su aplicación. Kong Manager desactivado y
-ArgoCD sin el `admin` local forman parte de la configuración normal. Los scripts de los CronJobs de reportes tienen su
+Argo CD sin el `admin` local forman parte de la configuración normal. Los scripts de los CronJobs de reportes tienen su
 fuente versionada en [`scripts/log-report/`](https://github.com/maceosoft/gitops/tree/main/scripts/log-report). Ver
 [Modelo de autenticación](../security/modelo-de-autenticacion.md).
 
@@ -137,9 +137,9 @@ Ver [Asistente de IA local](../operacion/ia-ollama.md).
 
 | Application | Producto | Para qué sirve |
 |---|---|---|
-| **`vcluster-platform`** | [vCluster Platform](https://www.vcluster.com/docs/platform/) | UI: kubeconfig del host K3s (connected) + vclusters. |
+| **`vcluster-platform`** | [vCluster Platform](https://www.vcluster.com/docs/platform/) | UI: kubeconfig del host K3s (connected) + vClusters. |
 | **`capn-demo`** | [CAPN](https://capn.linuxcontainers.org/) | Cluster API sobre Incus. |
-| **`calico-operator`** + **`calico-config`** | [Calico](https://docs.tigera.io/calico/latest/about/) | CNI Calico (CRDs + operador + `Installation`). **Activas**: ArgoCD administra y actualiza Calico (v3.33.0); lo instaló Ansible al crear el clúster. Sync **manual**. Ver [Calico con ArgoCD](../operacion/actualizar-calico.md). |
+| **`calico-operator`** + **`calico-config`** | [Calico](https://docs.tigera.io/calico/latest/about/) | CNI Calico (CRDs + operador + `Installation`). **Activas**: Argo CD administra y actualiza Calico (v3.33.0); lo instaló Ansible al crear el clúster. Sync **manual**. Ver [Calico con Argo CD](../operacion/actualizar-calico.md). |
 | **`canal`** | [Canal](https://docs.tigera.io/calico/latest/getting-started/kubernetes/flannel/flannel) | CNI Canal (Flannel + políticas Calico). |
 | **`cilium`** | [Cilium](https://docs.cilium.io/) | CNI Cilium vía Helm. |
 
@@ -168,8 +168,8 @@ Ver [Asistente de IA local](../operacion/ia-ollama.md).
 
 | | [kube-vip](https://kube-vip.io/) | [MetalLB](https://metallb.universe.tf/) |
 |---|---|---|
-| **Quién lo instala** | Ansible (`k3s_kube_vip`) | ArgoCD |
-| **Qué VIPea** | Solo API server `:6443` | Services `LoadBalancer` |
+| **Quién lo instala** | Ansible (`k3s_kube_vip`) | Argo CD |
+| **A qué le da VIP** | Solo API server `:6443` | Services `LoadBalancer` |
 | **Config clave** | `svc_enable=false` | Pool `192.168.23.200–.220` |
 
 ---
@@ -179,7 +179,7 @@ Ver [Asistente de IA local](../operacion/ia-ollama.md).
 | Síntoma | Revisar |
 |---|---|
 | Application `Degraded` | `kubectl describe application -n argocd <nombre>` |
-| `arc-runners` `OutOfSync` y el pod del listener se reinicia cada pocos minutos | ArgoCD poda en bucle los recursos que crea el controlador de ARC (`AutoscalingListener`, `Role`, `RoleBinding`: copian la etiqueta `app.kubernetes.io/instance`). Se corrige con `application.resourceTrackingMethod: annotation` en `argocd-cm` (ya está en `gitops/argocd/config`). Comprueba: `kubectl -n argocd get cm argocd-cm -o jsonpath='{.data.application\.resourceTrackingMethod}'` → `annotation`; si no, sincroniza `argocd` y reinicia el controlador: `kubectl -n argocd rollout restart statefulset argocd-application-controller` |
+| `arc-runners` `OutOfSync` y el pod del listener se reinicia cada pocos minutos | Argo CD poda en bucle los recursos que crea el controlador de ARC (`AutoscalingListener`, `Role`, `RoleBinding`: copian la etiqueta `app.kubernetes.io/instance`). Se corrige con `application.resourceTrackingMethod: annotation` en `argocd-cm` (ya está en `gitops/argocd/config`). Comprueba: `kubectl -n argocd get cm argocd-cm -o jsonpath='{.data.application\.resourceTrackingMethod}'` → `annotation`; si no, sincroniza `argocd` y reinicia el controlador: `kubectl -n argocd rollout restart statefulset argocd-application-controller` |
 | `openebs` `OutOfSync` con el sync en `Running` | El Job del hook `pre-upgrade` del chart no termina y Argo CD lo espera. En OpenEBS usa una imagen (`bitnami/kubectl:1.25.15`) que ya no existe en Docker Hub; el hook solo migra de v3 a v4 y está desactivado en `argocd/apps/openebs.yaml` (`preUpgradeHook.enabled: false`). Si el Job viejo sigue ahí con el finalizador `argocd.argoproj.io/hook-finalizer`, cancela la operación (`status.operationState.phase: Terminating`) y quítale el finalizador |
 | `longhorn` con el sync en `Running`: el Job `longhorn-pre-upgrade` no tiene pod (`serviceaccount "longhorn-service-account" not found`) | En una **instalación limpia** con Argo CD ese Job corre antes que su ServiceAccount y el sync espera para siempre: desactívalo con `preUpgradeChecker.jobEnabled: false` (ya está así en `argocd/apps/longhorn.yaml`). Si cancelas la operación (`status.operationState.phase: Terminating`), quita el finalizador del Job y refresca. En una **actualización** el Job sí funciona y falla con razón si el salto no está soportado: lee `kubectl logs -n longhorn-system job/longhorn-pre-upgrade` antes de desactivarlo |
 | Gateway sin dirección | `metallb-config` sync, pool libre en LAN |

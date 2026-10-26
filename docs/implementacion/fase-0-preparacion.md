@@ -9,7 +9,7 @@ un informe de hardware medido antes de tocar red o clústeres.
 
 Cómo Ansible usa un **inventario** como fuente de verdad de hosts, y por qué
 un **discovery** opcional evita suposiciones sobre RAM, disco y arquitectura
-al elegir roles (control-plane, Longhorn, etc.).
+al elegir roles (control plane, Longhorn, etc.).
 
 !!! abstract "Aprende esta fase"
     **En simple:** Ansible es como una lista de tareas que entregas a varios ayudantes: todos la
@@ -65,9 +65,9 @@ Profundización: [Discovery de hardware](../hardware/discovery.md) · [Inventari
 
 - [x] Tres nodos accesibles por SSH (aunque aún con DHCP está bien).
 - [x] Python 3.11+ en tu estación.
-- [x] Clave SSH (Secure Shell) configurada hacia los nodos.
+- [x] Clave SSH configurada hacia los nodos.
 - [x] **GitHub:** la organización **`maceosoft`** creada, con un team
-      **`devops`** (sus miembros son quienes pueden entrar a ArgoCD) y una
+      **`devops`** (sus miembros son quienes pueden entrar a Argo CD) y una
       cuenta que sea **owner** de la organización para crear las Apps.
       Detalle en [Plataforma maceosoft — GitHub](../maceosoft/github.md).
 - [x] **1Password:** la app de escritorio instalada, con una bóveda llamada
@@ -122,7 +122,7 @@ playbook se detiene si no) y solo admite minúsculas, dígitos, `_` y `-`.
 Detalle completo (por qué conecta como `root` y dónde encaja en el resto
 del bootstrap) en
 [`ansible/bootstrap/README.md`](https://github.com/maceosoft/homelab/blob/main/ansible/bootstrap/README.md).
-Si tus 3 nodos ya tienen un usuario admin con sudo funcionando, salteá
+Si tus 3 nodos ya tienen un usuario admin con sudo funcionando, omite
 este paso.
 
 ### Validar inventario
@@ -156,7 +156,7 @@ ansible -i ansible/inventory.ini incus_cluster -m ping
 
 Aquí se preparan, una sola vez, las cuentas y credenciales de GitHub que el
 HomeLab necesita: las Apps con las que el clúster habla con GitHub (entre
-ellas la que usa ArgoCD para leer el repo privado `maceosoft/gitops`) y los
+ellas la que usa Argo CD para leer el repo privado `maceosoft/gitops`) y los
 repos base (`gitops`, `core-pipelines` e `infra`). Todo se crea a mano, y las credenciales se
 guardan en 1Password para que después los playbooks las lean desde ahí. El
 detalle de cada una (permisos, dónde encontrar cada dato en GitHub y cómo
@@ -177,7 +177,7 @@ Con una cuenta **owner de la organización** `maceosoft`:
 2. **GitHub App `maceosoft-arc-runners`** → item `maceosoft-arc-runners`, con
    los mismos tres campos pero con los datos de esta App.
    [Permisos y pasos](../maceosoft/github.md#maceosoft-arc-runners).
-3. **OAuth App `Maceosoft Dex`** → campos `GITHUB_CLIENT_ID` (Texto) y
+3. **OAuth (Open Authorization) App `Maceosoft Dex`** → campos `GITHUB_CLIENT_ID` (Texto) y
    `GITHUB_CLIENT_SECRET` (Contraseña) en el item `maceosoft-dex` (Nota segura).
    [Pasos](../maceosoft/github.md#oauth-app-maceosoft-dex).
 4. **Repos privados**, con su contenido subido con git:
@@ -203,7 +203,7 @@ Con una cuenta **owner de la organización** `maceosoft`:
    `*_password` van como Contraseña y el resto como Texto.
    [Tabla con ejemplos](../maceosoft/github.md#paso-2-repos-app-de-argocd-y-ftp-manual).
 
-Todos los comandos para crear estos items con el CLI `op` (y los de GitHub con `gh`) están en las secciones de
+Todos los comandos para crear estos items con la CLI `op` (y los de GitHub con `gh`) están en las secciones de
 [Plataforma maceosoft — GitHub](../maceosoft/github.md): las Apps y la OAuth App se **crean solo desde la web**, y de ahí en
 adelante guardar los datos en 1Password, listar instalaciones y crear los repos se hace con `op` y `gh`.
 

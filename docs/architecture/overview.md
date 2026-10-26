@@ -9,16 +9,17 @@ Guía ejecutable: **[Implementación](../implementacion/index.md)**.
 ## Capas
 
 1. **Hardware** — 3 nodos físicos (2x x86_64, 1x ARM64). Ver [inventario](../hardware/inventory.md).
-2. **Incus Cluster** — sustrato de virtualización, 3 miembros con quorum dqlite.
+2. **Incus Cluster** — sustrato de virtualización, 3 miembros con quórum dqlite.
    Cluster groups `x86-nodes` / `arm64-nodes` para dirigir dónde corre cada instancia.
 3. **K3s (distribución ligera de Kubernetes) Management** — el clúster K3s bare-metal existente, que aloja:
-    - Cluster API (Application Programming Interface) core + controller de CAPN (Cluster API Provider for Incus)
-    - ArgoCD (GitOps)
+    - Cluster API core + controller de CAPN (Cluster API Provider for Incus)
+    - Argo CD (GitOps)
     - Sealed Secrets controller
 4. **Workload Clusters** — clusters kubeadm efímeros provisionados por CAPN
    como instancias Incus (LXC o VM), para dev/test/aislamiento.
 5. **Storage** — OpenEBS LocalPV (default, en los 3 nodos) + Longhorn v1
-   (replicado entre `invincible` y `deborah`, excluyendo `oliver` por RAM).
+   (replicado entre `invincible` y `deborah`; `oliver` queda fuera por RAM si se activa
+   `createDefaultDiskLabeledNodes`, ver [Longhorn v1](../storage/index.md#longhorn-v1-ha-selectiva-cross-arch)).
 
 ## Decisión de diseño clave
 
@@ -76,7 +77,7 @@ flowchart TB
 ### Nivel 2 — Contenedores
 
 Abre la caja de la plataforma y muestra los **contenedores lógicos** (K3s
-Management, Incus Cluster, Workload Clusters, Storage, Monitoreo y Cinc Lab) con sus
+Management, Incus Cluster, Workload Clusters, Storage, Monitoreo, Logs, IA local, Gateway y SSO, DNS y Cinc Lab) con sus
 tecnologías y cómo se relacionan entre sí y con los sistemas externos.
 
 ```mermaid
@@ -95,6 +96,10 @@ flowchart TB
         storage["<span style='color:#fff'><b>Storage</b><br/><small>[Container: OpenEBS LocalPV + Longhorn v1]</small><br/>Persistencia local y replicada entre x86/arm64</span>"]
         monitoreo["<span style='color:#fff'><b>Monitoreo</b><br/><small>[Container: VictoriaMetrics + Grafana]</small><br/>Métricas, sondas, alertas y paneles (namespace monitoring)</span>"]
         cinclab["<span style='color:#fff'><b>Cinc Lab VMs</b><br/><small>[Container: Incus VM (Ubuntu 24.04)]</small><br/>Sandbox para probar cookbooks de Cinc/Chef</span>"]
+        acceso["<span style='color:#fff'><b>Gateway y SSO</b><br/><small>[Container: Kong Gateway + Dex]</small><br/>Entrada HTTPS de *.homelab.local y login con GitHub (team devops)</span>"]
+        ia["<span style='color:#fff'><b>IA local</b><br/><small>[Container: Ollama router + Open WebUI]</small><br/>Chat y API de modelos; Ollama bajo demanda en los 3 nodos</span>"]
+        logs["<span style='color:#fff'><b>Logs</b><br/><small>[Container: VictoriaLogs + Vector]</small><br/>Logs de pods y nodos (namespace monitoring)</span>"]
+        dns["<span style='color:#fff'><b>DNS</b><br/><small>[Container: BIND en deborah]</small><br/>Zona homelab.local y reenvío al router</span>"]
     end
     git["<span style='color:#fff'><b>Git remoto</b><br/><small>[Software System]</small><br/>GitHub / GitLab</span>"]
     registro["<span style='color:#fff'><b>Registro de imágenes</b><br/><small>[Software System]</small><br/>images.linuxcontainers.org</span>"]
@@ -114,6 +119,12 @@ flowchart TB
     monitoreo -->|"Alertas<br/><small>[webhook HTTPS]</small>"| discord
     monitoreo -->|"Ping cada 5 min<br/><small>[HTTPS]</small>"| healthchecks
     operador -->|"Consulta paneles<br/><small>[Grafana, SSO]</small>"| monitoreo
+    operador -->|"Resuelve nombres<br/><small>[DNS :53]</small>"| dns
+    operador -->|"Entra a las UIs<br/><small>[HTTPS + SSO]</small>"| acceso
+    acceso -->|"Enruta<br/><small>[HTTPRoute]</small>"| ia
+    acceso -->|"Enruta Grafana y Argo CD<br/><small>[HTTPRoute]</small>"| monitoreo
+    logs -->|"Guarda logs<br/><small>[PVC Longhorn]</small>"| storage
+    monitoreo -->|"Resume alertas<br/><small>[token Bearer]</small>"| ia
 
     classDef person fill:#08427B,stroke:#073B6F,color:#fff
     classDef system fill:#1168BD,stroke:#0B4884,color:#fff
@@ -121,7 +132,7 @@ flowchart TB
     classDef component fill:#85BBF0,stroke:#78A8D8,color:#000
     classDef external fill:#999999,stroke:#8A8A8A,color:#fff
     class operador person
-    class k3s_mgmt,incus,workload,storage,monitoreo,cinclab container
+    class k3s_mgmt,incus,workload,storage,monitoreo,cinclab,acceso,ia,logs,dns container
     class git,registro,discord,healthchecks external
     style homelab fill:none,stroke:#888,stroke-dasharray:6 4
 ```
@@ -131,6 +142,6 @@ flowchart TB
 | Nivel | Página | Qué muestra |
 |---|---|---|
 | 1–2 | *(esta página)* | Contexto + contenedores lógicos |
-| 3 | **[Componentes](nivel-3-componentes.md)** | Zoom por contenedor (K3s, Incus, workload, storage, monitoreo, Cinc) |
+| 3 | **[Componentes](nivel-3-componentes.md)** | Zoom por contenedor (K3s, Incus, workload, storage, monitoreo, Cinc); IA, logs y acceso en [IA local](../operacion/ia-ollama.md), [Logs](../operacion/logs.md) y [Modelo de autenticación](../security/modelo-de-autenticacion.md) |
 | 4 | **[Despliegue](nivel-4-despliegue.md)** | 3 nodos físicos en la LAN |
 
