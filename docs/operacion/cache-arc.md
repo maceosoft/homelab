@@ -30,8 +30,7 @@ Qué se guarda y dónde:
 !!! warning "El tool cache de `setup-python` y `setup-node` NO se comparte"
     `setup-python` borra y reinstala la carpeta de la versión que va a usar. Con el tool
     cache en el volumen compartido, dos jobs en paralelo (por ejemplo `render` y
-    `security` de `gitops`) se pisaban la misma carpeta y fallaban con `rm: cannot
-    remove … Stale file handle`. Por eso `RUNNER_TOOL_CACHE` queda en el valor por
+    `security` de `gitops`) se pisaban la misma carpeta y fallaban con `rm: cannot remove … Stale file handle`. Por eso `RUNNER_TOOL_CACHE` queda en el valor por
     defecto (`_work/_tool`, local a cada runner) y Python/Node se descargan en cada job
     (~20 s). Lo que sí se comparte es seguro en paralelo: pip, npm, Helm y los tarballs
     de `/cache/dl` (se escriben a un archivo temporal y se renombran).
@@ -78,7 +77,7 @@ cache, pip, npm) no se puede verificar así.
 ## Vaciar la caché
 
 Es seguro: los jobs vuelven a descargar lo que falte. Con un pod temporal como el de
-arriba pero con `rm -rf /cache/*`, o borrando el PVC (ArgoCD lo recrea):
+arriba pero con `rm -rf /cache/*`, o borrando el PVC (Argo CD lo recrea):
 
 ```bash
 kubectl -n arc-runners delete pvc arc-cache

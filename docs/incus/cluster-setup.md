@@ -121,14 +121,14 @@ incus cluster group assign deborah arm64-nodes,default
 
 ## Proteger la RAM de oliver (scheduler manual)
 
-oliver tiene 7.7 GB medidos, así que se mantiene como nodo ligero para quorum
+oliver tiene 7.7 GB medidos, así que se mantiene como nodo ligero para quórum
 Incus sin instancias automáticas:
 
 ```bash
 incus cluster set oliver scheduler.instance manual
 ```
 Excluye a `oliver` del scheduling automático; solo recibe instancias si se apunta
-explícitamente con `--target=oliver`. Sigue contando como voto de quorum.
+explícitamente con `--target=oliver`. Sigue contando como voto de quórum.
 
 ## Máquinas virtuales (VM)
 
@@ -242,12 +242,12 @@ Acceso inicial: [`https://incus.homelab.local:8443`](https://incus.homelab.local
 
 ### OIDC vía Dex (Fase 4)
 
-Con OIDC configurado, la pantalla de acceso de la UI ofrece **Login with SSO** (GitHub a través de Dex) y **Login with TLS** (certificado de cliente):
+Con OIDC configurado, la pantalla de acceso de la UI ofrece **Login with SSO** (inicio de sesión único) (GitHub a través de Dex) y **Login with TLS** (Transport Layer Security) (certificado de cliente):
 
 ??? note "Ver captura: acceso a Incus UI"
     ![Pantalla de acceso de Incus UI con las opciones «Login with SSO» y «Login with TLS»](../assets/screenshots/incus-ui-login.jpg){ loading=lazy }
 
-Tras [Fase 4 — Incus UI OIDC](../implementacion/fase-4-gitops.md#incus-ui-oidc), con la CA del
+Tras [Fase 4 — Incus UI OIDC](../implementacion/fase-4-gitops.md#incus-ui-oidc), con la CA (autoridad certificadora) del
 HomeLab ya instalada en el nodo (ver el aviso de abajo):
 
 ```bash
@@ -257,7 +257,7 @@ incus config set oidc.client.id=incus-ui
 
 Incus (7.x) solo conoce cinco claves OIDC: `oidc.issuer`, `oidc.client.id`, `oidc.audience`,
 `oidc.claim` y `oidc.scopes`. No existen `oidc.client.secret` ni `oidc.groups.claim`: Incus no envía
-secreto, así que en Dex el cliente `incus-ui` es **público** (PKCE, `public: true`).
+secreto, así que en Dex el cliente `incus-ui` es **público** (PKCE —Proof Key for Code Exchange—, `public: true`).
 
 !!! warning "Incus tiene que confiar en la CA del HomeLab"
     El certificado de Dex lo firma la CA propia del HomeLab (cert-manager). Si el nodo
@@ -278,7 +278,7 @@ secreto, así que en Dex el cliente `incus-ui` es **público** (PKCE, `public: t
 
 ### Permisos de los usuarios OIDC
 
-Incus 7.x **no** trae `incus auth` (grupos y `identity-provider-group` son de LXD). Con OIDC:
+Incus 7.x **no** trae `incus auth` (grupos y `identity-provider-group` son de LXD —el proyecto del que nació Incus—). Con OIDC:
 
 | Escenario | Resultado |
 |---|---|
@@ -318,7 +318,7 @@ Qué exige OVN y qué implica para el HomeLab. Los segmentos y el despliegue est
 
 | Requisito de OVN | Estado en el HomeLab |
 |---|---|
-| Paquetes `ovn-central` (3 nodos, base de datos en alta disponibilidad), `ovn-host` y `openvswitch-switch` | Están en Debian en los tres nodos, **con las mismas versiones** (OVN 25.03 y Open vSwitch 3.5) mientras los tres nodos estén en Debian 13 |
+| Paquetes `ovn-central` (3 nodos, base de datos en alta disponibilidad), `ovn-host` y `openvswitch-switch` | Están en Debian en los tres nodos, con OVN 25.03 y Open vSwitch 3.5 en Debian 13 (`invincible`, `oliver`); `deborah` sigue en Debian 12 hasta [actualizarla](../operacion/actualizar-debian-deborah.md), y hasta entonces sus versiones no coinciden |
 | Red de capa 2 compartida entre los nodos | Sí: los tres están en la misma LAN por `br0` |
 | Uplink: un bridge sin administrar o una NIC sin usar | `br0` sirve; no haría falta rehacerlo |
 | Rango de IP reservado fuera del DHCP para el router de OVN y las IP virtuales | Definido: `192.168.23.224/28` (LB) y `192.168.23.240–.249` (OVN externo), fuera del DHCP y de MetalLB. Ver [Desplegar OVN y los segmentos](#desplegar-ovn-y-los-segmentos) |
@@ -378,10 +378,10 @@ con líder (`ovn-appctl -t /var/run/ovn/ovnnb_db.ctl cluster/status OVN_Northbou
 `UPLINK` y `ovn-lan` en estado `Created` (`incus network list`).
 
 !!! warning "La base de datos de OVN no va cifrada"
-    Siguiendo la guía de Incus, el playbook publica las bases de datos de OVN por `tcp` sin SSL en la LAN de los nodos.
+    Siguiendo la guía de Incus, el playbook publica las bases de datos de OVN por `tcp` sin SSL (Secure Sockets Layer) en la LAN de los nodos.
     Es aceptable en un laboratorio; para producción habría que activar SSL en OVN.
 
-**Alternativas sin OVN:** MetalLB para aplicaciones, el balanceador de CAPN para los clústeres nuevos, y un contenedor con
+**Alternativas sin OVN:** MetalLB para aplicaciones, el balanceador de CAPN (Cluster API Provider for Incus) para los clústeres nuevos, y un contenedor con
 HAProxy o nginx más `keepalived` si se necesita una IP virtual para instancias.
 
 ## Actualizar o desinstalar Incus
@@ -393,14 +393,14 @@ Ambos playbooks son **seguros por defecto**: sin la variable de confirmación so
 | Actualizar Incus a la última versión del repositorio | [`playbook-upgrade-incus.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-upgrade-incus.yml) | `-e incus_upgrade_confirm=true` | Actualiza los paquetes `incus*` nodo por nodo y espera a que los tres miembros estén `ONLINE`. No borra instancias |
 | Desinstalar el clúster (para rehacerlo) | [`playbook-uninstall-incus.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-uninstall-incus.yml) | `-e incus_uninstall_confirm=true` | **Destructivo:** borra instancias, imágenes, redes gestionadas, el pool y los paquetes. No toca `br0`, K3s ni BIND |
 
-El clúster exige **la misma versión de Incus en todos los miembros**: mientras difieren, el API queda bloqueado en los
+El clúster exige **la misma versión de Incus en todos los miembros**: mientras difieren, la API queda bloqueada en los
 ya actualizados hasta que los demás los alcanzan. Por eso el playbook de actualización recorre los tres nodos seguidos y
 verifica al final. Para rehacer el clúster después de desinstalar: `playbook-bootstrap.yml` y `playbook-incus-cluster.yml`.
 
 ## Backup y snapshots (opcional)
 
 No forman parte del bootstrap por defecto. Actívalos cuando quieras proteger
-instancias o el estado del clúster.
+instancias o el estado del clúster. El paso a paso está en [Backups de Incus](../operacion/backups-incus.md).
 
 | Método | Alcance | Cuándo usarlo |
 |---|---|---|

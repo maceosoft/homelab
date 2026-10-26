@@ -1,7 +1,7 @@
 # Lab de Cinc/Chef
 
-Sandbox aislado (VMs Incus, no LXC — Chef gestiona estado de SO completo:
-sysctl, mounts, módulos de kernel) para aprender Chef/CINC sin arriesgar
+Sandbox aislado (VMs Incus, no LXC —contenedores de sistema de Linux— — Chef gestiona estado de SO completo:
+sysctl, mounts, módulos de kernel) para aprender Chef/CINC (distribución libre de Chef) sin arriesgar
 producción. Probado en ambas arquitecturas del clúster.
 
 ```bash

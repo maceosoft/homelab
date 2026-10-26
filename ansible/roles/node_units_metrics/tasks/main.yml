@@ -1,0 +1,39 @@
+---
+# Solo escribe métricas (lectura de systemd, cgroups y ps): no cambia nada del sistema.
+
+- name: Crear la carpeta del textfile collector de node-exporter
+  ansible.builtin.file:
+    path: "{{ node_units_metrics_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Instalar el script que mide los servicios del host
+  ansible.builtin.copy:
+    src: node-units-metrics.sh
+    dest: /usr/local/bin/node-units-metrics
+    owner: root
+    group: root
+    mode: "0755"
+  notify: Escribir las métricas de unidades ahora
+
+- name: Instalar el servicio y el temporizador de systemd
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - node-units-metrics.service
+    - node-units-metrics.timer
+  notify: Escribir las métricas de unidades ahora
+
+- name: Habilitar el temporizador
+  ansible.builtin.systemd:
+    name: node-units-metrics.timer
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: not ansible_check_mode

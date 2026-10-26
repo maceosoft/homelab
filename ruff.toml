@@ -1,0 +1,10 @@
+# Lint de los scripts Python del repo (ansible/scripts, ansible/roles, ollama-node, hooks, translate_docs.py). Lo corre la CI.
+# Reglas acotadas a errores reales: sintaxis (E9), import y sentencias (E4, E7) y pyflakes (F).
+# ollama-node corre también en el Mac con el Python del sistema: por eso el mínimo es 3.9.
+target-version = "py39"
+extend-exclude = [".venv", "site"]
+
+[lint]
+select = ["E4", "E7", "E9", "F"]
+# E731 (lambda asignada) y E741 (variable `l`) son de estilo: los tests las usan a propósito en comprensiones cortas.
+ignore = ["E731", "E741"]

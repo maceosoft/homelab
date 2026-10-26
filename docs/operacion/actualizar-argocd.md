@@ -1,10 +1,10 @@
-# Actualizar ArgoCD
+# Actualizar Argo CD
 
-ArgoCD se actualiza **solo**, siempre a la última versión estable. La
+Argo CD se actualiza **solo**, siempre a la última versión estable. La
 Application `argocd` de [`maceosoft/gitops`](https://github.com/maceosoft/gitops)
-instala el manifiesto oficial de la rama `stable` del repo de ArgoCD y le suma
-la configuración propia (Dex, RBAC, health check, cuenta `ci`): cuando sale una
-versión nueva, ArgoCD se aplica a sí mismo.
+instala el manifiesto oficial de la rama `stable` del repo de Argo CD y le suma
+la configuración propia (Dex, RBAC —control de acceso por roles—, health check, cuenta `ci`): cuando sale una
+versión nueva, Argo CD se aplica a sí mismo.
 
 | Pieza | Qué hace |
 |---|---|
@@ -13,10 +13,10 @@ versión nueva, ArgoCD se aplica a sí mismo.
 | Rol Ansible `k3s_argocd` | Primera instalación y saltos de versión mayor (`version: latest` en `k3s_install.yml`) |
 
 !!! warning "Es una actualización sin supervisión"
-    Una versión nueva se aplica sin preguntarte, y ArgoCD es lo que despliega
+    Una versión nueva se aplica sin preguntarte, y Argo CD es lo que despliega
     todo lo demás. Ya pasa por el pipeline de `gitops` (los manifiestos de la
     versión nueva se validan al cambiar tu repo), pero **no** cuando cambia
-    el repo de ArgoCD. Si una versión nueva da problemas, ver
+    el repo de Argo CD. Si una versión nueva da problemas, ver
     [Si una versión nueva falla](#si-una-version-nueva-falla).
 
 ## Cuánto tarda en enterarse
@@ -33,9 +33,8 @@ kubectl -n argocd annotate application argocd argocd.argoproj.io/refresh=hard --
 ## La primera vez: actualizar a mano, y después activar la app
 
 !!! danger "El orden importa"
-    Una ArgoCD vieja (2.x) **no puede compararse a sí misma** en un clúster
-    con Kubernetes 1.36 (`.status.terminatingReplicas: field not declared in
-    schema`), así que no puede ser ella quien se actualice. La primera
+    Una Argo CD vieja (2.x) **no puede compararse a sí misma** en un clúster
+    con Kubernetes 1.36 (`.status.terminatingReplicas: field not declared in schema`), así que no puede ser ella quien se actualice. La primera
     actualización la hace el rol de Ansible. **No hagas `git push` del cambio
     de `gitops` antes** (reemplaza `argocd-config` por `argocd` en el
     ApplicationSet).
@@ -64,7 +63,7 @@ kubectl -n argocd annotate application argocd argocd.argoproj.io/refresh=hard --
     ```
 
     El rol resuelve `version: latest` (la última estable) y aplica el manifiesto
-    oficial con `--server-side --force-conflicts` (obligatorio desde ArgoCD 3.3,
+    oficial con `--server-side --force-conflicts` (obligatorio desde Argo CD 3.3,
     cuyo CRD de `ApplicationSet` supera el límite del apply normal).
 
 4. **Verifica** que todo vuelve a sano. Con la versión nueva desaparece el error
@@ -98,8 +97,8 @@ rol de Ansible, el equivalente es `k3s_install.gitops_argocd.version: v3.5.3`.
 
 1. **Fija la versión anterior** en `gitops` (sección anterior) y espera a que se
    aplique.
-2. Si ArgoCD no arranca y no puede aplicar nada, vuelve a instalar la versión que
-   funcionaba directo con `kubectl` (no depende de ArgoCD):
+2. Si Argo CD no arranca y no puede aplicar nada, vuelve a instalar la versión que
+   funcionaba directo con `kubectl` (no depende de Argo CD):
 
     ```bash
     kubectl apply -n argocd --server-side --force-conflicts \
@@ -107,14 +106,14 @@ rol de Ansible, el equivalente es `k3s_install.gitops_argocd.version: v3.5.3`.
     ```
 
 3. Las [notas de actualización](https://argo-cd.readthedocs.io/en/stable/operator-manual/upgrading/overview/)
-   de ArgoCD dicen qué cambia en cada versión menor.
+   de Argo CD dicen qué cambia en cada versión menor.
 
 ## Si falla
 
 | Síntoma | Revisar |
 |---|---|
-| `ComparisonError … terminatingReplicas: field not declared in schema` | ArgoCD es anterior a la 3.5: hay que hacer la primera actualización con Ansible (arriba) |
-| `argocd` queda `OutOfSync` tras activarla | Es normal unos minutos: ArgoCD le agrega a cada recurso su anotación de seguimiento |
+| `ComparisonError … terminatingReplicas: field not declared in schema` | Argo CD es anterior a la 3.5: hay que hacer la primera actualización con Ansible (arriba) |
+| `argocd` queda `OutOfSync` tras activarla | Es normal unos minutos: Argo CD le agrega a cada recurso su anotación de seguimiento |
 | `The CustomResourceDefinition "applicationsets.argoproj.io" is invalid: metadata.annotations: Too long` | Se aplicó sin `--server-side`; usa los comandos de esta página |
 | Se pierde el login con GitHub tras actualizar | `argocd-cm` debe tener la clave `dex.config` (`kubectl -n argocd get cm argocd-cm -o jsonpath='{.data.dex\.config}'`) y el Secret `argocd-secret` sus claves `dex.*` ([Dex](../implementacion/fase-4-gitops.md)) |
 | Una versión nueva no se detecta | Espera una hora, o fuerza: `kubectl -n argocd annotate application argocd argocd.argoproj.io/refresh=hard --overwrite` |

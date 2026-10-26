@@ -21,15 +21,15 @@ anotaciones cambian de uno a otro, los `HTTPRoute` no.
 
 ## Cómo funciona el TLS
 
-- **cert-manager** (`cert-manager`) y una CA propia (`cert-manager-config`,
+- **cert-manager** (`cert-manager`) y una CA (autoridad certificadora) propia (`cert-manager-config`,
   `ClusterIssuer homelab-ca`) emiten el certificado. El `Gateway` lleva la
   anotación `cert-manager.io/cluster-issuer: homelab-ca` y cert-manager crea solo
   el Secret `homelab-tls`.
-- El Gateway **termina el TLS** y habla HTTP con los servicios. Por eso
+- El Gateway **termina el TLS** (Transport Layer Security) y habla HTTP con los servicios. Por eso
   `argocd-server` corre con `server.insecure` (en `argocd/config`) y el
   `HTTPRoute` apunta a su puerto 80. El diff del pipeline de `gitops` usa
   `--plaintext` por el mismo motivo.
-- **Kong es la excepción.** KIC 3.5 con Kong 3.9 rechaza (`value must be null`) el
+- **Kong es la excepción.** KIC (Kong Ingress Controller) 3.5 con Kong 3.9 rechaza (`value must be null`) el
   certificado que arma para un listener de Gateway API, y Kong no llega a estar
   `Ready`. Por eso el Gateway de Kong no usa `certificateRefs`: cert-manager emite
   `kong-default-tls` (`gateway/kong/certificate.yaml`), el chart lo monta en el pod y
@@ -66,13 +66,13 @@ anuncia la IP desde el nodo donde corre el controlador y el tráfico va directo 
 1. En `bootstrap/root-appset.yaml` (repo `gitops`), **comenta** el controlador
    actual y **descomenta** el nuevo (y `nginx-gateway-helm-repo` si es NGINX).
    Haz push.
-2. Vuelve a aplicar el ApplicationSet (ArgoCD no lo gestiona):
+2. Vuelve a aplicar el ApplicationSet (Argo CD no lo gestiona):
 
     ```bash
     kubectl apply -f gitops/bootstrap/root-appset.yaml
     ```
 
-3. Las Applications de los controladores llevan el finalizer de ArgoCD: al
+3. Las Applications de los controladores llevan el finalizer de Argo CD: al
    comentar la app, `homelab-root` borra la Application **y** sus recursos (el
    Gateway y las IP quedan libres para el nuevo). Espera a que desaparezca:
 
@@ -92,7 +92,7 @@ anuncia la IP desde el nodo donde corre el controlador y el tráfico va directo 
 
 ## Primera vez (viniendo de ingress-nginx)
 
-`ingress-nginx` y el `Ingress` de ArgoCD ya no existen en `gitops`. Sus
+`ingress-nginx` y el `Ingress` de Argo CD ya no existen en `gitops`. Sus
 Applications desaparecen al volver a aplicar el ApplicationSet, pero lo que
 crearon queda en el clúster:
 
@@ -104,7 +104,7 @@ kubectl delete clusterrole,clusterrolebinding,ingressclass,validatingwebhookconf
 ```
 
 Aplica primero el cambio de `argocd` (activa `server.insecure`): hasta que el
-Gateway esté `Programmed`, entra a ArgoCD con
+Gateway esté `Programmed`, entra a Argo CD con
 `kubectl port-forward svc/argocd-server -n argocd 8080:80` ([`http://localhost:8080`](http://localhost:8080)).
 
 ## Si falla
@@ -119,5 +119,5 @@ Gateway esté `Programmed`, entra a ArgoCD con
 | Con Kong, los pods no llegan a `Ready` y el log del controlador dice `failed posting new config to /config` | Ver el punto de Kong en *Cómo funciona el TLS*; confirma que existe el Secret `kong-default-tls` (`kubectl -n kong get certificate,secret`) |
 | Con Kong, el listener queda sin programar | KIC enlaza el Gateway con los puertos del Kong del chart; revisa `kubectl describe gateway` y los puertos del Service `kong-gateway-proxy` |
 | Con Kong, `kubectl -n kong logs deploy/kong-controller` dice `invalid config.location: missing host in url` | Un `HTTPRoute` con filtro `RequestRedirect` sin `hostname`: Kong arma el plugin `redirect` con una URL completa. Agrega `hostname` al filtro (ya está en `argocd/route` y `vcluster/route`) |
-| ArgoCD responde `307` hacia la misma URL (bucle) o `too many redirects` | `server.insecure` se lee solo al arrancar: reinicia el pod (`kubectl -n argocd rollout restart deploy/argocd-server`) y comprueba el valor (`kubectl -n argocd get cm argocd-cmd-params-cm -o yaml`) |
+| Argo CD responde `307` hacia la misma URL (bucle) o `too many redirects` | `server.insecure` se lee solo al arrancar: reinicia el pod (`kubectl -n argocd rollout restart deploy/argocd-server`) y comprueba el valor (`kubectl -n argocd get cm argocd-cmd-params-cm -o yaml`) |
 | Con Kong, `http://…` responde `426 Upgrade Required` | La ruta solo-HTTPS gana a la de redirección: la anotación `konghq.com/https-redirect-status-code: "301"` del `HTTPRoute` hace que Kong redirija (ya está en `argocd/route` y `vcluster/route`) |

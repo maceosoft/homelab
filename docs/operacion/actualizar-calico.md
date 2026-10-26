@@ -1,11 +1,11 @@
-# Calico (CNI) administrado por ArgoCD
+# Calico (CNI) administrado por Argo CD
 
 Calico es el CNI (Container Network Interface, la red de los pods) del clúster. Se instala en
 **dos etapas**:
 
-1. **Bootstrap, con Ansible** (rol `k3s_cni`): al crear el clúster, ArgoCD todavía no existe y
+1. **Bootstrap, con Ansible** (rol `k3s_cni`): al crear el clúster, Argo CD todavía no existe y
    necesita red de pods para arrancar, así que Ansible instala Calico primero.
-2. **Desde entonces, ArgoCD** lo administra y lo actualiza: dos Applications de
+2. **Desde entonces, Argo CD** lo administra y lo actualiza: dos Applications de
    [`maceosoft/gitops`](https://github.com/maceosoft/gitops).
 
 | Application | Qué administra | Dónde |
@@ -14,8 +14,8 @@ Calico es el CNI (Container Network Interface, la red de los pods) del clúster.
 | `calico-config` | `Installation` (pool de pods `10.42.0.0/16`, VXLAN cross-subnet) y `APIServer` | `cni/calico/custom-resources.yaml` |
 
 !!! warning "Sync manual, sin prune"
-    Las dos Applications **no** sincronizan solas. Un cambio de versión en git actualiza la red
-    de los pods de los 3 nodos, así que se aplica a mano (UI de ArgoCD → **Sync**). Tampoco
+    Las dos Applications **no** sincronizan solas. Un cambio de versión en Git actualiza la red
+    de los pods de los 3 nodos, así que se aplica a mano (UI de Argo CD → **Sync**). Tampoco
     tienen `prune` ni finalizer: si se borra la Application, el CNI no se toca.
 
 ## Qué versión corre
@@ -66,14 +66,14 @@ kubectl diff --server-side --force-conflicts -f gitops/cni/calico/custom-resourc
 ```
 
 La segunda debe salir **vacía**: el YAML de `calico-config` declara todos los campos que el
-operador escribe, para que ArgoCD y el operador no se pisen.
+operador escribe, para que Argo CD y el operador no se pisen.
 
 **Sync, en orden:**
 
 1. Activa las dos Applications: ya están en `bootstrap/root-appset.yaml`; aplica el ApplicationSet
    (`kubectl apply -f gitops/bootstrap/root-appset.yaml`).
-2. En ArgoCD, **Sync** de `calico-operator` (con *Server-Side Apply*, ya activo). El operador se
-   actualiza y reinicia los `calico-node` **de a un nodo** (`maxUnavailable: 1`).
+2. En Argo CD, **Sync** de `calico-operator` (con *Server-Side Apply*, ya activo). El operador se
+   actualiza y reinicia los `calico-node` **nodo a nodo** (`maxUnavailable: 1`).
 3. Vigila: `kubectl -n calico-system get pods -w` y `kubectl get tigerastatus`.
 4. Cuando todo esté `Available`, **Sync** de `calico-config`.
 5. Verifica la etapa 1 (siguiente bloque) y **repite los pasos 2–4 para la etapa 2**, tras cambiar las URLs a `v3.33.0`
@@ -94,11 +94,11 @@ El último comprueba que un pod aún llega a un servicio de otro nodo.
 ## Cambios posteriores
 
 - **Subir de versión:** cambia las dos URLs de `cni/calico-operator/kustomization.yaml`, haz push
-  y **Sync** manual. Sube de a una o dos versiones menores y revisa las notas de cada versión.
+  y **Sync** manual. Sube una o dos versiones menores cada vez y revisa las notas de cada versión.
 - **No cambies** `cidr`, `encapsulation` ni `blockSize` del pool sin una ventana de
   mantenimiento: cambian la red de todos los pods.
 - **No vuelvas a correr** `--tags cni` de Ansible sobre un clúster ya adoptado: el rol detecta
-  que ArgoCD sigue el `Installation` y se salta Calico, para no pelear con él.
+  que Argo CD sigue el `Installation` y se salta Calico, para no pelear con él.
 
 ## Si falla
 
@@ -107,4 +107,4 @@ El último comprueba que un pod aún llega a un servicio de otro nodo.
 | `calico-operator` queda `OutOfSync` tras el Sync | Es normal un momento por los campos que el operador agrega; si persiste, `kubectl diff --server-side` para ver qué difiere |
 | `tigerastatus calico` en `Degraded` | `kubectl -n tigera-operator logs deploy/tigera-operator --tail=50` |
 | Pods nuevos sin red | `kubectl -n calico-system get pods`; `calico-node` debe estar `Running` en los 3 nodos |
-| ArgoCD no puede sincronizar (porque el CNI cayó) | Corrige el CNI con `kubectl` directo desde la estación, no a través de ArgoCD |
+| Argo CD no puede sincronizar (porque el CNI cayó) | Corrige el CNI con `kubectl` directo desde la estación, no a través de Argo CD |

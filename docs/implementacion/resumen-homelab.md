@@ -11,16 +11,16 @@ al terminar la Fase 4 como mínimo; las fases 5 y 6 son opcionales.
 | [0 — Preparación](fase-0-preparacion.md) | Repo, Ansible, `inventory.ini`, discovery opcional | `playbook-discovery.yml` |
 | [1 — Red](fase-1-red.md) | IP fija en `br0` (`192.168.20.5`, `.6`, `.7`) | `playbook-set-static-ip.yml` |
 | [2 — Incus](fase-2-incus.md) | Clúster HA, groups, UI, storage `dir` | `playbook-bootstrap.yml` + `playbook-incus-cluster.yml` |
-| [3 — K3s](fase-3-k3s.md) | Management cluster + ArgoCD controller; CNI **Calico** | `playbook-k3s.yml` |
+| [3 — K3s](fase-3-k3s.md) | Management cluster + Argo CD controller; CNI **Calico** | `playbook-k3s.yml` |
 | [4 — GitOps](fase-4-gitops.md) | MetalLB, Gateway API, storage, Dex/GitHub SSO | Argo CD + `playbook-dex-oauth-secrets.yml` |
-| [5 — vCluster](fase-5-vcluster.md) *(opc.)* | Platform, kubeconfig web (connected cluster) | Application ArgoCD |
+| [5 — vCluster](fase-5-vcluster.md) *(opc.)* | Platform, kubeconfig web (connected cluster) | Application Argo CD |
 | [6 — CAPN](fase-6-capn.md) *(opc.)* | Workload clusters sobre Incus | `clusterctl` + `capn-demo.yaml` |
 
 ## URLs y accesos web
 
 | Servicio | URL | Auth | Fase |
 |---|---|---|---|
-| **ArgoCD** | [`https://argocd.homelab.local`](https://argocd.homelab.local) | SSO GitHub vía Dex | 4 |
+| **Argo CD** | [`https://argocd.homelab.local`](https://argocd.homelab.local) | SSO GitHub vía Dex | 4 |
 | **Dex** (issuer) | `https://argocd.homelab.local/api/dex` | — | 4 |
 | **vCluster Platform** | [`https://vcluster.homelab.local`](https://vcluster.homelab.local) | SSO Dex → GitHub | 5 |
 | **Incus UI** | [`https://incus.homelab.local:8443`](https://incus.homelab.local:8443) | SSO Dex (o cert cliente antes Fase 4) | 2 / 4 |
@@ -78,7 +78,7 @@ Detalle hardware: [Inventario](../hardware/inventory.md).
 
 | Decisión | Default HomeLab | Alternativa |
 |---|---|---|
-| CNI | **Calico** (`k3s_cni: calico`; luego lo adopta ArgoCD con `calico-operator` y `calico-config`) | Flannel `vxlan` (embebido en K3s), Canal o Cilium |
+| CNI | **Calico** (`k3s_cni: calico`; luego lo adopta Argo CD con `calico-operator` y `calico-config`) | Flannel `vxlan` (embebido en K3s), Canal o Cilium |
 
 Variable Ansible: `k3s_install.core.cni` en [`group_vars/incus_cluster/k3s_install.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/group_vars/incus_cluster/k3s_install.yml).
 Detalle y trade-offs: [Fase 3 — CNI](fase-3-k3s.md#cni) · [playbook-options](../k3s/playbook-options.md#cni).

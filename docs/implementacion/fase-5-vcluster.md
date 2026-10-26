@@ -30,7 +30,7 @@ kubeconfig desde el navegador.
         Arranca en segundos y gasta menos recursos, porque comparte el kernel y la infraestructura del anfitrión.
 
     ??? question "¿Qué papel cumple Dex en el login?"
-        Es el intermediario: recibe el inicio de sesión de GitHub y se lo traduce a las aplicaciones (ArgoCD, Platform, Incus).
+        Es el intermediario: recibe el inicio de sesión de GitHub y se lo traduce a las aplicaciones (Argo CD, Platform, Incus).
 
     ¿Dudas? Usa el botón **Aprende con IA** junto a cada título, o la página [Aprende](../aprende.md).
 
@@ -46,15 +46,15 @@ flowchart TB
 ```
 
 - **[vCluster Platform](https://www.vcluster.com/docs/platform/)** — UI + control plane virtual; Fase 5.
-- **[Dex](https://dexidp.io/docs/)** — IdP OIDC (OpenID Connect); configurado en Fase 4.
+- **[Dex](https://dexidp.io/docs/)** — IdP (proveedor de identidad) OIDC; configurado en Fase 4.
 - **[Gateway API](https://gateway-api.sigs.k8s.io/)** — Expone Platform en LAN (red local) con un `HTTPRoute` sobre el Gateway `homelab`.
 
 Profundización: [vCluster Platform](../vcluster/index.md)
 
 ## Antes de empezar
 
-- [ ] [Fase 4 — GitOps](fase-4-gitops.md) completada (Gateway, Dex, OAuth 1Password).
-- [ ] `/etc/hosts` con `vcluster.homelab.local`.
+- [ ] [Fase 4 — GitOps](fase-4-gitops.md) completada (Gateway, Dex y los secretos OAuth —Open Authorization— en 1Password).
+- [ ] `vcluster.homelab.local` resuelve (DNS de la [sección 4.8](fase-4-gitops.md#48-dns-de-homelablocal) o, si no, `/etc/hosts`).
 
 ## Ejecutar
 
@@ -78,7 +78,7 @@ ansible-playbook -i inventory.ini playbook-dex-oauth-secrets.yml \
 
 | Decisión | Default HomeLab |
 |---|---|
-| Sync ArgoCD | Manual (comentada en `homelab-root`) |
+| Sync Argo CD | Manual (comentada en `homelab-root`) |
 | Login admin | `auth.password.disabled: false` hasta validar SSO GitHub |
 | Permisos usuarios SSO | **Denegar por defecto** — sin Cluster Access / proyecto asignado no ven clústeres ni kubeconfig |
 
@@ -116,17 +116,17 @@ ansible-playbook -i inventory.ini playbook-dex-oauth-secrets.yml \
 ## Permisos: denegar por defecto
 
 [vCluster Platform](https://www.vcluster.com/docs/platform/administer/users-permissions/overview)
-no concede acceso a clústeres conectados ni vclusters solo por iniciar sesión.
+no concede acceso a clústeres conectados ni vClusters solo por iniciar sesión.
 Un usuario SSO nuevo **no ve recursos** hasta que un admin le asigne:
 
 - **Cluster Access** — kubeconfig del management K3s (connected cluster)
-- **Proyecto + rol** — crear/gestionar vclusters dentro de un proyecto
+- **Proyecto + rol** — crear/gestionar vClusters dentro de un proyecto
 - **Management Role** — operaciones de plataforma (solo admins)
 
 Pasos típicos para el primer operador (como admin de Platform):
 
 1. **Clusters** → **Cluster Access** → Create → usuario/equipo + ClusterRole
-2. Para vclusters: asignar al usuario a un **Project** con rol adecuado
+2. Para vClusters: asignar al usuario a un **Project** con rol adecuado
 3. Los equipos de GitHub llegan como grupos `loft-*` (OIDC)
 
 ## Verificar
@@ -145,7 +145,7 @@ curl -kI https://vcluster.homelab.local
 [vCluster Platform](https://www.vcluster.com/docs/platform/) registra
 automáticamente el clúster **host** (el K3s donde corre Platform) como
 **connected cluster**. Desde la misma UI obtienes el kubeconfig del management
-cluster, no solo el de vclusters.
+cluster, no solo el de vClusters.
 
 1. Login SSO en [`https://vcluster.homelab.local`](https://vcluster.homelab.local)
 2. **Clusters** → selecciona el clúster host (p. ej. el nombre del contexto K3s)
@@ -166,16 +166,16 @@ OIDC de GitHub llegan con prefijo `loft-` (ver
 | vClusters | [`https://vcluster.homelab.local`](https://vcluster.homelab.local) | Kubeconfig de cada clúster virtual |
 | Incus cluster | [`https://incus.homelab.local:8443`](https://incus.homelab.local:8443) | UI de administración Incus (OIDC tras Fase 4) |
 
-Alternativa CLI (interfaz de línea de comandos) para el management K3s: [`fase-4-gitops.md` 4.1](fase-4-gitops.md#41-acceso-kubectl) (`scp` / Ansible).
+Alternativa CLI (interfaz de línea de comandos) para el management K3s: [`fase-4-gitops.md` 4.1](fase-4-gitops.md#41-acceso-kubectl) (`ssh … sudo cat` o Ansible).
 
 ## Si falla
 
 | Síntoma | Revisar |
 |---|---|
-| SSO loop | Secretos Dex + `playbook-dex-oauth-secrets.yml --tags vcluster` |
+| El SSO vuelve al login una y otra vez | Secretos Dex + `playbook-dex-oauth-secrets.yml --tags vcluster` |
 | PVC pending | OpenEBS/Longhorn Healthy |
 
 ## Siguiente
 
-Opcional: **[→ Fase 6 — CAPN](fase-6-capn.md)** ·
+Opcional: **[→ Fase 6 — CAPN (Cluster API Provider for Incus)](fase-6-capn.md)** ·
 **[Resumen del HomeLab](resumen-homelab.md)**

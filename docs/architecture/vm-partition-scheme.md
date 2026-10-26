@@ -1,34 +1,32 @@
-# Esquema de partición recomendado — VMs de workload (CAPN)
+# Esquema de particiones de las VMs de workload (CAPN)
 
-Convención para las VMs/LXCMachine que CAPN (Cluster API Provider Incus) provisione como clústeres de
-workload (ej. `demo`, ver `docs/architecture/nivel-3-componentes.md` §3.3). No hay ninguna VM (máquina virtual) corriendo
-todavía — esto es una plantilla a seguir cuando se cree la primera, no un estado medido.
+Convención para las VM (máquinas virtuales) que CAPN (Cluster API Provider for Incus) provisione como clústeres de
+workload (por ejemplo `demo`, ver [Workload Clusters](nivel-3-componentes.md#33-workload-clusters)). Es una
+plantilla para la imagen base de esas VM, no un estado medido.
 
-**Origen:** derivado de la revisión real de partición de los 3 nodos bare-metal del clúster de management
-(ver `ansible/reports/<host>.md`, sección "Recomendaciones — esquema de partición del SO"), que encontró:
-ningún nodo tiene `/var` separado del `/` del sistema, y el swap está dimensionado sin fórmula consistente
-entre nodos (13%–94% de diferencia contra `min(RAM/2, 8GB)`). Este documento fija la convención que los
-nodos bare-metal no pueden adoptar en vivo sin riesgo (repartición de una raíz montada), pero que sí se
-puede aplicar limpio en una VM nueva desde el primer boot.
+Sale de la revisión de particiones de los 3 nodos bare-metal (el informe de
+[`playbook-discovery.yml`](../hardware/discovery.md), sección "Recomendaciones — esquema de partición del SO"):
+ningún nodo tiene `/var` separado de `/`, y el swap de cada uno se dimensionó con un criterio distinto (entre 13 % y
+94 % de diferencia contra `min(RAM/2, 8GB)`). En un nodo ya instalado eso no se puede corregir sin reparticionar
+la raíz montada; en una VM nueva se define desde el primer arranque.
 
 ## Esquema
 
 | Partición | Tamaño | Filesystem | Notas |
 |---|---|---|---|
-| `/boot` (o `/boot/efi` si UEFI) | 1 GB | vfat/ext4 | Igual que los 3 nodos bare-metal actuales |
-| swap | `min(RAM/2, 8GB)` | swap | Fórmula fija — evita la inconsistencia encontrada en los nodos actuales |
-| `/var` | ≥20% del disco, o 20GB mínimo | ext4 | Separado de `/` — aísla logs/imágenes de containerd y volúmenes locales de un runaway que llenaría la raíz |
+| `/boot` (o `/boot/efi` si UEFI) | 1 GB | vfat/ext4 | Igual que los 3 nodos bare-metal |
+| swap | `min(RAM/2, 8GB)` | swap | Fórmula fija, la misma en todas las VM |
+| `/var` | ≥20 % del disco, o 20 GB mínimo | ext4 | Separado de `/`: un crecimiento descontrolado de logs, imágenes de containerd o volúmenes locales no llena la raíz |
 | `/` | Resto del disco | ext4 | Sistema base |
 
 ## Por qué separar `/var`
 
-Los workloads de K3s (containerd, logs, cache de imágenes, `local-path-provisioner`/OpenEBS si aplica
-dentro de la VM) escriben todos bajo `/var`. Sin partición separada, un runaway ahí puede llenar `/` y
-tumbar el nodo entero (no solo el workload). Ningún nodo bare-metal actual tiene esto separado —
-diferencia intencional: en bare-metal ya instalado, separar `/var` requiere reinstalar; en una VM nueva
-provisionada por CAPN (Cluster API Provider for Incus), es gratis definirlo en el template desde el día 1.
+Los workloads de K3s (containerd, logs, caché de imágenes, `local-path-provisioner`/OpenEBS si aplica dentro de la
+VM) escriben todos bajo `/var`. Sin partición separada, si eso crece sin control puede llenar `/` y tumbar el nodo
+entero, no solo el workload. En bare-metal ya instalado, separar `/var` obliga a reinstalar; en una VM nueva de
+CAPN no cuesta nada definirlo en la plantilla desde el primer día.
 
 ## Aplicación
 
-Este esquema se aplica en la imagen/template base que CAPN use para provisionar VMs (máquinas virtuales), no vía Ansible
-post-instalación — fuera de alcance de este repo hasta que exista un template de imagen real que editar.
+El esquema va en la imagen o plantilla base que CAPN use para provisionar las VM, no en Ansible después de
+instalar. Este repo todavía no tiene esa plantilla.

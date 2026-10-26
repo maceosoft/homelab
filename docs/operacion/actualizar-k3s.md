@@ -7,7 +7,7 @@ K3s (distribución ligera de Kubernetes) se actualiza **solo**: el SUC (System U
 fijar una versión cuando haga falta y mantener alineado Ansible.
 
 Los planes están en [`maceosoft/gitops` → `k3s-upgrade/`](https://github.com/maceosoft/gitops/tree/main/k3s-upgrade)
-y los aplica la Application `k3s-upgrade` de ArgoCD.
+y los aplica la Application `k3s-upgrade` de Argo CD.
 
 ## 1. Comprobar que el SUC está instalado
 
@@ -47,7 +47,7 @@ spec:
   version: v1.36.5+k3s1
 ```
 
-Mergea el cambio: ArgoCD lo aplica y el SUC deja los nodos en esa versión.
+Mergea el cambio: Argo CD lo aplica y el SUC deja los nodos en esa versión.
 
 ## 4. Alinear Ansible con la versión real
 

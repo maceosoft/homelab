@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Imprime el token del registro de Ollama guardado en 1Password.
 
-Lo usa el rol ollama_ondemand (tarea local en la estación del operador). Escribe SOLO el valor
+Lo usa el rol ollama_node (tarea local en la estación del operador). Escribe SOLO el valor
 por stdout, sin registrarlo ni mostrarlo en ningún otro lado; los errores van a stderr y nunca
 incluyen el valor. Ejecutarlo a mano imprime el secreto en la terminal.
 

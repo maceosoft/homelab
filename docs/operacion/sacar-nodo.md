@@ -25,8 +25,7 @@ kubectl cordon nolan
 kubectl drain nolan --ignore-daemonsets --delete-emptydir-data
 ```
 
-Si el nodo aporta disco a Longhorn (`node.longhorn.io/create-default-disk:
-"true"`), en la UI de Longhorn: *Node → nolan → Edit* → desactiva
+Si el nodo aporta disco a Longhorn (`node.longhorn.io/create-default-disk: "true"`), en la UI de Longhorn: *Node → nolan → Edit* → desactiva
 *Scheduling* y marca *Eviction Requested*. Espera a que sus réplicas se
 muevan a otros nodos antes de seguir.
 
@@ -46,7 +45,7 @@ sudo incus cluster evacuate nolan
 ```bash
 kubectl delete node nolan
 cd ansible
-ansible-playbook -i inventory.ini playbook-uninstall-k3s.yml --limit nolan
+ansible-playbook -i inventory.ini playbook-k3s-uninstall.yml --limit nolan
 ```
 
 En un worker, el playbook solo quita el agent (nunca toca el control plane).

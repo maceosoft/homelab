@@ -3,11 +3,11 @@
 ## Objetivo
 
 Provisionar **workload clusters** kubeadm sobre instancias Incus vía
-[Cluster API](https://cluster-api.sigs.k8s.io/) y [CAPN](https://capn.linuxcontainers.org/).
+[Cluster API](https://cluster-api.sigs.k8s.io/) y [CAPN (Cluster API Provider for Incus)](https://capn.linuxcontainers.org/).
 
 ## Qué aprendes
 
-CAPI (Cluster API) declara clusters como recursos Kubernetes; CAPN (Cluster API Provider for Incus) traduce `LXCMachine` en
+CAPI (Cluster API) declara clusters como recursos Kubernetes; CAPN traduce `LXCMachine` en
 instancias Incus — clusters efímeros sin tocar el management K3s (distribución ligera de Kubernetes).
 
 !!! abstract "Aprende esta fase"
@@ -64,21 +64,21 @@ sequenceDiagram
 - **[CAPN](https://capn.linuxcontainers.org/)** — Provider Incus; Fase 6.
 - **[clusterctl](https://cluster-api.sigs.k8s.io/user/quick-start.html)** — Bootstrap CAPI en el management cluster.
 - **[Incus](https://linuxcontainers.org/incus/docs/main/)** — Runtime de instancias; Fase 2.
-- **[Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets)** — Credenciales Incus cifradas en git.
+- **[Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets)** — Credenciales Incus cifradas en Git.
 
 Profundización: [CAPN](../capn/index.md) · [Secretos](../secrets/index.md)
 
 ## Antes de empezar
 
-- [ ] [Fase 2 — Incus](fase-2-incus.md) cluster healthy.
+- [ ] [Fase 2 — Incus](fase-2-incus.md) con el clúster sano.
 - [ ] [Fase 4 — GitOps](fase-4-gitops.md) con Sealed Secrets operativo.
 - [ ] Credencial Incus sellada (`lxc-secret`).
 
 La [Fase 5 — vCluster](fase-5-vcluster.md) es opcional: no hace falta para esta fase.
 
 !!! note "Balanceador del control plane"
-    Cada clúster de CAPN crea su propio balanceador para el API (`LOAD_BALANCER='lxc: {}'`, un contenedor dentro de
-    Incus). Los balanceadores de red de Incus solo existen con OVN, que el HomeLab no usa: ver
+    Cada clúster de CAPN crea su propio balanceador para la API (`LOAD_BALANCER='lxc: {}'`, un contenedor dentro de
+    Incus). Es independiente de los balanceadores de red de Incus, que solo existen en la red OVN `ovn-lan`: ver
     [Balanceo de carga y OVN](../incus/cluster-setup.md#balanceo-de-carga-y-ovn).
 
 ## Ejecutar
@@ -106,7 +106,7 @@ kubectl apply -f gitops/argocd/apps/capn-demo.yaml
 
 | Decisión | Default HomeLab |
 |---|---|
-| Sync ArgoCD | Manual (efímero, evita borrados accidentales) |
+| Sync Argo CD | Manual (efímero, evita borrados accidentales) |
 | Target workers | `@arm64-nodes` (deborah) / CP `@x86-nodes` |
 
 <div class="card">
@@ -114,7 +114,7 @@ kubectl apply -f gitops/argocd/apps/capn-demo.yaml
   <div class="option-grid">
     <div class="card-col">
       <div class="card-title">Sync manual</div>
-      <div class="text-muted">Clusters efímeros no se prunean solos</div>
+      <div class="text-muted">Los clústeres efímeros no se borran solos</div>
       <div class="text-muted">Apply + Sync en UI cada vez</div>
     </div>
     <div class="card-col">
@@ -146,7 +146,7 @@ kubectl get machines
 
 | Síntoma | Revisar |
 |---|---|
-| Machine stuck | Secret Incus, IP Incus en `lxc-secret` |
+| La `Machine` no avanza | Secret Incus, IP Incus en `lxc-secret` |
 | Image pull | [images.linuxcontainers.org](https://images.linuxcontainers.org/) |
 
 ## Siguiente

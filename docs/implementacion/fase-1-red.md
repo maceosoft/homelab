@@ -72,7 +72,7 @@ Profundización: [Red — ejemplos netplan](../networking/index.md)
 | oliver | `eno1` | 192.168.20.7 |
 | deborah | `enP4p65s0` | 192.168.20.5 |
 
-> Confirmá siempre con `ip -br link` en el nodo antes de asumir estos
+> Confirma siempre con `ip -br link` en el nodo antes de asumir estos
 > valores.
 
 ## Ejecutar
@@ -112,7 +112,7 @@ Profundización: [Red — ejemplos netplan](../networking/index.md)
 | Orden de nodos | Uno a la vez (`serial: 1`) |
 
 !!! note "Los 3 nodos cambian de IP al aplicar"
-    No hay atajo: actualizá `ansible_host` en `inventory.ini` después de
+    No hay atajo: actualiza `ansible_host` en `inventory.ini` después de
     cada nodo (por eso `serial: 1`).
 
 <div class="card">
@@ -156,8 +156,8 @@ ping -c 2 192.168.20.7
 ## DNS (BIND en deborah)
 
 Los 3 nodos usan `192.168.20.5` (deborah) como primer DNS y el gateway
-`192.168.20.1` como segundo. Con la IP fija ya aplicada en deborah, instalá
-y configurá BIND (Berkeley Internet Name Domain) ahí (corre solo sobre deborah):
+`192.168.20.1` como segundo. Con la IP fija ya aplicada en deborah, instala
+y configura BIND (Berkeley Internet Name Domain) ahí (corre solo sobre deborah):
 
 ```bash
 ansible-playbook -i inventory.ini playbook-bind-dns.yml
@@ -170,7 +170,7 @@ Dos cosas que deja `playbook-set-static-ip.yml` y de las que dependen fases post
 
 - `/etc/resolv.conf` fijo en cada nodo, con `search homelab.local mco.local` y primero el BIND (`192.168.20.5`).
   Si el nodo tiene NetworkManager, instala además `dns=none` para que no lo reescriba con el DNS del router. Sin
-  eso un nodo deja de resolver `*.homelab.local` (los nodos no podrían validar el SSO de la [4.12](fase-4-gitops.md#412-ssh-a-los-hosts-con-dex-opcional)).
+  eso un nodo deja de resolver `*.homelab.local` (los nodos no podrían validar el SSO —inicio de sesión único— de la [4.12](fase-4-gitops.md#412-ssh-a-los-hosts-con-dex-opcional)).
 - La zona `homelab.local` de BIND trae un registro por cada nodo y por cada servicio publicado, sin comodín
   (ver [4.8](fase-4-gitops.md#48-dns-de-homelablocal)).
 
@@ -180,8 +180,7 @@ Comprueba en cada nodo: `cat /etc/resolv.conf` y `getent hosts oliver.homelab.lo
 ## Hardening (recomendado antes de seguir)
 
 Con la IP ya fija es el momento de endurecer el host, antes de que se una
-al cluster. No es parte de las Fases 0–6 originales, pero va **acá** en la
-secuencia real (ver
+al clúster. Va **aquí** en la secuencia (ver
 [Hardening post-incidente](../security/hardening-post-incidente.md)):
 
 ```bash

@@ -12,17 +12,29 @@
   failed_when: incus_cluster_group_create.rc != 0 and ('already exists' not in (incus_cluster_group_create.stderr | default('')))
   when: item not in (incus_cluster_groups_list.stdout | default(''))
 
+- name: Miembros del clúster (grupos y scheduler actuales)
+  ansible.builtin.command: incus cluster list --format json
+  register: incus_cluster_members_json
+  changed_when: false
+  check_mode: false
+
+- name: Indexar los miembros por nombre
+  ansible.builtin.set_fact:
+    incus_cluster_members: "{{ dict(incus_cluster_members_list | map(attribute='server_name') | zip(incus_cluster_members_list)) }}"
+  vars:
+    incus_cluster_members_list: "{{ incus_cluster_members_json.stdout | from_json }}"
+
+# Solo se asigna cuando los grupos del miembro difieren de los deseados: así la tarea es idempotente
+# y un error real de "incus cluster group assign" hace fallar el play.
 - name: Asignar cluster groups a miembros
   ansible.builtin.command: >-
     incus cluster group assign {{ item.key }} {{ item.value | join(',') }}
   loop: "{{ incus_cluster_group_assignments | dict2items }}"
-  register: incus_cluster_group_assign
-  changed_when: "'Updated cluster groups' in (incus_cluster_group_assign.stdout | default('')) or incus_cluster_group_assign.rc == 0"
-  failed_when: false
+  when: (incus_cluster_members[item.key].groups | default([]) | sort) != (item.value | sort)
+  changed_when: true
 
 - name: Scheduler manual (nodos con incus_scheduler_manual)
   ansible.builtin.command: "incus cluster set {{ item }} scheduler.instance manual"
   loop: "{{ incus_cluster_manual_scheduler_hosts | default([]) }}"
-  register: incus_cluster_scheduler_set
-  changed_when: incus_cluster_scheduler_set.rc == 0
-  failed_when: false
+  when: (incus_cluster_members[item].config | default({}))['scheduler.instance'] | default('') != 'manual'
+  changed_when: true

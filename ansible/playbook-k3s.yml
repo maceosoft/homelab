@@ -95,7 +95,8 @@
       when: k3s_install.fetch_kubeconfig.enabled | default(true)
   tags: [kubeconfig]
 
-- name: Endurecimiento SO (unattended-upgrades escalonado)
+# Solo corre con k3s_install.os_hardening.enabled: true (hoy apagado en group_vars/incus_cluster/k3s_install.yml).
+- name: Endurecimiento SO (unattended-upgrades escalonado, opcional)
   hosts: incus_cluster
   become: true
   roles:

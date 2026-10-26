@@ -1,7 +1,7 @@
 ---
 # systemctl is-active devuelve un código distinto de 0 cuando está inactivo, y eso es lo que se
 # consulta; el módulo systemd no lo expresa igual.
-- name: Comprobar si K3s agent ya esta activo  # noqa: command-instead-of-module
+- name: Comprobar si K3s agent ya está activo  # noqa: command-instead-of-module
   ansible.builtin.command: systemctl is-active k3s-agent
   register: k3s_agent_active
   changed_when: false
@@ -13,7 +13,7 @@
       {{ k3s_agent_token | default(hostvars[groups['k3s_server'][0]]['k3s_token'] | default(k3s_token | default(''))) }}
   no_log: true
 
-- name: Fallar si no hay token de union
+- name: Fallar si no hay token de unión
   ansible.builtin.fail:
     msg: >-
       Falta k3s_token. Ejecuta primero el play del server o pasa -e k3s_token=<token>.

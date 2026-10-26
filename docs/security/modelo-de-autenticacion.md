@@ -5,7 +5,7 @@ y documentada cuando la autenticación no es posible.**
 
 - **Personas → Dex.** Quien abre algo en el navegador o por SSH (*Secure Shell*, la conexión remota por terminal) entra con su cuenta de GitHub a través de Dex
   (el proveedor de identidad del HomeLab, con el team `devops` de la organización `maceosoft`). Si el servicio
-  habla OIDC (OpenID Connect, el protocolo de inicio de sesión sobre OAuth 2.0) de forma nativa, se conecta
+  habla OIDC (OpenID Connect, el protocolo de inicio de sesión sobre OAuth 2.0 —Open Authorization—) de forma nativa, se conecta
   directo; si no, se pone `oauth2-proxy` delante.
 - **Máquinas → token o clave propia + restricción de red.** Un programa que llama a otro usa un token
   (un secreto aleatorio, uno por cliente) y, además, solo puede alcanzarlo desde donde corresponde.
@@ -16,7 +16,7 @@ y documentada cuando la autenticación no es posible.**
 
 | Servicio | Quién lo usa | Cómo se autentica |
 |---|---|---|
-| ArgoCD, Grafana | Personas | Dex (GitHub, team `devops`). Queda un acceso local de emergencia (`admin` de Grafana); el `admin` local de ArgoCD se desactiva (`admin.enabled: "false"`) y el pipeline usa un token propio (`ci`) con caducidad |
+| Argo CD, Grafana | Personas | Dex (GitHub, team `devops`). Queda un acceso local de emergencia (`admin` de Grafana); el `admin` local de Argo CD se desactiva (`admin.enabled: "false"`) y el pipeline usa un token propio (`ci`) con caducidad |
 | Open WebUI | Personas | Dex (SSO, *Single Sign-On*: inicio de sesión único, con GitHub): cliente público con PKCE (*Proof Key for Code Exchange*, una protección para clientes sin secreto), sin secreto compartido. Solo SSO: sin formulario local ni registro con contraseña, ni siquiera para el primer administrador; solo entra el team `devops` |
 | vCluster, Incus | Personas | Dex (OIDC). Incus además limita el puerto `8443` por firewall |
 | SSH a los nodos | Personas | opkssh con la identidad de Dex (grupo `maceosoft:devops`); sin contraseña ni root |
@@ -29,7 +29,7 @@ y documentada cuando la autenticación no es posible.**
 | `mcpo` y herramientas MCP | Open WebUI | Clave de API (`--api-key`, item `mcp-api-key`) + NetworkPolicy; herramientas solo para administradores |
 | Kong (gateway) | Todos los que entran por `*.homelab.local` | Termina TLS. **Kong Manager** desactivado y **Admin API** solo interna (ClusterIP; su NetworkPolicy está por activar) |
 | Alertmanager, vmui/vmalert, Longhorn UI, VictoriaLogs | Personas, si hace falta | Sin login propio: son internos (ClusterIP, sin ruta). Para verlos en el navegador, `oauth2-proxy` + Dex (opcional, por activar) |
-| DNS (BIND) | Toda la LAN | No autentica: ACL a la red local, sin recursión abierta |
+| DNS (BIND) | Toda la red (LAN, otras subredes, VPN) | No autentica ni limita por origen; sin transferencias de zona, versión oculta y el puerto no se reenvía a internet |
 
 ## Qué está activo y qué está por activar
 
@@ -39,13 +39,13 @@ Algunos controles se despliegan por etapas, para no cortar el clúster de golpe.
 
 | Control | Estado |
 |---|---|
-| NetworkPolicy `default-deny` por namespace (`ai`, `monitoring`, `longhorn-system`, `kong`, `gateway`, `arc-runners`) | **Por activar**, de a una y en este orden: `netpol-ai`, `netpol-monitoring`, `netpol-longhorn-system`, `netpol-kong` y `netpol-gateway`, `netpol-arc-runners` (leer antes el README de [`security/networkpolicies/`](https://github.com/maceosoft/gitops/tree/main/security/networkpolicies)) |
+| NetworkPolicy `default-deny` por namespace (`ai`, `monitoring`, `longhorn-system`, `kong`, `gateway`, `arc-runners`) | **Por activar**, una a una y en este orden: `netpol-ai`, `netpol-monitoring`, `netpol-longhorn-system`, `netpol-kong` y `netpol-gateway`, `netpol-arc-runners` (leer antes el README de [`security/networkpolicies/`](https://github.com/maceosoft/gitops/tree/main/security/networkpolicies)) |
 | Etiquetas de Pod Security Admission (`warn`/`audit` con `restricted`) | **Por activar** (aplicación `namespace-labels`) |
 | `oauth2-proxy` delante de interfaces internas (p. ej. Alertmanager) | **Por activar** y opcional |
 | NetworkPolicy que viajan con su propia aplicación: logs (VictoriaLogs y Vector), `ai/tools`, `alert-triage` y Open Terminal (la de `ai-sandbox` va junto al pod) | **Activas** al desplegar esa aplicación |
 | Login de personas a la API de K3s: ClusterRoleBinding `oidc-devops-view` (Application `security-rbac`) | **Activo**, solo lectura (`view`); inofensivo hasta que haya OIDC |
 | K8sGPT | **Etapado**: la decisión es del usuario (ver más abajo) |
-| Tokens Bearer del router, clave de Open Terminal, Dex en Open WebUI, Kong Manager desactivado, `admin` de ArgoCD desactivado | **Activos** al desplegar |
+| Tokens Bearer del router, clave de Open Terminal, Dex en Open WebUI, Kong Manager desactivado, `admin` de Argo CD desactivado | **Activos** al desplegar |
 
 Mientras una NetworkPolicy no esté activa, el control de red de ese servicio es solo el firewall de los nodos y el
 token o la clave del propio servicio. Las tablas de abajo describen el diseño completo; la columna "Control" de las
@@ -56,7 +56,7 @@ excepciones vale cuando el control correspondiente está activo.
 Antes de publicar algo, responde estas preguntas. Si alguna no tiene respuesta, no se publica.
 
 1. **¿Quién lo usa, una persona o una máquina?**
-    - Persona: ¿habla OIDC? Entonces cliente de Dex (público con PKCE si se puede, confidencial con secreto si
+    - Persona: ¿habla OIDC? Entonces cliente de Dex (público con PKCE —Proof Key for Code Exchange— si se puede, confidencial con secreto si
       no). ¿No habla OIDC? `oauth2-proxy` delante, con `--allowed-group=maceosoft:devops`.
     - Máquina: un token propio, aleatorio (`openssl rand -hex 32`), guardado en 1Password y aplicado con
       `playbook-platform-secrets.yml`. **Un token por cliente**, para poder revocar uno sin tocar el resto.
@@ -66,7 +66,7 @@ Antes de publicar algo, responde estas preguntas. Si alguna no tiene respuesta, 
 3. **Nada de NodePort, LoadBalancer ni `hostPort`** salvo que sea imprescindible y esté en la lista de
    excepciones de abajo.
 4. **Su NetworkPolicy** del namespace: `default-deny` y permisos explícitos de ingreso y egreso.
-5. **Los secretos nunca van a git** (`homelab` es un repo público y `gitops`, aunque es privado, tampoco guarda secretos): 1Password y Secrets del clúster.
+5. **Los secretos nunca van a Git** (`homelab` es un repo público y `gitops`, aunque es privado, tampoco guarda secretos): 1Password y Secrets del clúster.
 6. **Si no puede llevar autenticación**, se agrega a la tabla de excepciones, con el motivo y el control que la sustituye.
 
 !!! info "Por qué `oauth2-proxy` y no un plugin de Kong"
@@ -140,7 +140,7 @@ El firewall que cierra los puertos de los nodos está descrito en
     (con cualquier `GlobalNetworkPolicy` de prueba). Si responde `created`, esa cuenta puede cambiar el firewall de
     los pods: quita el binding `calico-tiered-policy-passthrough` que se lo permite.
     Los pasos de mitigación están en [`security/calico-policy-edit/`](https://github.com/maceosoft/gitops/tree/main/security/calico-policy-edit).
-- **K8sGPT.** Su chart trae un ClusterRole `*/*/*` (en la práctica, administrador del clúster) y su RBAC dinámico lee
+- **K8sGPT.** Su chart trae un ClusterRole `*/*/*` (en la práctica, administrador del clúster) y su RBAC (control de acceso por roles) dinámico lee
   los Secrets de todo el clúster. Por eso está **etapado** (comentado en `root-appset.yaml`). Para activarlo hay tres
   caminos, en [`security/k8sgpt-rbac/`](https://github.com/maceosoft/gitops/tree/main/security/k8sgpt-rbac): aceptar el
   riesgo y descomentar la línea; usar el rol acotado propuesto (no está probado); o activar también la NetworkPolicy del
@@ -151,14 +151,13 @@ El firewall que cierra los puertos de los nodos está descrito en
 Lo siguiente no se activa solo: cada punto lo decide y lo ejecuta una persona.
 
 1. **Activar las NetworkPolicy `default-deny`** en el orden indicado arriba, comprobando cada namespace antes del
-   siguiente. `netpol-longhorn-system` afecta al volumen `arc-cache` de los runners (NFS): probar con un workflow de CI.
+   siguiente. `netpol-longhorn-system` afecta al volumen `arc-cache` de los runners (NFS): probar con un workflow de CI (integración continua).
 2. **K8sGPT**: aceptar el riesgo, acotar su rol o dejarlo apagado.
 3. **Mitigación de Calico**: verificar con `--dry-run=server` y, si responde `created`, retirar el binding.
 4. **Publicar interfaces internas con `oauth2-proxy`** (Alertmanager, vmui, Longhorn, VictoriaLogs): requiere un cliente de Dex
    confidencial, sus Secrets y un nombre en el DNS.
-5. **Réplica del modelo de 7B en `invincible`**: está comentada en su `host_vars`.
-6. **Proteger la rama `main`** del repo `gitops` (revisión obligatoria).
-7. **K8sGPT en el `-skip` del workflow reutilizable `core-pipelines`** (repo privado, cambio manual) mientras esté
+5. **Proteger la rama `main`** del repo `gitops` (revisión obligatoria).
+6. **K8sGPT en el `-skip` del workflow reutilizable `core-pipelines`** (repo privado, cambio manual) mientras esté
    etapado.
 
 Ver también [Asistente de IA local](../operacion/ia-ollama.md), [Gestión de secretos](../secrets/index.md) y

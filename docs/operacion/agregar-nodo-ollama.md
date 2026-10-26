@@ -100,7 +100,7 @@ El playbook aplica dos roles. `ollama_ondemand` descarga la versión de Ollama q
 del equipo (ARM64 o x86_64, con su suma de verificación) y crea el socket que lo despierta solo cuando llega una
 petición, escuchando en la IP del nodo. `ollama_node` instala el agente de registro como servicio de systemd
 (`ollama-node-register`). El token del registro lo lee de 1Password en el momento de aplicar
-(`ansible/scripts/read_ollama_registry_token.py`) y queda en `/etc/ollama-node/registry-token`; nunca va a git.
+(`ansible/scripts/read_ollama_registry_token.py`) y queda en `/etc/ollama-node/registry-token`; nunca va a Git.
 Para reaplicar solo el agente: `--tags register`. Un par de minutos después el nodo debería aparecer en el router (ver
 [Verificar](#9-verificar-que-el-nodo-quedo-registrado)).
 
@@ -198,7 +198,7 @@ de macOS.
 !!! danger "El token del registro solo sirve para registrarse"
     Con él se puede anunciar un nodo al router, nada más. **No** da acceso a la inferencia: los clientes usan
     otros tokens y el propio nodo está protegido por el router y por el firewall (ver
-    [Seguridad](#seguridad)). Aun así, no lo pegues en chats ni en git. Si usas un archivo de token, debe
+    [Seguridad](#seguridad)). Aun así, no lo pegues en chats ni en Git. Si usas un archivo de token, debe
     tener permisos `600`.
 
 ### 4. Confiar en la CA del HomeLab (si hace falta)
@@ -319,8 +319,7 @@ aviso cada 60 segundos.
 2. Ejecuta el agente portable, que es un único programa de Python estándar:
    [`ollama_node.py`](https://github.com/maceosoft/homelab/tree/main/ollama-node) con la orden `register --loop`
    (anuncio periódico; `deregister` para salir) y, si quieres arranque bajo demanda, `proxy` (pensado para macOS).
-3. O hazlo tú mismo: un `PUT /_registry/nodes/<nombre>` con la cabecera `Authorization: Bearer <token del
-   registro>` y un cuerpo JSON con `name`, `url`, `os`, `arch`, `ram_gb`, `priority`, `tags`,
+3. O hazlo tú mismo: un `PUT /_registry/nodes/<nombre>` con la cabecera `Authorization: Bearer <token del registro>` y un cuerpo JSON con `name`, `url`, `os`, `arch`, `ram_gb`, `priority`, `tags`,
    `ollama_version`, `ts` y la lista `models`. Para salir, `DELETE` sobre la misma ruta.
 
 ## Seguridad

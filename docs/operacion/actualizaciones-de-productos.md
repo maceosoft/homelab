@@ -3,7 +3,7 @@
 Cada día, [Renovate](https://docs.renovatebot.com/) revisa si salió una versión nueva de los productos que el clúster
 tiene instalados y abre un PR (pull request) en [`maceosoft/gitops`](https://github.com/maceosoft/gitops) por cada una.
 Al terminar cada corrida, el propio workflow publica un resumen en el canal `actualizaciones` de Discord. **No actualiza nada solo**: tú revisas el PR,
-lo pruebas y lo mergeas, y recién entonces ArgoCD despliega.
+lo pruebas y lo mergeas, y recién entonces Argo CD despliega.
 
 ```mermaid
 flowchart LR
@@ -20,7 +20,7 @@ flowchart LR
 
 | Detecta | Dónde mira en `gitops` |
 |---|---|
-| Charts de Helm de las Applications de ArgoCD (Kong, VictoriaMetrics, cert-manager, MetalLB, OpenEBS, Sealed Secrets, Longhorn, ARC…), incluidos los rangos como `0.95.x` o `v1.21.x` | `argocd/apps/*.yaml` |
+| Charts de Helm de las Applications de Argo CD (Kong, VictoriaMetrics, cert-manager, MetalLB, OpenEBS, Sealed Secrets, Longhorn, ARC…), incluidos los rangos como `0.95.x` o `v1.21.x` | `argocd/apps/*.yaml` |
 | Calico (tigera-operator y CRDs) | `cni/calico-operator/kustomization.yaml` |
 | CRDs de Gateway API | `gateway-api/kustomization.yaml` |
 | Imágenes con versión fija (p. ej. `busybox`) | `arc/values-scaleset.yaml` |
@@ -29,8 +29,8 @@ flowchart LR
 | No detecta | Por qué |
 |---|---|
 | **Parches de Debian de los nodos** | Ya los cubren las actualizaciones automáticas del SO y las alertas del monitoreo |
-| **K3s** | Lo actualizan los planes del SUC por el canal `stable` ([Actualizar K3s](actualizar-k3s.md)); no hay versión en git |
-| **ArgoCD** | Sigue la rama `stable` del manifiesto oficial ([Actualizar ArgoCD](actualizar-argocd.md)) |
+| **K3s** | Lo actualizan los planes del SUC por el canal `stable` ([Actualizar K3s](actualizar-k3s.md)); no hay versión en Git |
+| **Argo CD** | Sigue la rama `stable` del manifiesto oficial ([Actualizar Argo CD](actualizar-argocd.md)) |
 | **Imágenes con tag `latest`** (el runner de ARC) | No hay versión que comparar |
 | Apps opcionales **no activas** en `bootstrap/root-appset.yaml` (Traefik, NGINX Gateway, vCluster, Cilium, Canal) | Se ignoran para no generar ruido. Si activas una, quita su ruta de la regla correspondiente en `renovate.json5` |
 | `homelab` (este repo) | Sus dependencias de Python las sigue vigilando Dependabot (ver [más abajo](#y-dependabot-de-homelab)) |
@@ -42,7 +42,7 @@ Estos componentes tienen procedimiento propio. Renovate **abre el PR en borrador
 
 | Componente | Procedimiento |
 |---|---|
-| Calico | [Calico (CNI) con ArgoCD](actualizar-calico.md): sync manual, y solo de una versión menor a la siguiente |
+| Calico | [Calico (CNI) con Argo CD](actualizar-calico.md): sync manual, y solo de una versión menor a la siguiente |
 | Longhorn | De una versión menor a la siguiente, con los volúmenes sanos y respaldados, leyendo antes las notas de la versión de Longhorn |
 
 Además, **toda versión mayor** llega en un PR aparte, en borrador y con la etiqueta `mayor`. Ningún PR se mergea solo
@@ -58,9 +58,9 @@ opciones razonables:
 | Reusar la App de ARC (`maceosoft-arc-runners`) | **No.** Tiene permisos de organización (*Administration*, *Self-hosted runners*: Read and write) que Renovate no necesita, y su llave vive en el clúster, no en GitHub Actions. Usarla de otra forma amplía lo que puede hacer quien la alcance |
 | **Una App nueva `maceosoft-renovate`**, instalada solo en `gitops` | **Elegida.** Permisos mínimos, sin permisos de organización, revocable sin tocar nada más |
 
-Se usa una App y no un token personal (PAT, *personal access token*) porque no depende de una persona, expira sola (el
+Se usa una App y no un token personal (PAT, *Personal Access Token*) porque no depende de una persona, expira sola (el
 token de instalación dura 1 hora) y deja a los PRs como autoría del bot. Además, los PRs que abre una App **sí
-disparan** el pipeline de `gitops`, así que cada uno llega con su validación y su diff de ArgoCD.
+disparan** el pipeline de `gitops`, así que cada uno llega con su validación y su diff de Argo CD.
 
 ## Crear la GitHub App
 
@@ -167,11 +167,11 @@ tener el permiso **Manage Webhooks**).
 
 La URL es `https://discord.com/api/webhooks/<id numérico>/<token>`. **Guárdala en 1Password** (Nota segura
 `discord-webhooks`, campo `updates`, tipo Contraseña; si el item ya existe por el monitoreo, solo añade el campo). Es
-un secreto: no la pegues en git, en el chat ni en un ticket.
+un secreto: no la pegues en Git, en el chat ni en un ticket.
 
 ### 3. Guardarlo como secreto de Actions
 
-El workflow lee la URL de un secreto del repo, así que no aparece en git ni en el log:
+El workflow lee la URL de un secreto del repo, así que no aparece en Git ni en el log:
 
 1. En GitHub, repo **`maceosoft/gitops`** → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**.
 2. **Name:** `DISCORD_WEBHOOK_UPDATES`. **Secret:** la URL del webhook, tal cual la copiaste (**sin** `/github` al final).
@@ -210,16 +210,16 @@ Sin este secreto el workflow funciona igual, pero no avisa en Discord (el paso l
 2. **Mira el pipeline.** Debe estar en verde, y en el resumen del job `argocd-diff` revisa qué recursos cambian
    ([Pipeline de gitops](pipeline-gitops.md)).
 3. **Decide cuándo.** Una actualización de storage o de red no se hace con carga encima ni un viernes por la tarde.
-4. **Mergea** (si es borrador, pulsa antes **Ready for review**). ArgoCD sincroniza; las Applications de Calico no, esas
+4. **Mergea** (si es borrador, pulsa antes **Ready for review**). Argo CD sincroniza; las Applications de Calico no, esas
    se sincronizan a mano.
-5. **Verifica** en ArgoCD que la Application quede `Synced` y `Healthy`, y que las alertas del monitoreo no se
+5. **Verifica** en Argo CD que la Application quede `Synced` y `Healthy`, y que las alertas del monitoreo no se
    disparen. Para revertir, revierte el PR.
 6. **Si no la quieres:** cierra el PR sin mergear. Renovate no vuelve a abrir esa versión (sí la siguiente). Si lo
    cierras por error, márcalo en el *Dependency Dashboard*.
 
 !!! tip "Rangos"
     Muchas Applications fijan un rango (`0.95.x`). Un PR de Renovate lo reescribe al rango nuevo (`0.96.x`) solo cuando
-    sale una versión fuera de él; los parches dentro del rango ya los toma ArgoCD sin PR.
+    sale una versión fuera de él; los parches dentro del rango ya los toma Argo CD sin PR.
 
 ## Probar sin crear PRs
 

@@ -3,7 +3,7 @@
 Anexo de **[Fase 3 — K3s](../implementacion/fase-3-k3s.md)**.
 
 El playbook [`playbook-k3s.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-k3s.yml) instala **solo
-lo que ArgoCD no puede hacer**: binario K3s (distribución ligera de Kubernetes), kube-vip CP (control plane), controller ArgoCD,
+lo que Argo CD no puede hacer**: binario K3s (distribución ligera de Kubernetes), kube-vip CP (control plane), controller Argo CD,
 etiquetas de nodos, etc. Addons (MetalLB, Gateway, Longhorn, vCluster, …) van
 en el repo [`gitops`](https://github.com/maceosoft/gitops).
 
@@ -22,11 +22,11 @@ ansible-playbook -i inventory.ini playbook-k3s.yml
 |---|---|---|---|---|
 | Core K3s | `k3s_install.core.*` | `core` | HomeLab actual | Siempre (server/agent) |
 | kube-vip CP | `k3s_install.kube_vip.enabled` | `kube_vip` | `false` | VIP estable en `:6443`; **sin** Service LB |
-| ArgoCD controller | `k3s_install.gitops_argocd.enabled` | `argocd` | `false` | Bootstrap GitOps; apps en gitops |
+| Argo CD controller | `k3s_install.gitops_argocd.enabled` | `argocd` | `false` | Bootstrap GitOps; apps en gitops |
 | Node labels | `k3s_install.node_labels.enabled` | `labels` | `false` | Etiquetas Longhorn/arch/tier vía `host_vars` |
 | Traefik cleanup | `k3s_install.traefik_cleanup.enabled` | `traefik` | `true` | Tras install con `--disable traefik` |
 | Fetch kubeconfig | `k3s_install.fetch_kubeconfig.enabled` | `kubeconfig` | `false` | Copiar kubeconfig al operador |
-| OS hardening | `k3s_install.os_hardening.enabled` | `hardening` | `false` | `unattended-upgrades` escalonado |
+| Endurecimiento del SO | `k3s_install.os_hardening.enabled` | `hardening` | `false` | `unattended-upgrades` escalonado |
 | CNI externo | `k3s_install.core.cni` | `cni` | `flannel` | Canal, Calico o Cilium (no Flannel embebido) |
 
 <div class="card">
@@ -38,7 +38,7 @@ ansible-playbook -i inventory.ini playbook-k3s.yml
       <div class="text-muted">No reemplaza MetalLB</div>
     </div>
     <div class="card-col">
-      <div class="card-title">ArgoCD en Ansible</div>
+      <div class="card-title">Argo CD en Ansible</div>
       <div class="text-muted">Controller listo antes de Fase 4</div>
       <div class="text-muted">Más tiempo en Fase 3</div>
     </div>
@@ -53,7 +53,7 @@ ansible-playbook -i inventory.ini playbook-k3s.yml
       <div class="text-muted">Archivo local con credenciales</div>
     </div>
     <div class="card-col">
-      <div class="card-title">OS hardening</div>
+      <div class="card-title">Endurecimiento del SO</div>
       <div class="text-muted">Parches automáticos escalonados</div>
       <div class="text-muted">Reboots programados</div>
     </div>
@@ -124,8 +124,8 @@ El CNI se elige **antes de crear el clúster**: cambiarlo después en un clúste
 reinstala la red y puede dejar dos CNI peleando. Si ya instalaste con otro, el cambio es una
 migración, no un flag.
 
-Calico lo administra ArgoCD tras el bootstrap (Applications `calico-operator` + `calico-config`, sync manual; ver
-[Calico con ArgoCD](../operacion/actualizar-calico.md)). Alternativas GitOps (sync manual):
+Calico lo administra Argo CD tras el bootstrap (Applications `calico-operator` + `calico-config`, sync manual; ver
+[Calico con Argo CD](../operacion/actualizar-calico.md)). Alternativas GitOps (sync manual):
 `canal` o `cilium` en [`gitops/argocd/apps/`](https://github.com/maceosoft/gitops/tree/main/argocd/apps) —
 solo si instalaste K3s con `cni` distinto de `flannel` vía Ansible **o** aplicas el
 manifest tras `--flannel-backend=none`. **No** actives más de una app CNI (Container Network Interface) a la vez.
@@ -157,7 +157,7 @@ El play `cni` se omite si `k3s_install.core.cni` es `flannel` (default).
 
 ### kube-vip
 
-Solo VIP (IP virtual) del **control-plane** (`cp_enable=true`, `svc_enable=false`). No
+Solo VIP (IP virtual) del **control plane** (`cp_enable=true`, `svc_enable=false`). No
 sustituye MetalLB ni ServiceLB de K3s.
 
 | Campo | Default | Descripción |
@@ -199,7 +199,7 @@ Catálogo completo y guía paso a paso en [Fase 4 — GitOps](../implementacion/
 | Gateway API + cert-manager | `gateway-api`, `cert-manager`, `cert-manager-config` | auto (waves 0–1) |
 | Controlador de Gateway | `kong` (o `traefik`, `nginx-gateway`) | auto (wave 1; solo uno) |
 | Longhorn | `longhorn` | auto (wave 1) |
-| ArgoCD Dex/ruta | `argocd-route`, `argocd` | auto (wave 2) |
+| Argo CD Dex/ruta | `argocd-route`, `argocd` | auto (wave 2) |
 | K3s upgrades | `k3s-upgrade` | auto (wave 3) |
 | vCluster Platform | `vcluster-platform` | manual |
 | CAPN demo | `capn-demo` | manual |
@@ -260,7 +260,7 @@ ansible-playbook -i inventory.ini playbook-k3s.yml --tags kube_vip
 kubectl apply -f gitops/bootstrap/root-appset.yaml
 ```
 
-Para VIP + ArgoCD controller: habilitá `kube_vip.enabled: true` y
+Para VIP + Argo CD controller: habilitá `kube_vip.enabled: true` y
 `gitops_argocd.enabled: true` en `group_vars/incus_cluster/k3s_install.yml`
 antes de correr el playbook (ver el warning arriba sobre por qué `-e` no
 sirve para esto).

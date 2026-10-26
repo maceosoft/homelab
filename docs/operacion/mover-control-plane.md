@@ -27,7 +27,7 @@ hace exactamente eso, por etapas, cada una con su etiqueta (`tag`):
 
 | Etapa | Etiqueta | Qué hace | API |
 |---|---|---|---|
-| 1 | `preflight` | Verificaciones: nodos `Ready`, Longhorn sin volúmenes degradados, ArgoCD sincronizado | arriba |
+| 1 | `preflight` | Verificaciones: nodos `Ready`, Longhorn sin volúmenes degradados, Argo CD sincronizado | arriba |
 | 2 | `backup` | Backup **cifrado** del estado, guardado fuera del nodo (detiene K3s unos minutos en el origen) y generación de un *agent-token* distinto del token de servidor | cae un rato |
 | 3 | `convert` | Convierte `deborah` a etcd (`--cluster-init`) con los flags de seguridad y repunta los agentes al nombre `k3s.homelab.local` | cae un rato |
 | 4 | `join` | Drena `oliver`, quita su agent y lo une como segundo servidor | arriba |
@@ -44,11 +44,11 @@ El rollback (`--tags rollback`) **nunca corre solo**.
 
 ## Prerrequisitos
 
-- [ ] Una ventana en la que la API pueda quedar sin responder varios minutos en las etapas 2, 3 y 6: ArgoCD
+- [ ] Una ventana en la que la API pueda quedar sin responder varios minutos en las etapas 2, 3 y 6: Argo CD
       no sincroniza y `kubectl` no responde; las cargas ya en marcha siguen corriendo, salvo los pods de
       `deborah`, que se drenan en la etapa 6.
 - [ ] Acceso por SSH a `deborah` y `oliver` ([Entrar por SSH](acceso-ssh.md)) y acceso físico a `deborah`.
-- [ ] Longhorn sano y ArgoCD sincronizado (el `preflight` lo comprueba; se puede saltar lo de ArgoCD con
+- [ ] Longhorn sano y Argo CD sincronizado (el `preflight` lo comprueba; se puede saltar lo de Argo CD con
       `k3s_move_allow_unsynced`, pero no conviene).
 - [ ] `playbook-bind-dns.yml` ya aplicado, con el registro `k3s` en la zona `homelab.local`: la variable
       `k3s_api_endpoint` (`k3s.homelab.local`) reemplaza a la IP fija del control plane en los agents, el
@@ -107,7 +107,7 @@ control en vez de `curl | sh`. El certificado de administrador queda solo para e
 | Qué | Cómo |
 |---|---|
 | Nodos | `kubectl get nodes -o wide`: `oliver` con rol `control-plane`, y los tres en `Ready` |
-| ArgoCD | `kubectl -n argocd get applications`: todas `Synced` y `Healthy` |
+| Argo CD | `kubectl -n argocd get applications`: todas `Synced` y `Healthy` |
 | Longhorn | UI o `kubectl -n longhorn-system get volumes.longhorn.io`: sin volúmenes degradados |
 | Kong | `curl -kI https://argocd.homelab.local` responde |
 | DNS | `dig +short k3s.homelab.local @192.168.20.5` devuelve la IP de `oliver` |
@@ -160,15 +160,15 @@ dejarlo como estaba.
    clave o contraseña con la que cifraste el backup. El backup en claro y los archivos `/root/k3s-move-*` de los nodos
    se borran solos al final (`shred`); lo único que queda es el backup cifrado en tu equipo, que es el que sirve para el
    rollback.
-3. **Revisa ArgoCD, Longhorn y Kong** con la tabla de [Verificación](#verificacion).
+3. **Revisa Argo CD, Longhorn y Kong** con la tabla de [Verificación](#verificacion).
 4. **Permisos del login con Dex.** El repo `gitops` trae el ClusterRoleBinding
    [`oidc-devops-view`](https://github.com/maceosoft/gitops/blob/main/security/rbac/oidc-devops.yaml)
    (Application `security-rbac`, ya activa), que da el ClusterRole `view` (solo lectura) al grupo
    `oidc:maceosoft:devops`. Es inofensivo hasta que haya tokens OIDC.
 
     !!! info "Por qué solo lectura y no `cluster-admin`"
-        Entrar con Dex no debe dar control total del clúster por defecto: el cambio de estado pasa por git y
-        ArgoCD, y el certificado de administrador queda para emergencias. Si una persona necesita escribir en un
+        Entrar con Dex no debe dar control total del clúster por defecto: el cambio de estado pasa por Git y
+        Argo CD, y el certificado de administrador queda para emergencias. Si una persona necesita escribir en un
         namespace, amplía con un `RoleBinding` que enlace el ClusterRole `edit` al mismo grupo **solo en ese
         namespace**, en lugar de ampliar el ClusterRoleBinding.
 

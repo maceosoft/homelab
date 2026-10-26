@@ -44,7 +44,7 @@
   when: host_hardening_ssh_password_authentication == "no"
 
 # --- SSH ------------------------------------------------------------------
-- name: "Verificar: la cuenta de conexion esta en AllowUsers (no quedar afuera)"
+- name: "Verificar: la cuenta de conexión está en AllowUsers (no quedar afuera)"
   ansible.builtin.assert:
     that: host_hardening_connect_user in host_hardening_ssh_allow_users
     fail_msg: >-
@@ -108,7 +108,7 @@
     - item.item not in host_hardening_known_default_accounts + host_hardening_purge_default_accounts
 
 # --- Eliminar cuentas por defecto (borrado completo, home incluido) -
-- name: "Verificar: nunca eliminar la cuenta con la que Ansible esta conectado"
+- name: "Verificar: nunca eliminar la cuenta con la que Ansible está conectado"
   ansible.builtin.assert:
     that: host_hardening_connect_user not in host_hardening_known_default_accounts + host_hardening_purge_default_accounts
     fail_msg: >-

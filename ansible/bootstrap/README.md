@@ -76,7 +76,7 @@ Todos con `--limit <host>` para un nodo puntual.
 - `playbook-dex-oauth-secrets.yml` — secretos OAuth a nivel de clúster
   (Argo CD/Incus/vCluster), se corre una vez que K3s+Argo CD ya están
   arriba, no por nodo. Ver [Gestión de secretos](../../docs/secrets/index.md).
-- `playbook-uninstall-k3s.yml` — apéndice fuera del flujo feliz.
+- `playbook-k3s-uninstall.yml` — apéndice fuera del recorrido normal.
 
 ## Por qué no es un solo playbook encadenado
 

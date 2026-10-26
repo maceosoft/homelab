@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
-"""Prueba lectura 1Password SDK (DesktopAuth, app local).
+"""Comprueba que el SDK de 1Password (DesktopAuth, app local) lee un campo.
 
-Lee los secretos de Dex del ítem maceosoft-dex (bóveda HomeLab):
-  op://HomeLab/maceosoft-dex/GITHUB_CLIENT_ID
+Lee un campo del ítem maceosoft-dex (bóveda HomeLab), por defecto
+op://HomeLab/maceosoft-dex/GITHUB_CLIENT_ID, y solo informa si existe y su largo:
+nunca imprime el valor.
 
 Uso:
   export ONEPASSWORD_ACCOUNT_NAME="Mi Cuenta"   # si tu cuenta no se llama Personal
-  python3 ansible/scripts/test-1password.py
+  python3 ansible/scripts/check_1password.py
 
   # Un solo campo:
-  python3 ansible/scripts/test-1password.py GITHUB_CLIENT_ID
+  python3 ansible/scripts/check_1password.py GITHUB_CLIENT_ID
 """
 from __future__ import annotations
 
@@ -34,7 +35,7 @@ async def main() -> int:
     print(f"1Password {config_summary()} campo={field!r}")
     client = await create_client()
     value = await resolve_field(client, field)
-    print(value)
+    print(f"{field}: OK ({len(value)} caracteres)" if value else f"{field}: vacío")
     return 0
 
 

@@ -4,9 +4,7 @@ import json
 import os
 import shutil
 import threading
-import time
 import unittest
-import urllib.error
 
 from helpers import FakeRegistry, ModelsTree, base_cfg, make_self_signed, ollama_node, tmpdir, wait_for
 

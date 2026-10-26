@@ -32,6 +32,8 @@ Uso:
     python translate_docs.py --check         # exit 1 si hay algo pendiente (sin llamar al modelo)
     python translate_docs.py --force         # retraduce todo
     python translate_docs.py docs/index.md   # solo esos archivos
+    python translate_docs.py --max-minutes 90  # no empieza páginas nuevas pasados 90 min (sale con 3)
+    python translate_docs.py --fix-anchors   # solo corrige los anclas entre páginas de los .en.md
 
 El primer request despierta la máquina de Ollama (arranque en frío): la conexión se reintenta
 hasta ~5 minutos. En CPU una corrida completa tarda horas; los workers por defecto son 1.
@@ -111,14 +113,20 @@ SNIPPET_RE = re.compile(r"^[ \t]*-{2}8<-{2}.*$")
 INLINE_CODE_RE = re.compile(r"(?<!`)(`+)(?!`)(.+?)(?<!`)\1(?!`)")
 HEADING_RE = re.compile(r"^(#{1,6})[ \t]+\S")
 LINK_RE = re.compile(r"!?\[[^\]\n]*\]\([^)\n]*\)")
+# Destino de un enlace Markdown (`](destino "título")`) y atributos href/src del HTML crudo: el modelo no los ve,
+# porque tiende a "traducir" rutas como ../implementacion/ y deja el enlace roto.
+LINK_DEST_RE = re.compile(r"(\]\()([^)\s]+(?:\s+\"[^\"]*\")?)(\))")
+HTML_URL_RE = re.compile(r'((?:href|src)=")([^"]*)(")')
 ABBR_KEY_RE = re.compile(r"^\*\[([^\]]+)\]:", re.MULTILINE)
 
 
 class Masker:
     """Reemplaza el contenido protegido por marcadores únicos y lo restituye bit a bit."""
 
-    def __init__(self) -> None:
+    def __init__(self, links: bool = True) -> None:
         self.store: dict[str, str] = {}
+        # links=False deja visibles los destinos de enlaces (para reescribir anclas sobre la traducción).
+        self.links = links
 
     def _token(self, original: str) -> str:
         tok = f"@@CODE_{len(self.store) + 1:04d}@@"
@@ -161,7 +169,11 @@ class Masker:
                 out.append(indent + self._token(line[len(indent) :]))
                 i += 1
                 continue
-            out.append(INLINE_CODE_RE.sub(lambda mm: self._token(mm.group(0)), line))
+            line = INLINE_CODE_RE.sub(lambda mm: self._token(mm.group(0)), line)
+            if self.links:
+                line = LINK_DEST_RE.sub(lambda mm: mm.group(1) + self._token(mm.group(2)) + mm.group(3), line)
+                line = HTML_URL_RE.sub(lambda mm: mm.group(1) + self._token(mm.group(2)) + mm.group(3), line)
+            out.append(line)
             i += 1
         return "\n".join(out)
 
@@ -296,19 +308,18 @@ def heading_slugs(masked: str, masker: Masker) -> list[str]:
     return slugs
 
 
-def rewrite_anchors(src_masked: str, out_masked: str, masker: Masker) -> str:
+def rewrite_anchors(source: str, translated: str) -> str:
     """Reescribe los enlaces `](#slug-es)` de la misma página al slug del encabezado inglés."""
-    es, en = heading_slugs(src_masked, masker), heading_slugs(out_masked, masker)
-    if len(es) != len(en):
-        return out_masked
-    mapping = {a: b for a, b in zip(es, en) if a != b}
+    mapping = slug_map(source, translated)
     if not mapping:
-        return out_masked
-    return re.sub(
+        return translated
+    masker = Masker(links=False)  # solo el código queda protegido: los destinos tienen que verse
+    masked = re.sub(
         r"\]\(#([^)\s]+)\)",
         lambda m: f"](#{mapping.get(m.group(1), m.group(1))})",
-        out_masked,
+        masker.mask(translated),
     )
+    return masker.unmask(masked)
 
 
 # --------------------------------------------------------------------------------------------
@@ -415,11 +426,53 @@ def translate_text(source: str, call) -> str:
     reason = validate(masked, out_masked)
     if reason:
         raise ValueError(f"página completa: {reason}")
-    out_masked = rewrite_anchors(masked, out_masked, masker)
-    result = masker.unmask(out_masked)
+    result = rewrite_anchors(source, masker.unmask(out_masked))
     if not result.endswith("\n"):
         result += "\n"
     return result
+
+
+CROSS_LINK_RE = re.compile(r"\]\((?P<path>[^)#\s]+\.md)#(?P<slug>[^)\s]+)\)")
+
+
+def slug_map(source: str, translated: str) -> dict[str, str]:
+    """Slug en español -> slug en inglés de los encabezados de una página (vacío si no cuadran)."""
+    src_masker, out_masker = Masker(), Masker()
+    es = heading_slugs(src_masker.mask(source), src_masker)
+    en = heading_slugs(out_masker.mask(translated), out_masker)
+    if len(es) != len(en):
+        return {}
+    return {a: b for a, b in zip(es, en) if a != b}
+
+
+def fix_cross_page_anchors(sources: list[Path]) -> int:
+    """Reescribe los `](otra.md#slug-es)` de los .en.md al slug inglés de la página destino.
+
+    rewrite_anchors solo resuelve los enlaces dentro de la misma página; un enlace a un encabezado de
+    otra página quedaría apuntando al slug en español, que no existe en la versión inglesa.
+    """
+    maps: dict[Path, dict[str, str]] = {}
+    for src in sources:
+        if en_path(src).exists():
+            maps[src.resolve()] = slug_map(src.read_text(encoding="utf-8"), en_path(src).read_text(encoding="utf-8"))
+    changed = 0
+    for src in sources:
+        target = en_path(src)
+        if not target.exists():
+            continue
+        masker = Masker(links=False)
+        masked = masker.mask(target.read_text(encoding="utf-8"))
+
+        def repl(m: re.Match) -> str:
+            dest = (src.parent / m.group("path")).resolve()
+            new = maps.get(dest, {}).get(m.group("slug"), m.group("slug"))
+            return f"]({m.group('path')}#{new})"
+
+        fixed = CROSS_LINK_RE.sub(repl, masked)
+        if fixed != masked:
+            target.write_text(masker.unmask(fixed), encoding="utf-8")
+            changed += 1
+    return changed
 
 
 # --------------------------------------------------------------------------------------------
@@ -480,11 +533,22 @@ def main() -> int:
     ap.add_argument("--dry-run", action="store_true", help="solo listar lo pendiente")
     ap.add_argument("--check", action="store_true", help="exit 1 si hay traducciones pendientes")
     ap.add_argument("--workers", type=int, default=1, help="páginas en paralelo (default 1)")
+    ap.add_argument(
+        "--max-minutes",
+        type=float,
+        default=0,
+        help="presupuesto de tiempo: pasado este tope no se empiezan páginas nuevas (0 = sin tope); "
+        "lo pendiente queda para la próxima corrida y el script sale con 3",
+    )
+    ap.add_argument("--fix-anchors", action="store_true", help="solo corregir los anclas entre páginas de los .en.md")
     ap.add_argument("--model", default=os.environ.get("TRANSLATE_MODEL", DEFAULT_MODEL))
     ap.add_argument("--url", default=os.environ.get("OLLAMA_URL", DEFAULT_URL))
     args = ap.parse_args()
 
     manifest = load_manifest()
+    if args.fix_anchors:
+        print(f"anclas corregidas en {fix_cross_page_anchors(find_sources([]))} páginas")
+        return 0
     sources = find_sources(args.files)
     pending: list[tuple[Path, str]] = []
     for src in sources:
@@ -527,9 +591,16 @@ def main() -> int:
         return ollama_chat(args.url, args.model, SYSTEM_PROMPT, user, token)
 
     failed: list[str] = []
+    skipped: list[str] = []
+    deadline = time.monotonic() + args.max_minutes * 60 if args.max_minutes > 0 else None
+
+    class BudgetExceeded(Exception):
+        pass
 
     def work(item: tuple[Path, str]) -> tuple[Path, str]:
         src, digest = item
+        if deadline is not None and time.monotonic() > deadline:
+            raise BudgetExceeded
         out = translate_text(src.read_text(encoding="utf-8"), call)
         en_path(src).write_text(out, encoding="utf-8")
         return src, digest
@@ -540,6 +611,9 @@ def main() -> int:
             src = futures[fut]
             try:
                 done, digest = fut.result()
+            except BudgetExceeded:
+                skipped.append(rel(src))
+                continue
             except Exception as exc:  # noqa: BLE001 - se informa y se sigue con el resto
                 failed.append(rel(src))
                 print(f"  DESCARTADA {rel(src)}: {exc}", file=sys.stderr)
@@ -548,6 +622,15 @@ def main() -> int:
             save_manifest(manifest)  # progreso guardado: una corrida de horas puede interrumpirse
             print(f"  ok    {rel(done)} -> {en_path(done).name}")
 
+    fixed = fix_cross_page_anchors(find_sources([]))
+    if fixed:
+        print(f"anclas entre páginas corregidas en {fixed} .en.md")
+
+    if skipped:
+        print(
+            f"presupuesto de {args.max_minutes:g} min agotado: {len(skipped)} páginas quedan para la próxima corrida",
+            file=sys.stderr,
+        )
     if failed:
         print(
             f"{len(failed)} páginas descartadas (sin .en.md); se reintentan en la próxima corrida:",
@@ -556,7 +639,7 @@ def main() -> int:
         for f in failed:
             print(f"  - {f}", file=sys.stderr)
         return 1
-    return 0
+    return 3 if skipped else 0
 
 
 if __name__ == "__main__":

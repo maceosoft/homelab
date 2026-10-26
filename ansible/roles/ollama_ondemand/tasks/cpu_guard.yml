@@ -1,0 +1,42 @@
+---
+# Guardia de CPU: si ollama.service pasa ollama_ondemand_cpu_guard_hours horas por encima del umbral, lo detiene
+# (con el socket) y lo publica en node-exporter para que salte la alerta OllamaDetenidoPorCPU.
+
+- name: Crear la carpeta del textfile collector de node-exporter
+  ansible.builtin.file:
+    path: "{{ ollama_ondemand_textfile_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Instalar el script de la guardia de CPU
+  ansible.builtin.copy:
+    src: ollama-cpu-guard.sh
+    dest: /usr/local/bin/ollama-cpu-guard
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Instalar el servicio y el temporizador de la guardia
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - ollama-cpu-guard.service
+    - ollama-cpu-guard.timer
+  notify: Recargar systemd
+
+- name: Aplicar las unidades nuevas antes de habilitar el temporizador
+  ansible.builtin.meta: flush_handlers
+
+- name: Habilitar el temporizador de la guardia
+  ansible.builtin.systemd:
+    name: ollama-cpu-guard.timer
+    enabled: "{{ ollama_ondemand_cpu_guard_enabled | bool }}"
+    state: "{{ 'started' if ollama_ondemand_cpu_guard_enabled | bool else 'stopped' }}"
+    daemon_reload: true
+  when: not ansible_check_mode

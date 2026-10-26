@@ -28,7 +28,7 @@ Detalle completo en [`docs/hardware/inventory.md`](docs/hardware/inventory.md).
 C4Context
     title Diagrama de Contexto (C4 Nivel 1) - Plataforma HomeLab
 
-    Person(operador, "Operador HomeLab", "kubectl / SSH / ArgoCD UI")
+    Person(operador, "Operador HomeLab", "kubectl / SSH / Argo CD UI")
     System(plataforma, "Plataforma HomeLab", "K3s + Incus + CAPN")
     System_Ext(git, "Git remoto", "Fuente de manifiestos")
     System_Ext(registro, "Registro de imágenes", "images.linuxcontainers.org")
@@ -42,25 +42,29 @@ C4Context
     BiRel(plataforma, lan, "Bridge L2")
 ```
 
-Diagramas completos (Nivel 1 y 2) en [`docs/architecture/`](docs/architecture/).
+Diagramas completos (niveles 1 a 4) en [`docs/architecture/`](docs/architecture/).
 
 ## Estructura del repo
 
 ```
 .
 ├── docs/                  # documentación (fuente de verdad humana, publicada en Pages)
+├── includes/              # siglas con tooltip en todas las páginas (abbreviations.md)
+├── hooks/                 # hooks de MkDocs (siglas por idioma)
 ├── mkdocs.yml             # config del sitio MkDocs
-├── ansible/               # bootstrap bare-metal: Incus, netplan, K3s, kube-vip, ArgoCD controller
+├── translate_docs.py      # traducción al inglés (*.en.md) con el Ollama del HomeLab
+├── ansible/               # bare-metal: Incus, netplan, K3s, BIND, firewall, Ollama, métricas de nodo
 ├── opentofu/              # recursos declarativos de Incus (perfiles, redes, cluster groups)
+├── ollama-node/           # agente de nodo del Ollama dinámico (nodos Linux y Mac)
 ├── cinc-lab/              # cookbooks de prueba para el sandbox Cinc/Chef
-└── .github/workflows/     # CI: deploy de docs + lint
+└── .github/workflows/     # CI: deploy y traducción de docs + lint
 ```
 
 ## Sitio de documentación (MkDocs + GitHub Pages)
 
 `docs/` se publica automáticamente como sitio estático vía GitHub Actions
 (`.github/workflows/deploy-docs.yml`) en cada push a `main` que toque
-`docs/`, `mkdocs.yml` o `requirements.txt`. Índice completo, con búsqueda,
+`docs/`, `includes/`, `hooks/`, `mkdocs.yml` o `requirements-docs.txt`. Índice completo, con búsqueda,
 en el sitio publicado (link arriba).
 
 Con la CLI de GitHub (`gh`):
@@ -76,14 +80,14 @@ gh api repos/maceosoft/homelab/pages
 
 **Desarrollo local:**
 ```bash
-pip install -r requirements.txt
+# solo lo del sitio (requirements.txt trae además Ansible, lint y 1Password)
+pip install -r requirements-docs.txt
 # http://127.0.0.1:8000, con recarga en vivo
 mkdocs serve
 ```
 
 ## Estado
 
-🚧 En construcción activa — guía MkDocs y playbooks Ansible listos; bootstrap
-bare-metal (Incus, K3s, GitOps) sigue el recorrido en
-[`docs/implementacion/`](docs/implementacion/). K3s v1.36.2 documentado; CNI
-default Calico; CAPN y vCluster opcionales (sync manual).
+🚧 En construcción activa. El bootstrap bare-metal (Incus, K3s, GitOps) sigue el recorrido de
+[`docs/implementacion/`](docs/implementacion/). K3s se instala con la versión de `k3s_install.core.version` y después
+se actualiza solo; el CNI es Calico; CAPN y vCluster son opcionales (sync manual).

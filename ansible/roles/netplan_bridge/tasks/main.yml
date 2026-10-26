@@ -1,7 +1,7 @@
 ---
 # Debian: netplan + br0 en todos los nodos Incus, y /etc/resolv.conf estatico.
 
-- name: Confirmar interfaz fisica real antes de tocar la red
+- name: Confirmar interfaz física real antes de tocar la red
   ansible.builtin.command: ip -br link
   register: netplan_bridge_ip_links
   changed_when: false
@@ -79,7 +79,7 @@
     group: root
     mode: "0755"
 
-- name: Detectar ifupdown gestionando la interfaz fisica
+- name: Detectar ifupdown gestionando la interfaz física
   ansible.builtin.shell: |
     set -o pipefail
     grep -rE '(^|[[:space:]])(auto|iface)[[:space:]]+{{ bridge_iface }}([[:space:]]|$)' \
@@ -100,7 +100,7 @@
     - netplan_bridge_ifupdown_iface.stdout | length > 0
     - not ansible_check_mode
 
-- name: Quitar configuracion ifupdown de la interfaz fisica (conflicto con netplan)
+- name: Quitar configuración ifupdown de la interfaz física (conflicto con netplan)
   ansible.builtin.copy:
     dest: /etc/network/interfaces
     content: |
@@ -114,13 +114,13 @@
     - netplan_bridge_ifupdown_iface.stdout | length > 0
     - not ansible_check_mode
 
-- name: Desactivar ifupdown en interfaces.d para la NIC fisica
+- name: Desactivar ifupdown en interfaces.d para la NIC física
   ansible.builtin.file:
     path: "/etc/network/interfaces.d/{{ bridge_iface }}.cfg"
     state: absent
   when: not ansible_check_mode
 
-- name: Pausa de seguridad -- aplicar netplan puede cortar la sesion SSH actual
+- name: Pausa de seguridad -- aplicar netplan puede cortar la sesión SSH actual
   ansible.builtin.pause:
     prompt: >-
       Se va a fijar {{ inventory_hostname }} en {{ static_ip }} via {{ bridge_iface }} (br0),
@@ -195,7 +195,7 @@
     - not ansible_check_mode
     - netplan_bridge_config is changed
 
-- name: Resetear conexion SSH tras cambio de IP
+- name: Resetear conexión SSH tras cambio de IP
   ansible.builtin.meta: reset_connection
   when:
     - not ansible_check_mode

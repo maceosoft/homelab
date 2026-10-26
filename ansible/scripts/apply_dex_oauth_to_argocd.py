@@ -26,6 +26,7 @@ NAMESPACE = "argocd"
 
 
 def patch_argocd_secret(string_data: dict[str, str]) -> None:
+    # El parche va por stdin: en argv quedaría visible en `ps` y en el mensaje de error de CalledProcessError.
     subprocess.run(
         [
             "kubectl",
@@ -36,9 +37,11 @@ def patch_argocd_secret(string_data: dict[str, str]) -> None:
             NAMESPACE,
             "--type",
             "merge",
-            "-p",
-            json.dumps({"stringData": string_data}),
+            "--patch-file",
+            "/dev/stdin",
         ],
+        input=json.dumps({"stringData": string_data}),
+        text=True,
         check=True,
     )
 

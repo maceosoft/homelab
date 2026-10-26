@@ -84,6 +84,8 @@ k3s_install:
     enabled: true
     dest: "{{ lookup('env', 'HOME') }}/.kube/homelab-k3s.yaml"
 
+  # unattended-upgrades con reinicio escalonado (rol k3s_os_hardening). Apagado a propósito: los parches
+  # se aplican a mano al llegar el aviso (docs/operacion/parchear-nodos.md).
   os_hardening:
     enabled: false
     reboot_schedule:

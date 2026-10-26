@@ -2,12 +2,12 @@
 
 ## Objetivo
 
-Clúster **Incus** de 3 nodos con quorum, cluster groups por arquitectura y
+Clúster **Incus** de 3 nodos con quórum, cluster groups por arquitectura y
 `oliver` en scheduler manual.
 
 ## Qué aprendes
 
-Incus como **hipervisor compartido**: quorum dqlite en 3 miembros, cluster
+Incus como **hipervisor compartido**: quórum dqlite en 3 miembros, cluster
 groups para dirigir cargas x86 vs ARM64 (arquitectura ARM de 64 bits), y scheduler manual para proteger RAM.
 
 !!! abstract "Aprende esta fase"
@@ -21,7 +21,7 @@ groups para dirigir cargas x86 vs ARM64 (arquitectura ARM de 64 bits), y schedul
     - **Clúster y quórum:** con 3 miembros, el clúster decide por mayoría y tolera la caída de uno.
     - **Cluster group:** una etiqueta para dirigir cargas a un tipo de nodo (por ejemplo, solo ARM64).
     - **x86_64 y ARM64:** dos arquitecturas de procesador distintas; no se mezclan en una misma instancia.
-    - **Scheduler manual:** el nodo `oliver` no recibe instancias solo; protege su memoria.
+    - **Scheduler manual:** el nodo `oliver` no recibe instancias automáticamente; protege su memoria.
 
     **Reto práctico (solo lectura):** mira los miembros del clúster y sus instancias.
 
@@ -56,7 +56,7 @@ flowchart TB
   NOL --> CGx86
 ```
 
-- **[Incus](https://linuxcontainers.org/incus/docs/main/)** — Virtualización LXC/VM; Fase 2.
+- **[Incus](https://linuxcontainers.org/incus/docs/main/)** — Virtualización LXC (contenedores de sistema de Linux)/VM; Fase 2.
 - **[Zabbly Incus stable](https://github.com/zabbly/incus-stable)** — Paquetes Debian; Fase 2.
 - **[Ansible](https://docs.ansible.com/)** — Instala paquete, bootstrap, join, groups, UI (interfaz de usuario).
 - Roles: [`incus_install`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/incus_install/README.md),
@@ -205,17 +205,16 @@ Ansible instala `incus-ui-canonical` y `core.https_address` en **invincible**
 
 !!! note "OIDC con Dex"
     El login SSO (GitHub vía Dex) se configura en
-    **[Fase 4 — Incus UI OIDC](fase-4-gitops.md#incus-ui-oidc)**.
+    **[Fase 4 — Incus UI OIDC (OpenID Connect)](fase-4-gitops.md#incus-ui-oidc)**.
     Solo entra el team `devops` de `maceosoft` (filtro de Dex) y, con la configuración por defecto
-    de Incus, esos usuarios OIDC (OpenID Connect) tienen acceso completo.
+    de Incus, esos usuarios OIDC tienen acceso completo.
 
 Profundización: [Clúster Incus — UI](../incus/cluster-setup.md#ui-de-administracion)
-· [Backup y snapshots (opcional)](../incus/cluster-setup.md#backup-y-snapshots-opcional)
 
 ## Backup y snapshots (opcional)
 
-No se configuran en el bootstrap. Ver
-[Backup y snapshots](../incus/cluster-setup.md#backup-y-snapshots-opcional).
+No se configuran en el bootstrap. El procedimiento está en [Backups de Incus](../operacion/backups-incus.md); las
+alternativas, en [Backup y snapshots](../incus/cluster-setup.md#backup-y-snapshots-opcional).
 
 ## Opciones
 
@@ -226,7 +225,7 @@ No se configuran en el bootstrap. Ver
 | Pool en deborah | Ruta default en eMMC | `incus_storage_path` en NVMe (`/srv/incus/...`) |
 
 !!! warning "Cambiar driver en clúster existente"
-    Un clúster ya inicializado **no** se puede re-preseed sin migración manual.
+    Un clúster ya inicializado **no** se puede volver a inicializar con un preseed sin migración manual.
     Elige el driver antes del primer `playbook-incus-cluster.yml`.
 
 <div class="card">
@@ -290,4 +289,4 @@ curl -kI https://incus.homelab.local:8443
 
 **[→ Fase 3 — K3s](fase-3-k3s.md)**
 
-URLs y `/etc/hosts` globales: [Resumen del HomeLab](resumen-homelab.md) (tras Fase 6).
+URLs y `/etc/hosts` globales: [Resumen del HomeLab](resumen-homelab.md) (tras la Fase 4).

@@ -32,7 +32,7 @@ flowchart TB
 ```
 
 - **[OpenEBS](https://openebs.io/docs)** — LocalPV default; 3 nodos; sin replicación.
-- **[Longhorn](https://longhorn.io/docs/)** — Replicado x86↔arm64; solo invincible + deborah.
+- **[Longhorn](https://longhorn.io/docs/)** — Replicado x86↔arm64; pensado para invincible + deborah (ver [Longhorn v1](#longhorn-v1-ha-selectiva-cross-arch)).
 
 ## OpenEBS LocalPV (default)
 
@@ -42,7 +42,7 @@ Desplegado vía Argo CD Application `openebs` (Helm).
 
 ## Longhorn v1 (HA selectiva, cross-arch)
 
-**Usar siempre el motor v1 (default), nunca v2/SPDK**: v2 tiene un bug
+**Usar siempre el motor v1 (default), nunca v2/SPDK** (Storage Performance Development Kit): v2 tiene un bug
 documentado de I/O bloqueado en ARM64 con NVMe (disco SSD por PCIe) + 2 núcleos.
 
 Su UI no tiene pantalla de login y no está publicada por el Gateway: se abre con
@@ -208,13 +208,13 @@ spec:
 
 ## Actualizar y reinstalar Longhorn
 
-Longhorn solo soporta subir **de a una versión menor** (1.6 → 1.7 → … → 1.13). Si el chart salta versiones, el Job
+Longhorn solo soporta subir **una versión menor cada vez** (1.6 → 1.7 → … → 1.13). Si el chart salta versiones, el Job
 `longhorn-pre-upgrade` falla a propósito y, si lo desactivas, los `longhorn-manager` nuevos se caen con
 `upgrading from vX to vY for minor version is not supported`. **En una actualización no desactives ese Job.** En una
 instalación limpia con Argo CD sí hay que desactivarlo (`preUpgradeChecker.jobEnabled: false`): corre antes que su
 ServiceAccount, no puede crear el pod y el sync queda esperándolo para siempre.
 
-Si lo que guarda Longhorn se puede perder (en el HomeLab, el caché de ARC), es más rápido **reinstalarlo desde cero** en
+Si lo que guarda Longhorn se puede perder (en el HomeLab, el caché de ARC —Actions Runner Controller—), es más rápido **reinstalarlo desde cero** en
 la versión nueva que subir por cada versión intermedia. Usa
 [`playbook-reset-longhorn.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-reset-longhorn.yml),
 que es **destructivo** (borra los PVC, los volúmenes, las CRD, el namespace y `/var/lib/longhorn` de cada nodo) y seguro

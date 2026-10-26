@@ -63,7 +63,7 @@ flowchart LR
     </div>
     <div class="card stepper-card">
       <div class="card-title"><a href="fase-3-k3s/">K3s</a> <span class="tag tag-accent">Completada</span></div>
-      <div class="card-body">Management cluster + ArgoCD controller.</div>
+      <div class="card-body">Management cluster + Argo CD controller.</div>
       <div class="card-meta"><code>playbook-k3s.yml</code></div>
     </div>
   </div>
@@ -108,7 +108,7 @@ URLs, `/etc/hosts`, nodos y verificación.
 
 | Repo | Qué instala | Herramienta |
 |---|---|---|
-| [`homelab`](https://github.com/maceosoft/homelab) | Red SO, Incus, K3s, kube-vip, controller ArgoCD | [Ansible](https://docs.ansible.com/) |
+| [`homelab`](https://github.com/maceosoft/homelab) | Red SO, Incus, K3s, kube-vip, controller Argo CD | [Ansible](https://docs.ansible.com/) |
 | [`gitops`](https://github.com/maceosoft/gitops) | MetalLB, Gateway API, storage, vCluster, CAPN, … | [Argo CD](https://argo-cd.readthedocs.io/) |
 
 ## Stack tecnológico
@@ -160,7 +160,7 @@ Vista arquitectónica complementaria: [Arquitectura C4](../architecture/overview
     </div>
     <div class="card-col">
       <div class="card-title">1Password SDK</div>
-      <div class="text-muted">Secretos fuera de git; DesktopAuth local</div>
+      <div class="text-muted">Secretos fuera de Git; DesktopAuth local</div>
       <div class="text-muted">Requiere app 1Password desbloqueada en la estación</div>
     </div>
     <div class="card-col">
@@ -170,13 +170,13 @@ Vista arquitectónica complementaria: [Arquitectura C4](../architecture/overview
     </div>
     <div class="card-col">
       <div class="card-title">Sync manual vCluster/CAPN</div>
-      <div class="text-muted">Evita borrados accidentales de clusters efímeros</div>
+      <div class="text-muted">Evita borrados accidentales de clústeres efímeros</div>
       <div class="text-muted">Paso extra en Argo CD UI</div>
     </div>
     <div class="card-col">
       <div class="card-title">Longhorn</div>
       <div class="text-muted">Replicación x86↔arm64</div>
-      <div class="text-muted">Solo 2 nodos; más pods que OpenEBS</div>
+      <div class="text-muted">Pensado para 2 nodos; más pods que OpenEBS</div>
     </div>
     <div class="card-col">
       <div class="card-title">Solo OpenEBS</div>
@@ -206,4 +206,4 @@ y todavía no se ha hecho.
 
 **[→ Fase 0 — Preparación](fase-0-preparacion.md)**
 
-Apéndice fuera del flujo feliz: [Desinstalar K3s](apendice-desinstalar.md).
+Apéndice fuera del recorrido normal: [Desinstalar K3s](apendice-desinstalar.md).

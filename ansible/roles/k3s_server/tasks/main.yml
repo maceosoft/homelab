@@ -34,7 +34,7 @@
     - k3s_install.security.oidc.ca_file | length > 0
 
 # Igual que en k3s_agent: se necesita el código de salida de systemctl is-active.
-- name: Comprobar si K3s server ya esta activo  # noqa: command-instead-of-module
+- name: Comprobar si K3s server ya está activo  # noqa: command-instead-of-module
   ansible.builtin.command: systemctl is-active k3s
   register: k3s_server_active
   changed_when: false
@@ -96,7 +96,7 @@
     - not ansible_check_mode
     - k3s_server_active.stdout != "active" or k3s_server_reconfigure | bool
 
-- name: Leer token de union para workers
+- name: Leer token de unión para workers
   ansible.builtin.slurp:
     src: /var/lib/rancher/k3s/server/node-token
   register: k3s_server_node_token

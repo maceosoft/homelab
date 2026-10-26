@@ -48,7 +48,7 @@ Primero, una simulación. No drena ni reinicia: muestra qué paquetes se actuali
 ansible-playbook -i inventory.ini playbook-parchear.yml --check
 ```
 
-Después, de a un nodo, o todos seguidos:
+Después, nodo a nodo, o todos seguidos:
 
 ```bash
 ansible-playbook -i inventory.ini playbook-parchear.yml -l oliver

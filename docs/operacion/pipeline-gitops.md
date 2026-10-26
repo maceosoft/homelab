@@ -1,7 +1,7 @@
 # Pipeline de gitops
 
 Cada cambio en [`maceosoft/gitops`](https://github.com/maceosoft/gitops) se
-valida **antes** de que ArgoCD lo aplique en el clúster. Lo hace el workflow
+valida **antes** de que Argo CD lo aplique en el clúster. Lo hace el workflow
 reutilizable
 [`gitops.yml`](https://github.com/maceosoft/core-pipelines/blob/main/.github/workflows/gitops.yml)
 de `core-pipelines`, llamado desde `gitops/.github/workflows/validate.yml`.
@@ -17,23 +17,23 @@ verificadas por `sha256`.
 | `render` | PR y push a `main` | yamllint; `kustomize build`; `helm template` de cada Application con chart, con sus values; la lista del ApplicationSet `bootstrap/root-appset.yaml` | YAML inválido, un chart o kustomize que no renderiza, una app de la lista sin archivo (o al revés) |
 | `schemas` | PR y push a `main` | Cada manifiesto, y lo renderizado, contra el esquema de Kubernetes y de los CRD (Custom Resource Definition): Application, MetalLB, planes del SUC (System Upgrade Controller)… | Un campo que no existe o está mal ubicado, un tipo incorrecto, un recurso sin esquema |
 | `security` | PR y push a `main` | gitleaks sobre los commits; reglas del repo | Un secreto en el código; una Application de `gitops` con otro `repoURL` o rama; una Application sin `sync-wave`; un `Secret` en texto plano |
-| `argocd-diff` | Solo en PR | Qué cambiaría ArgoCD en el clúster con el commit del PR, app por app | Solo si ArgoCD no puede calcular el diff. Que haya cambios no es un error: es lo que se revisa |
+| `argocd-diff` | Solo en PR | Qué cambiaría Argo CD en el clúster con el commit del PR, app por app | Solo si Argo CD no puede calcular el diff. Que haya cambios no es un error: es lo que se revisa |
 
 El resultado del diff aparece en el **resumen del job** (*Actions → la
 corrida → Summary*): cada app con "sin cambios" o un bloque desplegable con el
 diff. Las apps multi-source (charts externos con values de `gitops`, como
 `arc-runners`) se listan pero no se comparan: revisa sus values en la UI de
-ArgoCD.
+Argo CD.
 
 ## Activar el diff contra el clúster (una vez)
 
-El diff usa una cuenta de ArgoCD de **solo lectura**, `ci`, que ya está
+El diff usa una cuenta de Argo CD de **solo lectura**, `ci`, que ya está
 declarada en `gitops/argocd/config` (`accounts.ci: apiKey` y
 `g, ci, role:readonly`). Falta generar su token y llevarlo al runner. Hay que
-hacerlo con ArgoCD ya funcionando y `argocd` sincronizado. Mientras no
+hacerlo con Argo CD ya funcionando y `argocd` sincronizado. Mientras no
 exista, el job se salta con un aviso y los demás jobs corren igual.
 
-1. Genera el token con la CLI (Command Line Interface) de ArgoCD, logueado como admin:
+1. Genera el token con la CLI (Command Line Interface) de Argo CD, logueado como admin:
 
     ```bash
     argocd login argocd.homelab.local --grpc-web

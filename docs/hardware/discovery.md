@@ -3,7 +3,7 @@
 Playbook que escanea los 3 nodos y genera una ficha Markdown por nodo, para
 confirmar (o contradecir) con datos medidos los roles asignados en el
 [Inventario de hardware](inventory.md) — en particular, si `deborah`
-sigue siendo el mejor candidato a control-plane K3s (distribución ligera de Kubernetes).
+sigue siendo el mejor candidato a control plane K3s (distribución ligera de Kubernetes).
 
 Código: [`ansible/playbook-discovery.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-discovery.yml)
 (dos plays en un mismo archivo: escaneo por nodo + consolidado).
@@ -29,7 +29,7 @@ vez de en un playbook aparte que habría que recordar pasar junto al otro.
   aptitud para etcd.
 - **Red** — interfaces con su velocidad negociada.
 - **Sistema operativo** — distro, kernel, uptime, temperatura (sensor
-  `vcgencmd` en SBC o `thermal_zone0` genérico).
+  `vcgencmd` en SBC (Single Board Computer) o `thermal_zone0` genérico).
 - **Stack instalado** — si `/dev/kvm` está disponible, versión de Incus y
   de K3s.
 - **Paquetes clave** — versión (o "no instalado") de docker, containerd,
@@ -56,13 +56,13 @@ ansible/reports/            (gitignored -- datos de un escaneo en vivo)
 ```
 
 `summary.md` pone los 3 nodos lado a lado y lista los 4 criterios usados
-para decidir el rol de control-plane:
+para decidir el rol de control plane:
 
 1. Menor latencia de escritura (fsync) — el factor decisivo para etcd.
 2. Fuente de alimentación estable (NVMe + alimentación dedicada, no USB).
 3. Margen de RAM por encima del uso normal del clúster (no es el factor
    decisivo por sí solo).
-4. Temperatura bajo carga sostenida — throttling térmico en una SBC (Single Board Computer).
+4. Temperatura bajo carga sostenida — throttling térmico en una SBC.
 
 ## Cómo leer una ficha
 

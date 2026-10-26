@@ -111,11 +111,16 @@
       changed_when: "'created' in k3s_cni_cilium_apply.stdout or 'configured' in k3s_cni_cilium_apply.stdout"
       when: not ansible_check_mode
 
+# Con el operador de Calico los pods tardan en existir y "kubectl wait" falla al instante si aún no hay
+# ninguno: se reintenta, y si el CNI no queda listo en ~6 minutos el play falla (antes seguía igual).
 - name: Esperar pods del CNI
   ansible.builtin.command: >-
     k3s kubectl wait --for=condition=ready pod
     -l {{ k3s_cni_wait_label }}
-    -n {{ k3s_cni_wait_namespace }} --timeout=300s
+    -n {{ k3s_cni_wait_namespace }} --timeout=60s
+  register: k3s_cni_wait
   changed_when: false
-  failed_when: false
+  retries: 5
+  delay: 10
+  until: k3s_cni_wait.rc == 0
   when: not ansible_check_mode

@@ -1,0 +1,15 @@
+---
+# Publica la memoria y la CPU de los servicios del host (Ollama, k3s, incus, BIND...) y el top de procesos fuera de
+# Kubernetes como métricas, para saber qué consume cuando un nodo se queda sin memoria. Ver
+# roles/node_units_metrics/README.md.
+#
+# Solo escribe métricas: no cambia nada del sistema. Seguro de correr en los tres nodos a la vez.
+#
+#   ansible-playbook -i inventory.ini playbook-units-metrics.yml --check --diff
+#   ansible-playbook -i inventory.ini playbook-units-metrics.yml
+
+- name: Métricas de los servicios del host
+  hosts: incus_cluster
+  become: true
+  roles:
+    - node_units_metrics

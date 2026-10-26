@@ -16,7 +16,7 @@ import sys
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from helpers import ROOT, base_cfg, free_port, make_fake_ollama, tmpdir, wait_for  # noqa: E402
+from helpers import ROOT, base_cfg, free_port, make_fake_ollama, tmpdir  # noqa: E402
 
 LABEL = "local.homelab.ollama-node.manualtest"
 

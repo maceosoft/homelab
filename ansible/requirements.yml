@@ -1,6 +1,8 @@
 ---
+# Mismo major que traen el paquete ansible de requirements.txt (14.1.0: community.general 13.1.0,
+# ansible.posix 2.2.0): sin tope, la CI instalaría un major nuevo y lintearía contra otra versión.
 collections:
   - name: community.general
-    version: ">=8.0.0"
+    version: ">=13.1.0,<14.0.0"
   - name: ansible.posix
-    version: ">=1.5.0"
+    version: ">=2.2.0,<3.0.0"

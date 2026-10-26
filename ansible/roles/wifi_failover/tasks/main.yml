@@ -12,7 +12,7 @@
     state: present
     update_cache: true
 
-- name: Marcar br0 y la NIC fisica como unmanaged para NetworkManager
+- name: Marcar br0 y la NIC física como unmanaged para NetworkManager
   ansible.builtin.template:
     src: unmanaged.conf.j2
     dest: /etc/NetworkManager/conf.d/unmanaged-netplan.conf
@@ -42,7 +42,7 @@
   register: wifi_failover_nm_connections
   changed_when: false
 
-- name: Crear perfil de conexion wifi de respaldo (metrica mas alta que el cable)
+- name: Crear perfil de conexión wifi de respaldo (métrica más alta que el cable)
   ansible.builtin.command: >-
     nmcli connection add type wifi con-name homelab-backup
     ifname {{ wifi_iface }} ssid {{ wifi_ssid }}
