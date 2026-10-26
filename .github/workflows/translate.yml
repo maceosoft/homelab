@@ -1,12 +1,20 @@
 name: Traducir documentación al inglés (Ollama -> *.en.md)
-# Corre en el runner arc-runners del HomeLab. Traduce solo lo que cambió (translate_docs.py compara
-# el hash del original con .translations.json), valida que el sitio compile y sube las traducciones
-# a main. Usa el router de Ollama del HomeLab por su Service interno (los runners corren dentro del
-# clúster y la NetworkPolicy del namespace ai les permite el ingreso): una sola URL, y el router elige
-# el nodo que tiene el modelo. Exige un token Bearer: secreto de GitHub Actions OLLAMA_TOKEN (item
-# ollama-router de 1Password, token "translate"). El primer request puede despertar un nodo (arranque
-# en frío). En CPU la primera corrida completa tarda horas: lánzala con workflow_dispatch (input
-# force); después solo se traducen los cambios.
+# Corre en el runner arc-runners del HomeLab y traduce SOLO lo que cambió: translate_docs.py compara el hash de
+# cada original con .translations.json, así que una página ya traducida no se vuelve a pedir al modelo.
+# Usa el router de Ollama por su Service interno (token Bearer: secreto OLLAMA_TOKEN, item ollama-router de
+# 1Password, token "translate").
+#
+# El resultado no va directo a main: se sube a la rama i18n/traducciones y se abre (o actualiza) un PR para
+# revisarlo. Esa rama guarda el avance: cada corrida parte de main, recupera las traducciones que ya estaban en
+# la rama y sigue con lo pendiente, así que cortar una corrida no pierde lo traducido.
+#
+# Presupuesto de tiempo: una traducción incremental tarda minutos. Si pasa de 90 minutos no se empiezan páginas
+# nuevas, y a los 105 se corta lo que esté corriendo; lo hecho se sube igual, el job termina en rojo y avisa por
+# Discord, porque en este HomeLab eso indica un problema (CPU saturada, nodo de Ollama caído o sin memoria). Lo
+# pendiente se retoma con el próximo cambio en docs/ o lanzando el workflow a mano.
+#
+# Aviso: secreto de GitHub Actions DISCORD_WEBHOOK_AVISOS (campo warnings del item discord-webhooks de 1Password).
+# Sin el secreto, el job igual termina en rojo y GitHub avisa por correo.
 
 on:
   push:
@@ -20,33 +28,47 @@ on:
   workflow_dispatch:
     inputs:
       force:
-        description: 'Retraducir todo, aunque no haya cambios'
+        description: 'Retraducir todo, aunque no haya cambios (tarda horas en CPU)'
         type: boolean
         default: false
 
-# El push de los .en.md a main va con la deploy key I18N_DEPLOY_KEY (con escritura), no con GITHUB_TOKEN: main está
-# protegida por un ruleset que exige PR, y la deploy key es la única excepción del ruleset (el token de Actions no se
-# puede agregar como excepción).
 permissions:
-  contents: read
-  actions: write    # disparar deploy-docs.yml con las traducciones ya incluidas
+  contents: write        # subir la rama i18n/traducciones
+  pull-requests: write   # abrir o actualizar el PR
 
-# Dos pushes seguidos no deben traducir en paralelo ni pisarse al subir los .en.md.
+# Dos corridas no deben traducir en paralelo ni pisarse al subir la rama.
 concurrency:
   group: translate
   cancel-in-progress: false
+
+env:
+  BRANCH: i18n/traducciones
+  BUDGET_MINUTES: '90'     # pasado este tope no se empiezan páginas nuevas
+  HARD_LIMIT: '105m'       # pasado este tope se corta la página en curso
 
 jobs:
   translate:
     if: github.ref == 'refs/heads/main'
     runs-on: arc-runners
-    timeout-minutes: 360
+    timeout-minutes: 130
     steps:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          # Deja configurado git por SSH con la deploy key: el pull --rebase y el push a main la usan.
-          ssh-key: ${{ secrets.I18N_DEPLOY_KEY }}
+          fetch-depth: 0
+
+      - name: Partir de main con el avance de la rama de traducciones
+        run: |
+          git checkout -B "$BRANCH" origin/main
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null; then
+            git fetch origin "$BRANCH"
+            # Solo las traducciones y su manifiesto: los originales siempre vienen de main.
+            files=$(git ls-tree -r --name-only FETCH_HEAD | grep -E '(\.en\.md|^\.translations\.json)$' || true)
+            if [ -n "$files" ]; then
+              echo "$files" | xargs git checkout FETCH_HEAD --
+              echo "Recuperadas $(echo "$files" | wc -l) traducciones de $BRANCH."
+            fi
+          fi
 
       - name: Setup Python
         uses: actions/setup-python@v7
@@ -56,74 +78,111 @@ jobs:
           python-version: '3.14'
 
       - name: Instalar dependencias
-        run: pip install -r requirements.txt
+        run: pip install -r requirements-docs.txt
 
-      # El runner es efímero: si una página falla, translate_docs.py sale con 1, pero lo ya traducido NO
-      # debe perderse (horas de CPU). Por eso este paso no corta el job y el commit corre siempre; un
-      # .en.md parcial es seguro (el sitio cae al español en lo que falte). El job termina rojo solo si
-      # no se tradujo nada o si el sitio no compila (ver "Resultado").
+      - name: Ver qué falta traducir
+        id: pending
+        env:
+          FORCE: ${{ inputs.force }}
+        run: |
+          if [ "$FORCE" = "true" ] || ! python translate_docs.py --check; then
+            echo "todo=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Nada pendiente."
+          fi
+
       - name: Traducir lo pendiente
         id: translate
-        continue-on-error: true
+        if: steps.pending.outputs.todo == 'true'
         env:
           OLLAMA_URL: http://ollama-router.ai.svc
           OLLAMA_TOKEN: ${{ secrets.OLLAMA_TOKEN }}
           FORCE: ${{ inputs.force }}
         run: |
-          if [ "$FORCE" = "true" ]; then
-            python translate_docs.py --force
-          else
-            python translate_docs.py
-          fi
+          args="--max-minutes $BUDGET_MINUTES"
+          [ "$FORCE" = "true" ] && args="$args --force"
+          set +e
+          # SIGINT a los 105 min y SIGKILL 1 min después si no termina: lo ya escrito queda en disco.
+          timeout --signal=INT --kill-after=1m "$HARD_LIMIT" python translate_docs.py $args
+          rc=$?
+          set -e
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          # 0 = todo traducido, 1 = páginas descartadas por validación, 3 = presupuesto agotado,
+          # 124/137 = cortado por el tope duro. Lo traducido se sube en todos los casos.
+          exit 0
 
-      - name: Aviso de páginas descartadas
-        if: steps.translate.outcome == 'failure'
-        run: |
-          echo "::warning::translate_docs.py terminó con errores. Las páginas descartadas se reintentan en la próxima corrida (ver el log del paso anterior)."
+      - name: Corregir anclas entre páginas
+        if: ${{ always() && steps.pending.outputs.todo == 'true' }}
+        run: python translate_docs.py --fix-anchors
 
       - name: Build del sitio (valida es + en)
         id: build
-        if: ${{ !cancelled() }}
-        continue-on-error: true
+        if: ${{ always() && steps.pending.outputs.todo == 'true' }}
         run: mkdocs build --strict --clean
 
-      - name: Subir traducciones a main
-        id: commit
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+      - name: Subir la rama y abrir o actualizar el PR
+        id: pr
+        if: ${{ always() && steps.build.outcome == 'success' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RC: ${{ steps.translate.outputs.rc }}
         run: |
           git add -A -- 'docs/**/*.en.md' includes/abbreviations.en.md .translations.json
           if git diff --cached --quiet; then
             echo "Sin traducciones nuevas."
-            echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "docs(i18n): actualizar traducciones al inglés [skip ci]"
-          # Si entró otro push mientras traducíamos, se rebasa encima.
-          git pull --rebase origin main
-          git push origin HEAD:main
-          echo "changed=true" >> "$GITHUB_OUTPUT"
+          git commit -m "docs(i18n): traducciones al inglés de $(git rev-parse --short origin/main)"
+          # La rama es del bot y se rehace sobre main en cada corrida.
+          git push --force origin "HEAD:refs/heads/$BRANCH"
+
+          api="https://api.github.com/repos/${{ github.repository }}"
+          auth=(-H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json")
+          open=$(curl -fsS "${auth[@]}" "$api/pulls?state=open&head=${{ github.repository_owner }}:$BRANCH" | python -c 'import json,sys; print(len(json.load(sys.stdin)))')
+          if [ "$open" = "0" ]; then
+            body="Traducciones generadas por translate.yml (corrida ${{ github.run_id }}). Revisa los .en.md antes de mergear: al mergear, deploy-docs.yml publica el sitio."
+            [ "$RC" = "3" ] || [ "$RC" = "124" ] || [ "$RC" = "137" ] && body="$body Quedaron páginas pendientes: la próxima corrida las agrega a este PR."
+            python -c 'import json,sys; print(json.dumps({"title": "docs(i18n): traducciones al inglés", "head": sys.argv[1], "base": "main", "body": sys.argv[2]}))' "$BRANCH" "$body" \
+              | curl -fsS "${auth[@]}" -X POST "$api/pulls" -d @- >/dev/null
+            echo "PR abierto."
+          else
+            echo "PR ya abierto: actualizado con el push."
+          fi
 
       - name: Resultado
-        if: ${{ !cancelled() }}
+        if: ${{ always() && steps.pending.outputs.todo == 'true' }}
+        env:
+          RC: ${{ steps.translate.outputs.rc }}
         run: |
           if [ "${{ steps.build.outcome }}" != "success" ]; then
             echo "::error::El sitio no compila con las traducciones; no se subió nada."; exit 1
           fi
-          if [ "${{ steps.translate.outcome }}" = "failure" ] && [ "${{ steps.commit.outputs.changed }}" != "true" ]; then
-            echo "::error::No se tradujo nada."; exit 1
-          fi
+          case "$RC" in
+            0) echo "Traducción completa." ;;
+            1) echo "::error::Hubo páginas descartadas por validación; se reintentan en la próxima corrida."; exit 1 ;;
+            3|124|137)
+              echo "::error::La traducción pasó el presupuesto de tiempo ($BUDGET_MINUTES min). En este HomeLab eso no es normal: revisa la CPU y la memoria de los nodos de Ollama (Grafana) antes de relanzar. Lo traducido quedó en $BRANCH."
+              exit 1 ;;
+            *) echo "::error::translate_docs.py terminó con $RC."; exit 1 ;;
+          esac
 
-      # Los pushes hechos con GITHUB_TOKEN no disparan otros workflows, así que deploy-docs.yml no
-      # corre solo con el commit de las traducciones: se lanza a mano por la API (no hace falta gh).
-      - name: Publicar el sitio con las traducciones
-        if: steps.commit.outputs.changed == 'true'
+      - name: Avisar por Discord
+        if: ${{ failure() || cancelled() }}
         env:
-          GH_TOKEN: ${{ github.token }}
+          WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_AVISOS }}
+          RC: ${{ steps.translate.outputs.rc }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          curl -fsS -X POST \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/deploy-docs.yml/dispatches" \
-            -d '{"ref":"main"}'
+          if [ -z "$WEBHOOK" ]; then
+            echo "Sin DISCORD_WEBHOOK_AVISOS: el aviso queda solo en GitHub."; exit 0
+          fi
+          case "$RC" in
+            3|124|137) motivo="pasó el presupuesto de $BUDGET_MINUTES min; revisa la CPU y la memoria de los nodos de Ollama en Grafana" ;;
+            1) motivo="hubo páginas descartadas por validación" ;;
+            *) motivo="falló o se canceló (código ${RC:-sin dato})" ;;
+          esac
+          msg="⚠️ **Traducción de la documentación**: $motivo. Lo traducido quedó en la rama \`$BRANCH\`. $RUN_URL"
+          python -c 'import json,sys; print(json.dumps({"content": sys.argv[1]}))' "$msg" \
+            | curl -fsS -H "Content-Type: application/json" -X POST "$WEBHOOK" -d @- >/dev/null
