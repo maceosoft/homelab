@@ -1,13 +1,46 @@
+{% if bind_dns_restrict_clients %}
+// Clientes autorizados: la LAN y los pods (CoreDNS reenvía *.homelab.local aquí,
+// a veces con IP de pod). Ver bind_dns_allowed_clients en defaults/main.yml.
+acl "lan" {
+{% for cidr in bind_dns_allowed_clients %}
+        {{ cidr }};
+{% endfor %}
+};
+
+{% endif %}
 options {
         directory "/var/cache/bind";
 
         listen-on { 127.0.0.1; {{ static_ip }}; };
         listen-on-v6 { none; };
 
+{% if bind_dns_restrict_clients %}
+        allow-query { localhost; lan; };
+        recursion yes;
+        allow-recursion { localhost; lan; };
+        allow-query-cache { localhost; lan; };
+{% else %}
+        // Este DNS es para todos (LAN, otras subredes del router, VPN…): sin límite por origen.
         allow-query { any; };
         recursion yes;
         allow-recursion { any; };
+        allow-query-cache { any; };
+{% endif %}
+        allow-transfer { none; };
 
+        // No revelar la versión de BIND.
+        version "none";
+
+{% if bind_dns_rate_limit_enabled %}
+        // Limita ráfagas de respuestas idénticas (amplificación DNS); los clientes
+        // internos están exentos para no afectar a CoreDNS.
+        rate-limit {
+                responses-per-second {{ bind_dns_rate_limit_rps }};
+                window 5;
+                exempt-clients { localhost; {% for cidr in bind_dns_rate_limit_exempt %}{{ cidr }}; {% endfor %}};
+        };
+
+{% endif %}
         forwarders { {{ gateway }}; };
 
         dnssec-validation auto;

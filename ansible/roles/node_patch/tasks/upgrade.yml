@@ -1,0 +1,32 @@
+---
+- name: "Paquetes que se actualizarían (apt list --upgradable, solo lectura)"
+  ansible.builtin.command: apt list --upgradable
+  register: node_patch_upgradable
+  changed_when: false
+  check_mode: false
+
+- name: Mostrar los paquetes pendientes
+  ansible.builtin.debug:
+    msg: "{{ node_patch_upgradable.stdout_lines | reject('match', '^Listing') | list }}"
+
+- name: "CONFIRMAR: actualizar un nodo crítico"
+  ansible.builtin.pause:
+    prompt: >-
+      {{ inventory_hostname }} es un nodo crítico (control-plane de K3s y/o BIND, el DNS de toda
+      la LAN). Si se actualiza bind9, named se reinicia y el DNS se corta unos segundos.
+      Enter para seguir, Ctrl+C y luego A para abortar
+  when:
+    - inventory_hostname in node_patch_critical_hosts
+    - not ansible_check_mode
+
+- name: Actualizar paquetes (apt-get update y dist-upgrade)
+  ansible.builtin.apt:
+    update_cache: true
+    upgrade: dist
+    autoremove: "{{ node_patch_autoremove }}"
+  register: node_patch_apt
+
+- name: Resultado de apt  # noqa: no-handler
+  ansible.builtin.debug:
+    msg: "{{ (node_patch_apt.stdout_lines | default([]))[-15:] }}"
+  when: node_patch_apt is changed

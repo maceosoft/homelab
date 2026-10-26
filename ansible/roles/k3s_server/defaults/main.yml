@@ -1,0 +1,20 @@
+---
+# Flags de seguridad (valores en group_vars/incus_cluster/k3s_install.yml, bloque security).
+# Se pueden anular por play/host; la mudanza y el rollback lo hacen.
+k3s_server_secrets_encryption: "{{ k3s_install.security.secrets_encryption }}"
+k3s_server_oidc_enabled: "{{ k3s_install.security.oidc.enabled }}"
+
+# Convertir/iniciar el datastore como etcd embebido (--cluster-init). Solo en el primer server.
+k3s_server_cluster_init: false
+
+# Unir este server a uno existente (--server <url>) con el MISMO token. Vacío = server inicial.
+k3s_server_join_url: ""
+k3s_server_token: ""
+
+# Volver a ejecutar el instalador aunque K3s ya esté activo (reescribe la unidad systemd con
+# los argumentos de abajo y reinicia K3s). Falso en el flujo normal: un server activo no se toca.
+k3s_server_reconfigure: false
+
+# Token de agents distinto del de server (K3S_AGENT_TOKEN). Vacío = el de K3s por defecto
+# (igual al de server). Se pasa por entorno, no por argumentos. Rotación: `k3s token rotate`.
+k3s_server_agent_token: ""

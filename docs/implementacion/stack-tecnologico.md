@@ -42,6 +42,14 @@ flowchart TB
     CAPN[CAPN]
     SUC[system_upgrade_controller]
   end
+  subgraph capa6 [Capa 6 — IA local, logs y seguridad]
+    Ollama[Ollama_en_nodos_y_Mac]
+    Router[ollama_router]
+    OpenWebUI[Open_WebUI_y_Open_Terminal]
+    Vector[Vector]
+    VLogs[VictoriaLogs]
+    Firewall[nftables_por_nodo]
+  end
   HW --> Netplan --> Incus
   Incus --> IncusUI
   Dex --> IncusUI
@@ -58,6 +66,12 @@ flowchart TB
   K3s --> CAPI --> CAPN
   Incus --> CAPN
   ArgoCD --> SUC
+  ArgoCD --> Router --> Ollama
+  OpenWebUI --> Router
+  Dex --> OpenWebUI
+  Vector --> VLogs
+  Ansible --> Firewall
+  Ansible --> Ollama
 ```
 
 ## Capa 0 — Bootstrap
@@ -111,13 +125,13 @@ flowchart TB
 ## Capa 3 — GitOps, red y acceso
 
 - **[Argo CD](https://argo-cd.readthedocs.io/)** — ApplicationSet de bootstrap (`homelab-root`) desde GitHub, por olas; Fase 4.
-- **[Dex](https://dexidp.io/docs/)** — IdP OIDC (OpenID Connect) embebido en ArgoCD; SSO (inicio de sesión único) para ArgoCD, vCluster Platform e Incus UI (interfaz de usuario); Fase 4.
+- **[Dex](https://dexidp.io/docs/)** — IdP OIDC (OpenID Connect) embebido en ArgoCD; SSO (inicio de sesión único) para ArgoCD, Grafana, Open WebUI, vCluster Platform e Incus UI (interfaz de usuario); Fase 4.
 - **[GitHub](https://docs.github.com/en/apps/oauth-apps)** — Connector OAuth + repos GitOps; Fase 4.
 - **[MetalLB](https://metallb.universe.tf/)** — LoadBalancer en LAN (red local); Fase 4 wave 0–1.
-- **[Gateway API](https://gateway-api.sigs.k8s.io/)** con **[Kong Ingress Controller](https://developer.konghq.com/kubernetes-ingress-controller/)** — HTTP(S) hacia ArgoCD y vCluster; Fase 4 wave 1 (alternativas: Traefik, NGINX Gateway Fabric).
+- **[Gateway API](https://gateway-api.sigs.k8s.io/)** con **[Kong Ingress Controller](https://developer.konghq.com/kubernetes-ingress-controller/)** — HTTP(S) hacia ArgoCD, Grafana, Open WebUI, el router de Ollama y vCluster; Fase 4 wave 1 (alternativas: Traefik, NGINX Gateway Fabric).
 - **[1Password Python SDK](https://github.com/1Password/onepassword-sdk-python)** — Secretos OAuth desde la app local; Fase 4.
 - **[VictoriaMetrics](https://docs.victoriametrics.com/)** (con **[Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/)**) — Métricas y alertas de nodos y plataforma, más ligero que Prometheus; Fase 4 (4.13, opcional).
-- **[Grafana](https://grafana.com/docs/grafana/latest/)** — Paneles de temperatura, memoria y disco en `grafana.homelab.local`; Fase 4 (4.13, opcional).
+- **[Grafana](https://grafana.com/docs/grafana/latest/)** — Paneles de temperatura, memoria, disco, logs y Ollama en `grafana.homelab.local`; Fase 4 (4.13, opcional).
 - **[Discord](https://discord.com/developers/docs/resources/webhook)** y **[healthchecks.io](https://healthchecks.io/docs/)** — Destino de las alertas (webhooks) y vigilante externo (*dead man's switch*) que recibe un ping de Alertmanager, por si cae todo el clúster; Fase 4 (4.13, opcional).
 
 ## Capa 4 — Storage y secretos en clúster
@@ -134,3 +148,19 @@ flowchart TB
 - **[CAPN](https://capn.linuxcontainers.org/)** — Provider Incus para CAPI (Cluster API); Fase 6.
 - **[clusterctl](https://cluster-api.sigs.k8s.io/user/quick-start.html)** — CLI (interfaz de línea de comandos) bootstrap CAPI; Fase 6.
 - **[system-upgrade-controller](https://github.com/rancher/system-upgrade-controller)** — Upgrades K3s escalonados; Fase 4 wave 3.
+
+## Capa 6 — IA local, logs y seguridad
+
+- **[Ollama](https://ollama.com/)** — Modelos de lenguaje (LLM, *Large Language Model*) en CPU (unidad central de procesamiento), bajo demanda en
+  `deborah`, `invincible` y `oliver`, y en un Mac opcional que se enciende a mano (`ollama-node on|off`, socket de
+  `launchd`). [Guía](../operacion/ia-ollama.md) · [agregar un nodo](../operacion/agregar-nodo-ollama.md).
+- **Router de Ollama** (`ollama-router`, propio) — Única entrada (`ollama.homelab.local`): registro automático de
+  nodos, elección por modelo, token por cliente y métricas por modelo y nodo.
+- **[Open WebUI](https://docs.openwebui.com/)** — Chat con el asistente, con login por Dex; **[Open Terminal](https://docs.openwebui.com/features/open-terminal)**
+  como terminal aislado (sandbox) para que el asistente ejecute código.
+- **K8sGPT** — Análisis del clúster con Ollama; **etapado** (su operador pide permisos de todo el clúster).
+- **[Vector](https://vector.dev/)** → **[VictoriaLogs](https://docs.victoriametrics.com/victorialogs/)** → Grafana —
+  Logs centralizados (30 días) y reportes diario y semanal con IA en el canal `#ia` de Discord ([guía](../operacion/logs.md)).
+- **[nftables](https://wiki.nftables.org/)** — Firewall de host en cada nodo (rol `host_firewall`), con reversión automática.
+- **NetworkPolicy** `default-deny` por namespace y **`oauth2-proxy`** — preparados y **por activar** por etapas
+  ([Modelo de autenticación](../security/modelo-de-autenticacion.md)).

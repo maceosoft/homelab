@@ -1,0 +1,92 @@
+---
+# Autotest SMART: lanzar (smart_selftest) y leer el resultado (smart_selftest_result).
+# Nada destructivo: el disco hace el autotest por su cuenta, en segundo plano y sin
+# borrar datos; el sistema sigue funcionando (puede ir algo más lento mientras dura).
+# smartctl devuelve una máscara de bits: los bits 0 y 1 (rc % 4) son errores de la
+# orden o de apertura del disco; los demás informan del estado y no son fallo de la tarea.
+
+- name: Comprobar que smartctl está instalado
+  ansible.builtin.command: smartctl --version
+  register: node_smart_metrics_selftest_smartctl
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: node_smart_metrics_selftest_devices | length > 0
+  tags: [smart_selftest, smart_selftest_result]
+
+- name: Sin discos SMART en este nodo
+  ansible.builtin.debug:
+    msg: >-
+      {{ inventory_hostname }}: sin discos SATA/SAS (o smartctl ausente): no hay autotest SMART.
+      La eMMC no tiene SMART; su desgaste se lee de /sys (métricas node_emmc_*).
+  when: node_smart_metrics_selftest_devices | length == 0 or node_smart_metrics_selftest_smartctl.rc | default(1) != 0
+  tags: [smart_selftest, smart_selftest_result]
+
+# --- Lanzar -------------------------------------------------------------------------
+- name: Lanzar el autotest SMART
+  ansible.builtin.command: "smartctl -t {{ node_smart_metrics_selftest_type }} /dev/{{ item }}"
+  loop: "{{ node_smart_metrics_selftest_devices }}"
+  register: node_smart_metrics_selftest_started
+  changed_when: true
+  failed_when: node_smart_metrics_selftest_started.rc % 4 != 0
+  when:
+    - node_smart_metrics_selftest_smartctl.rc | default(1) == 0
+    - not ansible_check_mode
+  tags: [smart_selftest]
+
+- name: Duración estimada del autotest
+  ansible.builtin.debug:
+    msg: >-
+      /dev/{{ item.item }}: {{ item.stdout_lines | select('search', 'Please wait|Test will complete|aborted|in progress')
+      | list | join(' ') or item.stdout_lines[-3:] | join(' ') }}
+  loop: "{{ node_smart_metrics_selftest_started.results | default([]) | selectattr('stdout_lines', 'defined') | list }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: not ansible_check_mode
+  tags: [smart_selftest]
+
+- name: "Modo --check: qué se lanzaría"
+  ansible.builtin.debug:
+    msg: >-
+      Lanzaría 'smartctl -t {{ node_smart_metrics_selftest_type }}' en:
+      {{ node_smart_metrics_selftest_devices | map('regex_replace', '^', '/dev/') | join(', ') }}
+  when:
+    - ansible_check_mode
+    - node_smart_metrics_selftest_devices | length > 0
+  tags: [smart_selftest]
+
+# --- Leer el resultado (solo lectura) -------------------------------------------------------
+- name: Leer el registro de autotests
+  ansible.builtin.command: "smartctl -l selftest /dev/{{ item }}"
+  loop: "{{ node_smart_metrics_selftest_devices }}"
+  register: node_smart_metrics_selftest_log
+  changed_when: false
+  check_mode: false
+  failed_when: node_smart_metrics_selftest_log.rc % 4 != 0
+  when: node_smart_metrics_selftest_smartctl.rc | default(1) == 0
+  tags: [smart_selftest_result]
+
+- name: Leer los atributos SMART
+  ansible.builtin.command: "smartctl -A /dev/{{ item }}"
+  loop: "{{ node_smart_metrics_selftest_devices }}"
+  register: node_smart_metrics_selftest_attrs
+  changed_when: false
+  check_mode: false
+  failed_when: node_smart_metrics_selftest_attrs.rc % 4 != 0
+  when: node_smart_metrics_selftest_smartctl.rc | default(1) == 0
+  tags: [smart_selftest_result]
+
+- name: Resultado del autotest y atributos 5/187/197/198
+  ansible.builtin.debug:
+    msg:
+      disco: "/dev/{{ item.0.item }}"
+      autotests: "{{ item.0.stdout_lines | select('match', '^(#|Num)') | list }}"
+      atributos: >-
+        {{ item.1.stdout_lines
+           | select('match', '^\s*(' ~ (node_smart_metrics_selftest_attributes | join('|')) ~ ')\s') | list }}
+  loop: >-
+    {{ (node_smart_metrics_selftest_log.results | default([]) | selectattr('stdout_lines', 'defined') | list)
+       | zip(node_smart_metrics_selftest_attrs.results | default([]) | selectattr('stdout_lines', 'defined') | list) | list }}
+  loop_control:
+    label: "{{ item.0.item }}"
+  tags: [smart_selftest_result]

@@ -9,6 +9,17 @@
 #   ansible-playbook -i inventory.ini playbook-smart-metrics.yml
 #
 # Es seguro correrlo en los tres nodos a la vez: no reinicia nada.
+#
+# Autotest SMART bajo demanda (no corre en una ejecución normal; solo SSD SATA/SAS, no la eMMC):
+#
+#   ansible-playbook -i inventory.ini playbook-smart-metrics.yml --tags smart_selftest --check
+#   ansible-playbook -i inventory.ini playbook-smart-metrics.yml --tags smart_selftest
+#   ansible-playbook -i inventory.ini playbook-smart-metrics.yml --tags smart_selftest_result
+#
+# smart_selftest lanza 'smartctl -t long' (no borra nada; el disco lo hace en segundo plano y dice
+# cuántos minutos tarda). Cuando pase ese tiempo, smart_selftest_result muestra el registro de
+# autotests y los atributos 5/187/197/198. Otros discos o un autotest corto:
+#   -e '{"node_smart_metrics_selftest_devices": ["sda"], "node_smart_metrics_selftest_type": "short"}'
 
 - name: Métricas de salud de discos en los nodos
   hosts: incus_cluster

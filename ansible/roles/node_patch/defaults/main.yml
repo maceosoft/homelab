@@ -1,0 +1,33 @@
+---
+# node_patch — valores por defecto. Ver la cabecera de playbook-parchear.yml.
+
+# El orden de los nodos (node_patch_order) se define en playbook-parchear.yml: lo necesita
+# la línea "hosts:" de cada play, que no ve los defaults del rol.
+
+# Nodos que piden confirmación antes de actualizar y antes de reiniciar: el control-plane
+# de K3s y deborah (BIND, el DNS de toda la LAN).
+node_patch_critical_hosts: "{{ (groups['k3s_server'] | default([])) + ['deborah'] }}"
+
+# kubeconfig de la estación (las comprobaciones y el drain corren en la estación).
+node_patch_kubeconfig: "{{ lookup('ansible.builtin.env', 'KUBECONFIG') | default('~/.kube/homelab-k3s.yaml', true) }}"
+# Nombre del nodo en Kubernetes (coincide con el del inventario).
+node_patch_k8s_node: "{{ inventory_hostname }}"
+
+# apt: borrar dependencias que ya nadie usa (apt-get autoremove).
+node_patch_autoremove: false
+
+# Drain, reinicio y espera.
+node_patch_drain_timeout: 10m
+node_patch_reboot_timeout: 1200
+node_patch_ready_timeout: 10m
+
+# Post-chequeo: reintentos cada node_patch_postcheck_delay segundos durante
+# node_patch_postcheck_minutes minutos antes de pasar al siguiente nodo.
+node_patch_postcheck_minutes: 15
+node_patch_postcheck_delay: 20
+
+# Estados de volumen de Longhorn que impiden seguir. Los volúmenes "detached" aparecen
+# con robustness "unknown" y no cuentan como fallo.
+node_patch_longhorn_bad_states:
+  - degraded
+  - faulted

@@ -2,7 +2,7 @@
 
 K3s (distribución ligera de Kubernetes) se actualiza **solo**: el SUC (System Upgrade Controller) revisa el canal
 `stable` de K3s y, cuando sale una versión nueva, actualiza un nodo a la vez
-(primero `deborah`, el control plane; después los workers), vaciándolo antes
+(primero el control plane, el nodo con la etiqueta `node-role.kubernetes.io/control-plane`: hoy `deborah`, y `oliver` tras la [mudanza](mover-control-plane.md), cuando `deborah` pasa a worker; después los workers), vaciándolo antes
 (*cordon* y *drain*). Este procedimiento es para revisar que eso funciona,
 fijar una versión cuando haga falta y mantener alineado Ansible.
 
@@ -25,9 +25,12 @@ Tienen que aparecer el controlador y los planes `k3s-server` y `k3s-agent`.
 ## 2. Ver el estado de las actualizaciones
 
 ```bash
-kubectl get nodes -o wide                          # columna VERSION de cada nodo
-kubectl -n system-upgrade get plans -o wide        # versión objetivo (LATESTVERSION)
-kubectl -n system-upgrade get jobs                 # un job por nodo actualizado
+# columna VERSION de cada nodo
+kubectl get nodes -o wide
+# versión objetivo (LATESTVERSION)
+kubectl -n system-upgrade get plans -o wide
+# un job por nodo actualizado
+kubectl -n system-upgrade get jobs
 ```
 
 Todos los nodos deberían terminar con la misma `VERSION`.

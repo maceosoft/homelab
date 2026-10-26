@@ -1,0 +1,55 @@
+# Generado por el rol host_firewall -- no editar a mano.
+# Tabla propia: no se hace flush de nada ajeno (kube-proxy, Calico, Incus).
+# La primera pareja add/delete hace la carga idempotente y atómica.
+add table inet homelab_filter
+delete table inet homelab_filter
+
+table inet homelab_filter {
+{% for set_name, set_cidrs in host_firewall_sets.items() %}
+    set {{ set_name }} {
+        type ipv4_addr
+        flags interval
+        auto-merge
+{% if set_cidrs | length > 0 %}
+        elements = { {{ set_cidrs | join(', ') }} }
+{% endif %}
+    }
+
+{% endfor %}
+    chain input {
+        type filter hook input priority -10; policy accept;
+
+        ct state established,related counter accept comment "conexiones ya aceptadas"
+        iifname "lo" accept comment "loopback"
+{% if host_firewall_trusted_ifaces | length > 0 %}
+        iifname { {% for i in host_firewall_trusted_ifaces %}"{{ i }}"{{ ", " if not loop.last else "" }}{% endfor %} } accept comment "interfaces de confianza"
+{% endif %}
+        meta l4proto { icmp, ipv6-icmp } accept comment "ICMP/ICMPv6 (PMTU, ND)"
+        udp dport 68 accept comment "cliente DHCP"
+
+{% for b in host_firewall_blocked_ports %}
+        # Bloqueado para todos: {{ b.name }}
+{% for proto in b.proto %}
+        {{ proto }} dport { {{ b.ports | join(', ') }} } counter drop comment "bloqueado: {{ b.name }}"
+{% endfor %}
+{% endfor %}
+
+{% if host_firewall_trust_nodes %}
+        ip saddr @nodes counter accept comment "tráfico entre nodos (K3s, Calico, Longhorn, MetalLB)"
+
+{% endif %}
+{% for svc in host_firewall_services %}
+        # {{ svc.name }}
+{% for proto in svc.proto %}
+{% for src in svc.from %}
+        {{ proto }} dport { {{ svc.ports | join(', ') }} } ip saddr @{{ src }} counter accept comment "{{ svc.name }} desde {{ src }}"
+{% endfor %}
+        {{ proto }} dport { {{ svc.ports | join(', ') }} } counter drop comment "{{ svc.name }}: resto denegado"
+{% endfor %}
+
+{% endfor %}
+{% if host_firewall_strict %}
+        ip saddr {{ host_firewall_lan_cidr }} counter drop comment "modo estricto: LAN no permitida"
+{% endif %}
+    }
+}

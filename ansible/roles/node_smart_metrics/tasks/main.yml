@@ -1,5 +1,6 @@
 ---
-# Solo lee los discos y escribe métricas: no toca los datos ni lanza autotests SMART.
+# Solo lee los discos y escribe métricas: no toca los datos. Los autotests SMART solo corren
+# con los tags smart_selftest / smart_selftest_result (tasks/selftest.yml).
 
 # Con "vendor == ATA" (SATA) o "SAS" en los datos de Ansible; la eMMC y los discos virtuales (iSCSI,
 # zram) no cuentan, porque no tienen SMART.
@@ -10,6 +11,7 @@
          | selectattr('value.vendor', 'defined')
          | selectattr('value.vendor', 'in', ['ATA', 'SAS'])
          | map(attribute='key') | list }}
+  tags: [always]
 
 - name: Instalar smartmontools (smartctl) donde hay discos SATA/SAS
   ansible.builtin.apt:
@@ -57,3 +59,8 @@
     enabled: true
     state: started
     daemon_reload: true
+
+# Autotest SMART bajo demanda: no corre en una ejecución normal (tag "never").
+- name: Autotest SMART (tags smart_selftest / smart_selftest_result)
+  ansible.builtin.import_tasks: selftest.yml
+  tags: [never]

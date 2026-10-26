@@ -1,0 +1,123 @@
+name: Traducir documentación al inglés (Ollama -> *.en.md)
+# Corre en el runner arc-runners del HomeLab. Traduce solo lo que cambió (translate_docs.py compara
+# el hash del original con .translations.json), valida que el sitio compile y sube las traducciones
+# a main. Usa el router de Ollama del HomeLab por su Service interno (los runners corren dentro del
+# clúster y la NetworkPolicy del namespace ai les permite el ingreso): una sola URL, y el router elige
+# el nodo que tiene el modelo. Exige un token Bearer: secreto de GitHub Actions OLLAMA_TOKEN (item
+# ollama-router de 1Password, token "translate"). El primer request puede despertar un nodo (arranque
+# en frío). En CPU la primera corrida completa tarda horas: lánzala con workflow_dispatch (input
+# force); después solo se traducen los cambios.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - '!docs/**/*.en.md'
+      - 'includes/abbreviations.md'
+      - 'translate_docs.py'
+      - '.github/workflows/translate.yml'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Retraducir todo, aunque no haya cambios'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write   # subir los .en.md a main
+  actions: write    # disparar deploy-docs.yml con las traducciones ya incluidas
+
+# Dos pushes seguidos no deben traducir en paralelo ni pisarse al subir los .en.md.
+concurrency:
+  group: translate
+  cancel-in-progress: false
+
+jobs:
+  translate:
+    if: github.ref == 'refs/heads/main'
+    runs-on: arc-runners
+    timeout-minutes: 360
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          # Fija 3.14: con '3.x' el runner toma la última (3.15) y dependencias como
+          # pydantic_core o MarkupSafe todavía no la soportan.
+          python-version: '3.14'
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      # El runner es efímero: si una página falla, translate_docs.py sale con 1, pero lo ya traducido NO
+      # debe perderse (horas de CPU). Por eso este paso no corta el job y el commit corre siempre; un
+      # .en.md parcial es seguro (el sitio cae al español en lo que falte). El job termina rojo solo si
+      # no se tradujo nada o si el sitio no compila (ver "Resultado").
+      - name: Traducir lo pendiente
+        id: translate
+        continue-on-error: true
+        env:
+          OLLAMA_URL: http://ollama-router.ai.svc
+          OLLAMA_TOKEN: ${{ secrets.OLLAMA_TOKEN }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          if [ "$FORCE" = "true" ]; then
+            python translate_docs.py --force
+          else
+            python translate_docs.py
+          fi
+
+      - name: Aviso de páginas descartadas
+        if: steps.translate.outcome == 'failure'
+        run: |
+          echo "::warning::translate_docs.py terminó con errores. Las páginas descartadas se reintentan en la próxima corrida (ver el log del paso anterior)."
+
+      - name: Build del sitio (valida es + en)
+        id: build
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: mkdocs build --strict --clean
+
+      - name: Subir traducciones a main
+        id: commit
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          git add -A -- 'docs/**/*.en.md' includes/abbreviations.en.md .translations.json
+          if git diff --cached --quiet; then
+            echo "Sin traducciones nuevas."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "docs(i18n): actualizar traducciones al inglés [skip ci]"
+          # Si entró otro push mientras traducíamos, se rebasa encima.
+          git pull --rebase origin main
+          git push origin HEAD:main
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Resultado
+        if: ${{ !cancelled() }}
+        run: |
+          if [ "${{ steps.build.outcome }}" != "success" ]; then
+            echo "::error::El sitio no compila con las traducciones; no se subió nada."; exit 1
+          fi
+          if [ "${{ steps.translate.outcome }}" = "failure" ] && [ "${{ steps.commit.outputs.changed }}" != "true" ]; then
+            echo "::error::No se tradujo nada."; exit 1
+          fi
+
+      # Los pushes hechos con GITHUB_TOKEN no disparan otros workflows, así que deploy-docs.yml no
+      # corre solo con el commit de las traducciones: se lanza a mano por la API (no hace falta gh).
+      - name: Publicar el sitio con las traducciones
+        if: steps.commit.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          curl -fsS -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/deploy-docs.yml/dispatches" \
+            -d '{"ref":"main"}'

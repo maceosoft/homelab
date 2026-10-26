@@ -1,0 +1,18 @@
+# {{ ansible_managed }}
+[Unit]
+# Se detiene solo cuando nadie lo necesita (al salir ollama-proxy.service) y libera la RAM.
+StopWhenUnneeded=yes
+
+[Service]
+Environment="OLLAMA_HOST={{ ollama_ondemand_internal }}"
+Environment="OLLAMA_MODELS={{ ollama_ondemand_models_dir }}"
+Environment="OLLAMA_KEEP_ALIVE={{ ollama_ondemand_keep_alive }}"
+Environment="OLLAMA_NUM_PARALLEL=1"
+Environment="OLLAMA_MAX_LOADED_MODELS=1"
+{% if ollama_ondemand_memory_max | string | length > 0 %}
+# Tope de memoria del nodo: si Ollama lo supera, el kernel lo mata a él y no al resto de servicios.
+MemoryMax={{ ollama_ondemand_memory_max }}
+{% endif %}
+# Arranque en frío: no se da por iniciado hasta que el puerto interno responde.
+# ($$ evita que systemd expanda las variables del shell.)
+ExecStartPost=/bin/bash -c 'for i in $$(seq 1 {{ ollama_ondemand_start_timeout }}); do (echo > /dev/tcp/{{ ollama_ondemand_internal | regex_replace(":", "/") }}) 2>/dev/null && exit 0; sleep 1; done; exit 1'

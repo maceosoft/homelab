@@ -17,7 +17,8 @@ es llevar la cuenta de su desgaste, y el kernel la publica en `life_time` y `pre
 
 En cada nodo, un temporizador de systemd ejecuta un script que escribe un archivo `.prom` en
 `/var/lib/node_exporter/textfile`. node-exporter lo lee con su *textfile collector* y VictoriaMetrics lo guarda. Solo se
-**lee**: no se escribe en los discos ni se lanzan autotests SMART, y BIND no se toca.
+**lee**: no se escribe en los discos ni se lanzan autotests SMART, y BIND no se toca. El autotest SMART se lanza solo a
+mano, con Ansible (ver [Autotest SMART](#autotest-smart)).
 
 | Pieza | Dónde |
 |---|---|
@@ -124,3 +125,49 @@ reinician nada. Verifica en cada nodo con `cat /var/lib/node_exporter/textfile/s
     Cada fabricante publica el desgaste en un atributo SMART distinto. Tras la primera ejecución comprueba que existe
     `node_smart_ssd_life_remaining_percent` en `smart.prom`; si falta, ese modelo usa otro atributo y hay que ajustar el
     filtro del script (ver el README del rol). Mientras falte, `SsdVidaBaja` no puede avisar.
+
+## Autotest SMART
+
+Un autotest le pide al propio disco que revise su superficie y su electrónica. No borra ni escribe datos: el disco lo hace
+en segundo plano y el nodo sigue funcionando (puede ir algo más lento mientras dura). Sirve para confirmar un aviso como
+`DiscoSectoresInestables` o para revisar un disco de vez en cuando. Solo aplica a los SSD SATA (`invincible`, `oliver`); la
+eMMC de `deborah` no tiene SMART.
+
+Desde `ansible/`, la simulación muestra en qué discos se lanzaría; la segunda orden lo lanza:
+
+```bash
+ansible-playbook -i inventory.ini playbook-smart-metrics.yml --tags smart_selftest --check
+ansible-playbook -i inventory.ini playbook-smart-metrics.yml --tags smart_selftest
+```
+
+La salida dice cuántos minutos tarda (el autotest largo de un SSD suele tardar de minutos a una hora). Pasado ese tiempo:
+
+```bash
+ansible-playbook -i inventory.ini playbook-smart-metrics.yml --tags smart_selftest_result
+```
+
+Estas tareas no corren en una ejecución normal del playbook. Para otro disco o un autotest corto:
+`-e '{"node_smart_metrics_selftest_devices": ["sda"], "node_smart_metrics_selftest_type": "short"}'`.
+
+### Cómo leer el resultado
+
+En `autotests` aparece el registro del disco, el más reciente primero (`# 1`):
+
+| `Status` | Qué significa |
+|---|---|
+| `Completed without error` | El disco no encontró problemas |
+| `Self-test routine in progress` | Aún no termina: vuelve a leerlo más tarde |
+| `Aborted by host` o `Interrupted` | Se cortó (reinicio o apagado); lánzalo de nuevo |
+| `Completed: read failure` (u otro `failure`) | Hay zonas que no se pueden leer; la columna `LBA_of_first_error` dice dónde. Respalda y planifica el reemplazo |
+
+En `atributos` se muestran cuatro contadores; mira la última columna (`RAW_VALUE`):
+
+| ID | Atributo | Qué indica |
+|---|---|---|
+| 5 | `Reallocated_Sector_Ct` | Sectores que el disco ya reemplazó por reserva |
+| 187 | `Reported_Uncorrect` | Errores que el disco no pudo corregir |
+| 197 | `Current_Pending_Sector` | Sectores dudosos, a la espera de reasignarse |
+| 198 | `Offline_Uncorrectable` | Sectores que no se pudieron leer en las revisiones del disco |
+
+Lo normal es 0 en los cuatro. Un valor fijo distinto de 0 no es urgente, pero que suba entre dos lecturas sí: respalda y
+planifica el reemplazo, como con las alertas de la tabla de discos SATA.

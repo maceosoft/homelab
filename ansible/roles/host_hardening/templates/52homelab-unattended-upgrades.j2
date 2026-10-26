@@ -1,0 +1,23 @@
+// Generado por rol host_hardening -- no editar a mano.
+// Solo actualizaciones de seguridad de Debian (se descartan las demas origenes por defecto).
+#clear Unattended-Upgrade::Origins-Pattern;
+Unattended-Upgrade::Origins-Pattern {
+        "origin=Debian,codename=${distro_codename}-security,label=Debian-Security";
+};
+{% if host_hardening_unattended_blacklist %}
+Unattended-Upgrade::Package-Blacklist {
+{% for pkg in host_hardening_unattended_blacklist %}
+        "{{ pkg }}";
+{% endfor %}
+};
+{% endif %}
+APT::Periodic::Update-Package-Lists "1";
+APT::Periodic::Unattended-Upgrade "1";
+Unattended-Upgrade::Remove-Unused-Dependencies "true";
+{% if host_hardening_unattended_reboot and inventory_hostname not in groups['k3s_server'] | default([]) %}
+Unattended-Upgrade::Automatic-Reboot "true";
+Unattended-Upgrade::Automatic-Reboot-Time "{{ host_hardening_unattended_reboot_time }}";
+{% else %}
+// Sin reinicio automatico (siempre en el control-plane): reiniciar a mano, con ventana.
+Unattended-Upgrade::Automatic-Reboot "false";
+{% endif %}

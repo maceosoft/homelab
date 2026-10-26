@@ -67,10 +67,15 @@ Prueba: `dd` de 40 MB en bloques de 4k con escritura directa (`oflag=direct`). E
 ## Presupuesto de RAM (recalculado)
 
 - **invincible (15.5 GB)**: K3s (distribución ligera de Kubernetes) agent + ArgoCD controller + Incus leader. Es el nodo x86 con más margen y el disco más rápido: admite CAPN (Cluster API Provider for Incus) management y Longhorn a la vez.
-- **oliver (7.7 GB)**: K3s agent (CoreDNS, metrics-server) + Incus en `scheduler.instance manual`. RAM ajustada: por eso queda como nodo ligero y fuera de Longhorn.
-- **deborah (31 GB)**: control-plane K3s + BIND (rol `bind_dns`). Root en eMMC; el NVMe (disco SSD por PCIe) que figuraba en el discovery **no aparece** hoy en el sistema (verificar si está conectado).
+- **oliver (7.7 GB)**: K3s agent (y futuro control plane, ver [Mover el control plane](../operacion/mover-control-plane.md)) (CoreDNS, metrics-server) + Incus en `scheduler.instance manual`. RAM ajustada: por eso queda como nodo ligero y fuera de Longhorn.
+- **deborah (31 GB)**: control-plane K3s + BIND (rol `bind_dns`) + Ollama bajo demanda (rol `ollama_ondemand`, grupo `llm_nodes`, junto a `invincible` y `oliver`): solo usa RAM mientras responde y la libera unos 5 minutos después (ver [Asistente de IA local](../operacion/ia-ollama.md)). Root en eMMC; el NVMe (disco SSD por PCIe) que figuraba en el discovery **no aparece** hoy en el sistema (verificar si está conectado).
 
 ## Decisión: control-plane en deborah
+
+!!! info "El control plane se muda a oliver"
+    `deborah` ahora también ejecuta modelos de Ollama y es el DNS de la LAN, así que el control plane de K3s se pasa a
+    `oliver` y `deborah` queda como worker. Se hace una vez, en una ventana de mantenimiento, con el procedimiento de
+    [Mover el control plane](../operacion/mover-control-plane.md). Esta sección describe la decisión original.
 
 **Estado:** el API (Application Programming Interface) server responde en `192.168.20.5:6443` (deborah).
 Workers en invincible (`192.168.20.6`) y oliver (`192.168.20.7`). Se instala con

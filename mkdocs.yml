@@ -74,12 +74,11 @@ extra:
 
 markdown_extensions:
   - admonition
-  # Siglas: tooltip automático en todas las páginas (includes/abbreviations.md)
+  # Siglas: tooltip automático en todas las páginas (includes/abbreviations.md, ver hooks/i18n.py)
   - abbr
   - attr_list
-  - pymdownx.snippets:
-      auto_append:
-        - includes/abbreviations.md
+  # Las siglas se agregan por idioma desde hooks/i18n.py (no con auto_append, que es global).
+  - pymdownx.snippets
   - pymdownx.details
   - pymdownx.superfences:
       custom_fences:
@@ -99,8 +98,104 @@ markdown_extensions:
       permalink: true
 
 plugins:
-  - search:
-      lang: es
+  # lang lo fija mkdocs-static-i18n por idioma (es/en).
+  - search
+  # Español es el original; las traducciones al inglés (*.en.md) las genera translate_docs.py.
+  # Una página sin .en.md cae al español (fallback_to_default).
+  - i18n:
+      docs_structure: suffix
+      fallback_to_default: true
+      reconfigure_material: true   # selector de idioma en el header + <link rel=alternate>
+      reconfigure_search: true
+      languages:
+        - locale: es
+          name: Español
+          default: true
+          build: true
+        - locale: en
+          name: English
+          build: true
+          site_name: HomeLab — K3s + Incus + CAPN
+          site_description: Documentation for a hybrid x86_64 + ARM64 HomeLab (Incus, K3s, CAPN, ArgoCD)
+          copyright: <a href="/en/privacidad/">Privacy policy</a> · <a href="#__consent">Change cookie preferences</a>
+          theme:
+            palette:
+              - media: "(prefers-color-scheme: light)"
+                scheme: default
+                primary: indigo
+                accent: purple
+                toggle:
+                  icon: material/brightness-7
+                  name: Switch to dark mode
+              - media: "(prefers-color-scheme: dark)"
+                scheme: slate
+                primary: indigo
+                accent: purple
+                toggle:
+                  icon: material/brightness-4
+                  name: Switch to light mode
+          nav_translations:
+            Empieza aquí: Start here
+            Inicio: Home
+            Aprende con IA (gratis): Learn with AI (free)
+            Implementación: Implementation
+            Visión general: Overview
+            Fase 0 — Preparación: Phase 0 — Preparation
+            Fase 1 — Red: Phase 1 — Network
+            Fase 2 — Incus: Phase 2 — Incus
+            Fase 3 — K3s: Phase 3 — K3s
+            Fase 4 — GitOps: Phase 4 — GitOps
+            Fase 5 — vCluster: Phase 5 — vCluster
+            Fase 6 — CAPN: Phase 6 — CAPN
+            Resumen del HomeLab: HomeLab summary
+            Stack tecnológico: Technology stack
+            Apéndice — Desinstalar K3s: Appendix — Uninstall K3s
+            Operación: Operations
+            Procedimientos de rutina: Routine procedures
+            URLs y accesos de los productos: Product URLs and access
+            Entrar por SSH a los servidores: SSH into the servers
+            Monitoreo y alertas: Monitoring and alerts
+            Agregar un repo: Add a repo
+            Agregar un nodo: Add a node
+            Agregar un nodo de Ollama: Add an Ollama node
+            Mover el control plane: Move the control plane
+            Sacar o reemplazar un nodo: Remove or replace a node
+            Agregar un disco a un nodo: Add a disk to a node
+            Backups y snapshots de Incus: Incus backups and snapshots
+            Parchear los nodos: Patch the nodes
+            Actualizar K3s: Upgrade K3s
+            Actualizar ArgoCD: Upgrade ArgoCD
+            Cambiar el controlador de Gateway: Change the Gateway controller
+            Caché de los runners (ARC): Runner cache (ARC)
+            Calico (CNI) con ArgoCD: Calico (CNI) with ArgoCD
+            Actualizar Debian en deborah (12 a 13): Upgrade Debian on deborah (12 to 13)
+            Salud de los discos y del DNS: Disk and DNS health
+            Certificado de métricas de Incus: Incus metrics certificate
+            Avisos de versiones nuevas (Renovate): New-version notices (Renovate)
+            Rotar credenciales: Rotate credentials
+            Pipeline de gitops: GitOps pipeline
+            Logs centralizados y reportes con IA: Centralized logs and AI reports
+            Asistente de IA local (Ollama): Local AI assistant (Ollama)
+            Arquitectura: Architecture
+            Overview + C4 (Nivel 1-2): Overview + C4 (Level 1-2)
+            Nivel 3 — Componentes: Level 3 — Components
+            Nivel 4 — Despliegue: Level 4 — Deployment
+            Referencia técnica: Technical reference
+            Inventario: Inventory
+            Red: Network
+            Clúster: Cluster
+            Instalación manual: Manual installation
+            Opciones del playbook: Playbook options
+            Catálogo de roles: Role catalog
+            Catálogo y troubleshooting: Catalog and troubleshooting
+            Secretos: Secrets
+            Plataforma maceosoft — GitHub: maceosoft platform — GitHub
+            Plataforma maceosoft — Discord y healthchecks.io: maceosoft platform — Discord and healthchecks.io
+            Glosario: Glossary
+            Seguridad: Security
+            Modelo de autenticación: Authentication model
+            Hardening post-incidente: Post-incident hardening
+            Privacidad: Privacy
   # llms.txt y llms-full.txt: toda la documentación en texto plano para IA (NotebookLM, ChatGPT, Gemini,
   # Claude…). Se publican en la raíz del sitio. Ver docs/aprende.md.
   - llmstxt:
@@ -142,6 +237,9 @@ validation:
   links:
     not_found: info
 
+hooks:
+  - hooks/i18n.py
+
 # Recargar mkdocs serve al editar el glosario
 watch:
   - includes
@@ -169,6 +267,8 @@ nav:
       - Monitoreo y alertas: operacion/monitoreo.md
       - Agregar un repo: operacion/agregar-repo.md
       - Agregar un nodo: operacion/agregar-nodo.md
+      - Agregar un nodo de Ollama: operacion/agregar-nodo-ollama.md
+      - Mover el control plane: operacion/mover-control-plane.md
       - Sacar o reemplazar un nodo: operacion/sacar-nodo.md
       - Agregar un disco a un nodo: operacion/agregar-disco.md
       - Backups y snapshots de Incus: operacion/backups-incus.md
@@ -184,6 +284,8 @@ nav:
       - Avisos de versiones nuevas (Renovate): operacion/actualizaciones-de-productos.md
       - Rotar credenciales: operacion/rotar-credenciales.md
       - Pipeline de gitops: operacion/pipeline-gitops.md
+      - Logs centralizados y reportes con IA: operacion/logs.md
+      - Asistente de IA local (Ollama): operacion/ia-ollama.md
   - Arquitectura:
       - "Overview + C4 (Nivel 1-2)": architecture/overview.md
       - "Nivel 3 — Componentes": architecture/nivel-3-componentes.md
@@ -210,6 +312,7 @@ nav:
       - "Plataforma maceosoft — Discord y healthchecks.io": maceosoft/discord-healthchecks.md
       - Glosario: glosario.md
       - Seguridad:
+          - Modelo de autenticación: security/modelo-de-autenticacion.md
           - Hardening post-incidente: security/hardening-post-incidente.md
   - Labs:
       - Cinc/Chef: labs/cinc/index.md

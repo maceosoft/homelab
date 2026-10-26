@@ -1,0 +1,11 @@
+{{ {
+  'name': ollama_node_name,
+  'url': ollama_node_url,
+  'registry_url': ollama_node_registry_url,
+  'token_file': ollama_node_token_file,
+  'ca_file': ollama_node_ca_file,
+  'priority': ollama_node_priority | int,
+  'tags': ollama_node_tags,
+  'models_dir': ollama_ondemand_models_dir,
+  'interval': ollama_node_interval | int
+} | to_nice_json }}

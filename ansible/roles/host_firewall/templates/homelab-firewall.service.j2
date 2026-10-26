@@ -1,0 +1,21 @@
+# Generado por el rol host_firewall -- no editar a mano.
+# Carga la tabla inet homelab_filter al arrancar. Es independiente de
+# nftables.service (cuyo /etc/nftables.conf trae `flush ruleset` y borraría las
+# tablas de kube-proxy, Calico e Incus). Parar este servicio quita solo nuestra tabla.
+[Unit]
+Description=Firewall de host del HomeLab (nftables, tabla inet homelab_filter)
+Documentation=file:{{ host_firewall_rules_file }}
+Wants=network-pre.target
+Before=network-pre.target
+After=local-fs.target
+DefaultDependencies=no
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart={{ host_firewall_nft_bin }} -f {{ host_firewall_rules_file }}
+ExecReload={{ host_firewall_nft_bin }} -f {{ host_firewall_rules_file }}
+ExecStop=-{{ host_firewall_nft_bin }} delete table inet homelab_filter
+
+[Install]
+WantedBy=multi-user.target

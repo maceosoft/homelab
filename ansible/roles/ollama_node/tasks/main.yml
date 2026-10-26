@@ -1,0 +1,153 @@
+---
+# Agente de registro de Ollama: ollama_node.py (repo, ../ollama-node/) como servicio systemd. El token del registro se lee
+# en la estación del operador desde 1Password y nunca se muestra.
+
+- name: Comprobar que el agente existe en el repo
+  ansible.builtin.stat:
+    path: "{{ ollama_node_src }}"
+  delegate_to: localhost
+  become: false
+  register: ollama_node_src_stat
+  check_mode: false
+
+- name: Fallar si falta ollama_node.py
+  ansible.builtin.assert:
+    that: ollama_node_src_stat.stat.exists
+    fail_msg: "No existe {{ ollama_node_src }} (carpeta ollama-node/ del repo homelab)."
+    quiet: true
+
+- name: Leer el token del registro desde 1Password (estación del operador)
+  ansible.builtin.command:
+    argv:
+      - "{{ ansible_playbook_python }}"
+      - scripts/read_ollama_registry_token.py
+      - --item
+      - "{{ ollama_node_token_item }}"
+      - --field
+      - "{{ ollama_node_token_field }}"
+      - --fallback-field
+      - "{{ ollama_node_token_fallback_field }}"
+    chdir: "{{ playbook_dir }}"
+  delegate_to: localhost
+  become: false
+  register: ollama_node_token_read
+  # De a un nodo: la integración de 1Password con la app de escritorio no tolera varias sesiones del SDK a la vez.
+  throttle: 1
+  retries: 2
+  delay: 3
+  until: ollama_node_token_read.rc == 0
+  failed_when: false
+  changed_when: false
+  check_mode: false
+  no_log: true
+
+# El script nunca escribe el token en stderr: mostrar el motivo es seguro y evita depurar a ciegas.
+- name: Fallar con el motivo si no se pudo leer el token
+  ansible.builtin.assert:
+    that: ollama_node_token_read.rc == 0
+    fail_msg: "No se pudo leer el token del registro: {{ ollama_node_token_read.stderr | default('sin detalle') }}"
+    quiet: true
+
+- name: Leer la CA del HomeLab desde cert-manager (misma fuente que el rol opkssh)
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - cert-manager
+      - get
+      - secret
+      - homelab-ca
+      - -o
+      - jsonpath={.data.ca\.crt}
+  delegate_to: localhost
+  become: false
+  run_once: true
+  register: ollama_node_ca_b64
+  changed_when: false
+  check_mode: false
+  no_log: true
+  when: ollama_node_install_homelab_ca | bool
+
+- name: Comprobar que lo leído es un certificado
+  ansible.builtin.assert:
+    that:
+      - "'BEGIN CERTIFICATE' in (ollama_node_ca_b64.stdout | b64decode)"
+    fail_msg: "No se pudo leer ca.crt de cert-manager/homelab-ca (¿KUBECONFIG exportado?)"
+    quiet: true
+  when: ollama_node_install_homelab_ca | bool
+
+- name: Crear el usuario del agente (sin login, con lectura de los modelos por grupo)
+  ansible.builtin.user:
+    name: "{{ ollama_node_user }}"
+    system: true
+    create_home: false
+    home: /nonexistent
+    shell: /usr/sbin/nologin
+    groups: "{{ ollama_node_read_group }}"
+    append: true
+
+- name: Crear las carpetas del agente
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "{{ ollama_node_lib_dir }}", group: root, mode: "0755" }
+    - { path: "{{ ollama_node_config_dir }}", group: "{{ ollama_node_user }}", mode: "0750" }
+
+- name: Instalar ollama_node.py
+  ansible.builtin.copy:
+    src: "{{ ollama_node_src }}"
+    dest: "{{ ollama_node_lib_dir }}/ollama_node.py"
+    owner: root
+    group: root
+    mode: "0755"
+  notify: Reiniciar el agente de registro de Ollama
+
+- name: Instalar la CA del HomeLab para el agente
+  ansible.builtin.copy:
+    content: "{{ ollama_node_ca_b64.stdout | b64decode }}"
+    dest: "{{ ollama_node_ca_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+  when: ollama_node_install_homelab_ca | bool
+  notify: Reiniciar el agente de registro de Ollama
+
+- name: Instalar el token del registro (0600, solo el usuario del agente)
+  ansible.builtin.copy:
+    content: "{{ ollama_node_token_read.stdout | trim }}\n"
+    dest: "{{ ollama_node_token_file }}"
+    owner: "{{ ollama_node_user }}"
+    group: "{{ ollama_node_user }}"
+    mode: "0600"
+  no_log: true
+  notify: Reiniciar el agente de registro de Ollama
+
+- name: Escribir la configuración del agente
+  ansible.builtin.template:
+    src: ollama-node-config.json.j2
+    dest: "{{ ollama_node_config_dir }}/config.json"
+    owner: root
+    group: "{{ ollama_node_user }}"
+    mode: "0640"
+  notify: Reiniciar el agente de registro de Ollama
+
+- name: Instalar la unidad ollama-node-register.service
+  ansible.builtin.template:
+    src: ollama-node-register.service.j2
+    dest: /etc/systemd/system/ollama-node-register.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reiniciar el agente de registro de Ollama
+
+- name: Habilitar y arrancar el agente de registro
+  ansible.builtin.systemd:
+    name: ollama-node-register.service
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: not ansible_check_mode

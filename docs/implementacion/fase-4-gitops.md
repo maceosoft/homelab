@@ -188,7 +188,8 @@ las credenciales de la App `maceosoft-argocd`, ArgoCD no puede leer el repo. El 
 nombre de tu cuenta (el de la barra lateral de la app).
 
 ```bash
-export ONEPASSWORD_ACCOUNT_NAME="Mi Cuenta"  # tu cuenta
+# tu cuenta
+export ONEPASSWORD_ACCOUNT_NAME="Mi Cuenta"
 cd ansible
 ansible-playbook -i inventory.ini playbook-platform-secrets.yml
 cd ..
@@ -357,11 +358,17 @@ Creada en la org, Dex puede leer sus teams sin aprobarla como app de terceros:
 Ítems 1Password (cuenta **personal**, bóveda **`HomeLab`** por defecto): ver
 [`argocd/secrets/1password.md`](https://github.com/maceosoft/gitops/blob/main/argocd/secrets/1password.md).
 
+??? tip "Con la CLI (`op`)"
+    Crear la OAuth App y su client secret es **solo desde la web** (GitHub no tiene API para OAuth Apps). Guardar el item sí se
+    hace con un comando; está en [Plataforma maceosoft — GitHub](../maceosoft/github.md#oauth-app-maceosoft-dex).
+
 Probar lectura (mismo módulo que el apply):
 
 ```bash
-export ONEPASSWORD_ACCOUNT_NAME="Mi Cuenta"   # tu cuenta personal
-export ONEPASSWORD_VAULT="HomeLab"             # o HomeLab
+# tu cuenta personal
+export ONEPASSWORD_ACCOUNT_NAME="Mi Cuenta"
+# o HomeLab
+export ONEPASSWORD_VAULT="HomeLab"
 python3 ansible/scripts/test-1password.py GITHUB_CLIENT_ID
 ```
 
@@ -553,8 +560,10 @@ lados. Aplica el DNS (desde `ansible/` en `homelab`):
 
 ```bash
 ansible-playbook -i inventory.ini playbook-bind-dns.yml
-dig @192.168.20.5 argocd.homelab.local +short   # 192.168.23.200
-dig @192.168.20.5 oliver.homelab.local +short   # 192.168.20.7
+# 192.168.23.200
+dig @192.168.20.5 argocd.homelab.local +short
+# 192.168.20.7
+dig @192.168.20.5 oliver.homelab.local +short
 ```
 
 Tu estación tiene que usar `192.168.20.5` como DNS. Si no puedes, el respaldo es
@@ -623,10 +632,11 @@ Con `arc-helm-repo`, `arc-controller`, `terraform-rbac` y `arc-runners` descomen
 
 ```bash
 kubectl get applications -n argocd | grep -E 'arc|terraform'
-kubectl get pods -n arc-systems        # controller + listener de arc-runners
+# controller + listener de arc-runners
+kubectl get pods -n arc-systems
 ```
 
-El runner aparece en *maceosoft → Settings → Actions → Runners*.
+El runner aparece en *maceosoft → Settings → Actions → Runners* (con la CLI: `gh api orgs/maceosoft/actions/runners --jq '.runners[] | [.name, .status] | @tsv'`).
 
 **Primer pipeline.** En `maceosoft/infra`, lanza *Actions → tofu → Run
 workflow* sobre `main`, o haz un push a `main`. El workflow reusable
@@ -635,7 +645,8 @@ corre en `arc-runners`: hace `plan` en los PRs (pull requests) y `apply` en `mai
 primera ejecución crea el repo `api` con sus environments y secrets FTP (File Transfer Protocol).
 
 ```bash
-kubectl -n terraform get secret tfstate-default-github   # state tras el primer apply
+# state tras el primer apply
+kubectl -n terraform get secret tfstate-default-github
 ```
 
 A partir de acá, cada repo nuevo se agrega con el
@@ -848,7 +859,7 @@ Haz los pasos 1 a 5 **antes** de activar la app en GitOps (paso 6): ArgoCD neces
     | `grafana-admin` | `password` | Contraseña del administrador de Grafana |
     | | `username` | *(opcional)* usuario; por defecto `admin` |
 
-    Cómo crearlos y comprobarlos: [Parte 3](../maceosoft/discord-healthchecks.md#parte-3-guardarlo-en-1password).
+    Cómo crearlos y comprobarlos (también con el CLI `op`): [Parte 3](../maceosoft/discord-healthchecks.md#parte-3-guardarlo-en-1password).
 
 4. **Secrets en el clúster.** Necesita la app de 1Password desbloqueada (*Integrate with other apps*) y el kubeconfig del homelab,
    como el resto de [secretos de plataforma](../maceosoft/github.md). Son opcionales: si no existe ninguno de los tres items el script no hace nada; si existe
@@ -868,7 +879,8 @@ Haz los pasos 1 a 5 **antes** de activar la app en GitOps (paso 6): ArgoCD neces
 
     ```bash
     ansible-playbook -i inventory.ini playbook-bind-dns.yml
-    dig @192.168.20.5 grafana.homelab.local +short   # 192.168.23.200
+    # 192.168.23.200
+    dig @192.168.20.5 grafana.homelab.local +short
     ```
 
 6. **Activar en GitOps.** `victoria-metrics` (ola 2) y `victoria-metrics-config` (ola 3, sus reglas y la ruta de Grafana) ya
@@ -958,7 +970,8 @@ El certificado lo emite **cert-manager**, igual que los de los Gateway, así que
    `monitoring/incus-metrics`, y la llave privada no sale del clúster. Comprueba que está listo:
 
     ```bash
-    kubectl -n monitoring get certificate incus-metrics   # READY = True
+    # READY = True
+    kubectl -n monitoring get certificate incus-metrics
     ```
 
 2. **Registra la parte pública en Incus** (desde `ansible/`):
@@ -1023,6 +1036,7 @@ playbook de secretos ya aplicado.
 
 1. **Webhook del canal `despliegues`** en Discord, y guárdalo en el campo `deployments` del item `discord-webhooks`:
    [Discord y healthchecks.io — paso 7](../maceosoft/discord-healthchecks.md#7-un-webhook-para-el-canal-de-despliegues-opcional).
+   Con la CLI de 1Password: `read -rs V; op item edit discord-webhooks "deployments[password]=$V"; unset V`.
 
 2. **Crear el Secret en el clúster** (desde `ansible/`). El script añade las claves al `argocd-notifications-secret` que ya trae
    ArgoCD: `discord-despliegues-url` (el campo `deployments`) y `discord-avisos-url` (el `warnings` de las alertas). El campo es

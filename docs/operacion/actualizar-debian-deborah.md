@@ -10,6 +10,12 @@ la actualiza con respaldo, una simulación previa y una **compuerta de arranque*
     API de Kubernetes y el DNS no responden (los pods de los otros nodos siguen corriendo). Y si el equipo no arranca
     tras el reinicio, hace falta **acceso físico** (HDMI o consola serie). Haz esto con ventana de mantenimiento.
 
+!!! tip "Más sencillo si el control plane ya se mudó"
+    Una vez que el control plane esté en `oliver` ([Mover el control plane](mover-control-plane.md)), `deborah` es
+    solo un worker: el API de Kubernetes sigue respondiendo durante la actualización y solo cae su parte de
+    carga (el DNS de la LAN, Ollama y los pods que viven en ella). Conviene hacer la mudanza **antes** de esta
+    actualización.
+
 ## Qué cambia y qué no
 
 | Cambia | No cambia |
@@ -79,7 +85,7 @@ comprimido de otra forma, u-boot no podría descomprimirlo y el equipo **no arra
 1. Conecta una pantalla o la consola serie y mira dónde se detiene (u-boot, kernel o `systemd`).
 2. Si es el arranque: restaura la imagen de la eMMC que hiciste antes. Con la imagen, `deborah` vuelve a Debian 12.
 3. Sin imagen: reinstala el sistema de la placa y restaura el respaldo de `ansible/backups/deborah-<fecha>/`:
-   `etc.tgz`, `boot.tgz`, `k3s.tgz` (certificados, token y base de datos del control plane) y `bind.tgz`.
+   `etc.tgz`, `boot.tgz`, `k3s.tgz` (certificados, token y base de datos del control plane, mientras `deborah` lo sea) y `bind.tgz`.
    Sin el token y los certificados de K3s habría que reinstalar el clúster.
 4. Los otros dos nodos siguen funcionando mientras tanto, pero sin control plane no hay cambios ni sincronización.
 

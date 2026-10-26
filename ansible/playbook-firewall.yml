@@ -1,0 +1,44 @@
+---
+# Firewall de host (nftables, tabla propia inet homelab_filter) con aplicación segura.
+# Rol: roles/host_firewall (diseño y variables en defaults/main.yml).
+#
+# POR QUÉ TANTO CUIDADO: un firewall mal aplicado deja a todos fuera. Por eso:
+#   - se carga con un temporizador systemd que REVIERTE a los 300 s si no se confirma;
+#   - se prueban conexiones NUEVAS (SSH, 6443, kubectl) desde esta estación antes de
+#     pedir la confirmación;
+#   - un host por vez (serial: 1) y se detiene todo ante el primer fallo.
+#
+# ORDEN (la primera vez, siempre en este orden y esperando a que cada nodo quede sano).
+# Nombre SIEMPRE el host con -l: con serial: 1 el orden real es el del inventario, no el
+# que se escribe aquí. Tras la mudanza del control-plane, oliver es el server (6443, API) y
+# deborah solo agent (con BIND); aplicar primero el nodo menos crítico de ese momento:
+#   1. Simulación: muestra el conjunto de reglas y valida con `nft -c`, sin aplicar:
+#        ansible-playbook -i inventory.ini playbook-firewall.yml -l oliver --check --diff
+#   2. oliver:       ansible-playbook -i inventory.ini playbook-firewall.yml -l oliver
+#   3. invincible:   ansible-playbook -i inventory.ini playbook-firewall.yml -l invincible
+#   4. deborah (BIND y, antes de la mudanza, la API de K3s):
+#                    ansible-playbook -i inventory.ini playbook-firewall.yml -l deborah
+# Si la mudanza aún no se hizo, el server es deborah: déjela para el final y pruebe antes
+# 6443 desde la estación. Si ya se hizo, oliver aloja la API: verifique kubectl en cada paso.
+#
+# Verificación posterior (desde la estación, fuera de la lista de orígenes; -z = solo sondeo):
+#   for h in 192.168.20.5 192.168.20.6 192.168.20.7; do
+#     nc -zv -w 3 $h 5555; nc -zv -w 3 $h 111; nc -zv -w 3 $h 11434; done   # 5555 y 111 deben fallar;
+#   11434 solo responde si la estación está en host_firewall_ollama_extra_cidrs.
+#   nc -zv -w 3 <ip-nodo> 22 y 6443 sí deben abrir (la estación es "operator").
+#
+# Requisitos: sesión SSH desde la estación del operador (su IP se permite sola), kubectl
+# y KUBECONFIG (solo lectura) para las comprobaciones del clúster, y un terminal
+# interactivo para escribir la confirmación. Si hay otras estaciones de operación:
+#   -e '{"host_firewall_operator_cidrs": ["192.168.20.50"]}'
+#
+# Quitar el firewall de emergencia (en el nodo):  sudo systemctl disable --now homelab-firewall
+# Detalles, variables e IPv6: roles/host_firewall/README.md
+
+- name: Firewall de host (nftables) con auto-reversión
+  hosts: incus_cluster
+  become: true
+  serial: 1
+  any_errors_fatal: true
+  roles:
+    - host_firewall

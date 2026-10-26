@@ -1,0 +1,29 @@
+---
+# Ollama bajo demanda en los nodos de IA (grupo llm_nodes: deborah, invincible, oliver): ollama.service queda apagado
+# y un socket de systemd (<ip del nodo>:11434) lo despierta con la primera petición; se apaga solo tras unos minutos
+# sin tráfico. Además cada nodo ejecuta un agente de registro que publica sus modelos en el router (ns ai).
+# Ver roles/ollama_ondemand/README.md y roles/ollama_node/README.md.
+#
+# Descarga el release de Ollama (~1,5 GB) y los modelos (varios GB): la primera corrida tarda.
+# Requiere en la estación del operador: app 1Password desbloqueada, `pip install onepassword-sdk`,
+# y KUBECONFIG exportado (se lee la CA del HomeLab de cert-manager).
+#
+#   ansible-playbook -i inventory.ini playbook-ollama.yml --check --diff
+#   ansible-playbook -i inventory.ini playbook-ollama.yml
+#   ansible-playbook -i inventory.ini playbook-ollama.yml -l oliver          # un solo nodo
+#   ansible-playbook -i inventory.ini playbook-ollama.yml --tags install     # solo el binario
+#   ansible-playbook -i inventory.ini playbook-ollama.yml --tags units       # unidades systemd y socket
+#   ansible-playbook -i inventory.ini playbook-ollama.yml --tags models      # solo los modelos
+#   ansible-playbook -i inventory.ini playbook-ollama.yml --tags register    # solo el agente de registro
+#
+# Nodo nuevo: línea en [llm_nodes] de inventory.ini, host_vars/<nodo>.yml y `-l <nodo>`.
+# Seguro de repetir: no reinicia Ollama si nada cambió.
+
+- name: Ollama bajo demanda en los nodos de IA
+  hosts: llm_nodes
+  become: true
+  roles:
+    - role: ollama_ondemand
+    - role: ollama_node
+      tags: register
+      when: ollama_node_enabled | bool

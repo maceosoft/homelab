@@ -60,7 +60,8 @@ cache, pip, npm) no se puede verificar así.
 1. El volumen está enlazado y los runners lo montan:
 
     ```bash
-    kubectl -n arc-runners get pvc arc-cache      # STATUS: Bound
+    # STATUS: Bound
+    kubectl -n arc-runners get pvc arc-cache
     kubectl -n arc-runners get cronjob arc-cache-prune
     ```
 

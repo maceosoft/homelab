@@ -34,7 +34,7 @@ Solo `deborah`.
 4. `/etc/bind/named.conf.local`: declara las zonas `mco.local`,
    `20.168.192.in-addr.arpa` y `homelab.local`.
 5. Genera `/var/lib/bind/db.mco.local` (un `A` por host de `incus_cluster`, con su
-   `static_ip`; `ns` es `dns_primary` y `k3s` es `k3s_control_plane_host`),
+   `static_ip`; `ns` es `dns_primary` y `k3s` es `k3s_api_ip`; en `homelab.local` el registro `k3s` es el endpoint del API de K3s),
    `/var/lib/bind/db.mco.local.inv` (los `PTR`) y `/var/lib/bind/db.homelab.local`
    (dominio de servicios publicados: un registro por cada servidor de `incus_cluster` con su `static_ip`; `incus` → `incus_cluster_leader`; `argocd`, `vcluster`, `api` y `grafana` → `gateway_ip`, la IP fija del Gateway en MetalLB, definida en `group_vars/all.yml`).
    El serial es la fecha (`YYYYMMDD01`).
@@ -48,3 +48,14 @@ ansible deborah -m command -a "dig @192.168.20.5 oliver.mco.local +short"
 ansible deborah -m command -a "dig @192.168.20.5 deb.debian.org +short"
 ansible deborah -m command -a "ps -o pid,args -C named"   # named -u bind -t /var/lib/named
 ```
+
+## Quién puede consultar el DNS
+
+Este DNS sirve a toda la red: la LAN, otras subredes del mismo router y las VPN. Por defecto
+`allow-query` y `allow-recursion` son `any` y el límite de respuestas está apagado, porque
+limitarlos dejó sin DNS a equipos de otra subred. Lo que sí se endurece sin bloquear a nadie es
+`allow-transfer { none; }` y la versión oculta (`version "none"`).
+
+Para restringir por origen hay que activarlo de forma explícita: `bind_dns_restrict_clients: true`
+(usa la lista `bind_dns_allowed_clients`) y, para limitar ráfagas, `bind_dns_rate_limit_enabled: true`.
+Antes de hacerlo, revisa en `journalctl -u named` qué IP de cliente consultan realmente.

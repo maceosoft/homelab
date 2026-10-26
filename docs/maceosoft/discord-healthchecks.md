@@ -15,6 +15,7 @@ las lleva al clúster.
 | Qué | Dónde se crea | Item de 1Password | Lo usa |
 |---|---|---|---|
 | Un **webhook** por canal de alertas: `critical` y `warnings` | Discord | `discord-webhooks` | Alertmanager publica las alertas |
+| Un tercer **webhook** opcional, `ai`, para el canal `#ia` (reportes diario y semanal con IA) | Discord | `discord-webhooks` | Los reportes publican ahí ([cómo crearlo](../operacion/logs.md#crear-el-canal-ia-y-su-webhook-una-sola-vez)) |
 | La **ping URL** de un check | healthchecks.io | `healthchecks-ping` | Alertmanager le manda un ping cada 5 minutos |
 | La contraseña del administrador de Grafana | 1Password | `grafana-admin` | Entrar a Grafana |
 
@@ -84,7 +85,8 @@ Clic derecho en el canal → **Notification Settings** (o **Mute Channel** → o
 Publica un mensaje de prueba sin dejar la URL en el historial de la terminal (la pide en silencio):
 
 ```bash
-read -rs HOOK        # pega la URL y pulsa Enter (no se ve)
+# pega la URL y pulsa Enter (no se ve)
+read -rs HOOK
 curl -sS -H 'Content-Type: application/json' -d '{"content":"Prueba del webhook"}' "$HOOK"
 unset HOOK
 ```
@@ -169,14 +171,47 @@ script los busca por nombre. Cómo crear un item con campos propios: [Plataforma
 | `discord-webhooks` | `critical` | Webhook de `alertas-criticas` (parte 1, paso 4) |
 | | `warnings` | Webhook de `alertas-avisos` |
 | | `deployments` | *(opcional)* Webhook del canal `despliegues`, para las notificaciones de ArgoCD (parte 1, paso 7) |
+| | `ai` | *(opcional)* Webhook del canal `#ia`, para los reportes con IA ([crearlo](../operacion/logs.md#crear-el-canal-ia-y-su-webhook-una-sola-vez)) |
 | `healthchecks-ping` | `url` | La ping URL del check (parte 2, paso 3) |
 | `grafana-admin` | `password` | Una contraseña generada con el generador de 1Password |
 | | `username` | *(opcional)* usuario del administrador; por defecto `admin` |
 
+??? tip "Con la CLI de 1Password (`op`)"
+    Con la app de 1Password desbloqueada y el CLI `op` instalado, los tres items se crean con un comando cada uno. Las URL
+    son secretas: se leen con `read -s` (no se ven al pegarlas ni quedan en el historial) y se borran de la variable al terminar.
+    Si tienes más de una cuenta de 1Password, exporta antes `OP_ACCOUNT`.
+
+    ```bash
+    # pega el webhook de alertas-criticas y Enter
+    read -rs DC_CRITICAL
+    # pega el webhook de alertas-avisos y Enter
+    read -rs DC_WARNINGS
+    op item create --category "Secure Note" --vault HomeLab --title discord-webhooks \
+      "critical[password]=$DC_CRITICAL" "warnings[password]=$DC_WARNINGS"
+    unset DC_CRITICAL DC_WARNINGS
+
+    # Campos opcionales, en el mismo item (despliegues e #ia):
+    read -rs DC_DEPLOY; op item edit discord-webhooks "deployments[password]=$DC_DEPLOY"; unset DC_DEPLOY
+    read -rs DC_AI;     op item edit discord-webhooks "ai[password]=$DC_AI";                unset DC_AI
+
+    # pega la ping URL de healthchecks.io y Enter
+    read -rs HC_URL
+    op item create --category "Secure Note" --vault HomeLab --title healthchecks-ping "url[password]=$HC_URL"
+    unset HC_URL
+
+    op item create --category "Secure Note" --vault HomeLab --title grafana-admin \
+      "password[password]=$(openssl rand -base64 24)" "username[text]=admin"
+    ```
+
+    Para ver la contraseña de Grafana cuando la necesites: `op read "op://HomeLab/grafana-admin/password"`. Los nombres del
+    item y de los campos son exactamente los que lee `apply_platform_secrets.py`; no los cambies. Discord y healthchecks.io no
+    tienen CLI para crear el webhook o el check: ese paso es **solo desde la web** (partes 1 y 2).
+
 Comprueba que están bien puestos, sin mostrar ningún valor (desde `ansible/`):
 
 ```bash
-export ONEPASSWORD_ACCOUNT_NAME="Mi Cuenta"  # tu cuenta
+# tu cuenta
+export ONEPASSWORD_ACCOUNT_NAME="Mi Cuenta"
 ../.venv/bin/python scripts/apply_platform_secrets.py --check
 ```
 

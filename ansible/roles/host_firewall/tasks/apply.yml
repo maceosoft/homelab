@@ -1,0 +1,166 @@
+---
+# Aplicación segura: candidato -> temporizador de reversión -> carga -> verificación
+# desde la estación -> confirmación del operador -> persistencia.
+
+- name: Escribir las reglas candidatas
+  ansible.builtin.copy:
+    content: "{{ host_firewall_ruleset }}"
+    dest: "{{ host_firewall_candidate_file }}"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Hash de las reglas candidatas
+  ansible.builtin.stat:
+    path: "{{ host_firewall_candidate_file }}"
+  register: host_firewall_candidate_stat
+
+- name: Hash de las reglas confirmadas
+  ansible.builtin.stat:
+    path: "{{ host_firewall_rules_file }}"
+  register: host_firewall_confirmed_stat
+
+- name: Estado vivo de la tabla
+  ansible.builtin.command: "{{ host_firewall_nft_bin }} list table inet homelab_filter"
+  register: host_firewall_live
+  changed_when: false
+  failed_when: false
+
+- name: Estado de la unidad persistente
+  ansible.builtin.command: systemctl is-enabled homelab-firewall.service  # noqa: command-instead-of-module
+  register: host_firewall_enabled
+  changed_when: false
+  failed_when: false
+
+- name: Decidir si hay algo que aplicar
+  ansible.builtin.set_fact:
+    host_firewall_up_to_date: >-
+      {{ host_firewall_confirmed_stat.stat.exists
+         and host_firewall_confirmed_stat.stat.checksum == host_firewall_candidate_stat.stat.checksum
+         and host_firewall_live.rc == 0
+         and host_firewall_enabled.rc == 0 }}
+
+- name: Sin cambios
+  ansible.builtin.debug:
+    msg: "El firewall de {{ inventory_hostname }} ya coincide con las reglas deseadas."
+  when: host_firewall_up_to_date | bool
+
+- name: Cargar, verificar y confirmar
+  when: not (host_firewall_up_to_date | bool)
+  block:
+    - name: Cancelar un temporizador de reversión anterior (si quedó alguno)
+      ansible.builtin.command: systemctl stop homelab-firewall-revert.timer homelab-firewall-revert.service  # noqa: command-instead-of-module
+      changed_when: false
+      failed_when: false
+
+    - name: Liberar el bloqueo de la confirmación anterior
+      ansible.builtin.file:
+        path: "{{ host_firewall_lock_dir }}"
+        state: absent
+
+    - name: "ARMAR la auto-reversión (temporizador transitorio)"
+      ansible.builtin.command: >-
+        systemd-run --unit=homelab-firewall-revert
+        --on-active={{ host_firewall_revert_seconds }}s
+        --timer-property=AccuracySec=1s
+        {{ host_firewall_revert_script }}
+      changed_when: true
+
+    - name: Cargar las reglas candidatas (transacción atómica)
+      ansible.builtin.command: "{{ host_firewall_nft_bin }} -f {{ host_firewall_candidate_file }}"
+      changed_when: true
+
+    - name: "Esperar a que el tráfico nuevo se asiente"
+      ansible.builtin.pause:
+        seconds: "{{ host_firewall_settle_seconds }}"
+        prompt: "Reglas cargadas en {{ inventory_hostname }}; comprobando conexiones NUEVAS desde esta estación..."
+
+    # Conexiones NUEVAS desde la estación (la sesión SSH de Ansible ya está
+    # establecida y sobreviviría aunque la regla de SSH estuviera mal).
+    - name: "Verificar SSH nuevo desde la estación (puerto 22, lee el banner)"
+      ansible.builtin.wait_for:
+        host: "{{ hostvars[inventory_hostname]['ansible_host'] }}"
+        port: 22
+        search_regex: "SSH-"
+        timeout: 15
+      delegate_to: localhost
+      become: false
+
+    - name: "Verificar API de K3s desde la estación (6443, solo el server)"
+      ansible.builtin.wait_for:
+        host: "{{ hostvars[inventory_hostname]['ansible_host'] }}"
+        port: 6443
+        timeout: 15
+      delegate_to: localhost
+      become: false
+      when: inventory_hostname in groups['k3s_server'] | default([])
+
+    - name: "Verificar nodos, Calico y Longhorn con kubectl (solo lectura)"
+      ansible.builtin.include_tasks: verify_cluster.yml
+      when: host_firewall_verify_kubectl | bool
+
+    - name: "CONFIRMAR: el operador decide"
+      ansible.builtin.pause:
+        prompt: >-
+          Reglas ACTIVAS en {{ inventory_hostname }}. Si todo está bien escriba
+          {{ host_firewall_confirm_word }} y Enter. Cualquier otra respuesta, Ctrl+C,
+          o pasar de {{ host_firewall_revert_seconds }} s desde la carga revierte solo
+        echo: true
+      register: host_firewall_answer
+
+    - name: "Verificar: respuesta de confirmación"
+      ansible.builtin.assert:
+        that: (host_firewall_answer.user_input | default('') | trim | upper) == (host_firewall_confirm_word | upper)
+        fail_msg: "Sin confirmación: el temporizador revierte las reglas de {{ inventory_hostname }}."
+
+    # Reclamar la confirmación de forma atómica: mkdir solo lo logra uno de los dos
+    # (esta tarea o el script de reversión del temporizador).
+    - name: "Reclamar la confirmación (falla si la reversión ya ocurrió)"
+      ansible.builtin.command: mkdir "{{ host_firewall_lock_dir }}"  # noqa: command-instead-of-module
+      register: host_firewall_claim
+      changed_when: true
+      failed_when: false
+
+    - name: "Abortar si la reversión ya ocurrió (confirmación tardía)"
+      ansible.builtin.fail:
+        msg: >-
+          La auto-reversión ya se ejecutó en {{ inventory_hostname }}: las reglas NO están activas.
+          Vuelva a ejecutar el playbook y confirme antes de {{ host_firewall_revert_seconds }} s.
+      when: host_firewall_claim.rc != 0
+
+    - name: "CANCELAR la auto-reversión"
+      ansible.builtin.command: systemctl stop homelab-firewall-revert.timer homelab-firewall-revert.service  # noqa: command-instead-of-module
+      changed_when: true
+
+    - name: "Persistir: promover el candidato a reglas confirmadas"
+      ansible.builtin.copy:
+        src: "{{ host_firewall_candidate_file }}"
+        dest: "{{ host_firewall_rules_file }}"
+        remote_src: true
+        owner: root
+        group: root
+        mode: "0600"
+        backup: true
+
+    - name: Habilitar el servicio de reglas persistentes
+      ansible.builtin.systemd:
+        name: homelab-firewall.service
+        enabled: true
+        state: started
+
+  rescue:
+    - name: "Fallo: revertir YA al estado confirmado anterior"
+      ansible.builtin.command: "{{ host_firewall_revert_script }} --force"
+      changed_when: true
+      failed_when: false
+
+    - name: "Fallo: cancelar el temporizador pendiente"
+      ansible.builtin.command: systemctl stop homelab-firewall-revert.timer homelab-firewall-revert.service  # noqa: command-instead-of-module
+      changed_when: false
+      failed_when: false
+
+    - name: "Abortar con el motivo"
+      ansible.builtin.fail:
+        msg: >-
+          El firewall de {{ inventory_hostname }} NO quedó aplicado (se revirtió).
+          Detalle: {{ ansible_failed_result.msg | default('ver tarea anterior') }}

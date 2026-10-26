@@ -44,10 +44,52 @@ configuración ni clave de WireGuard.
   proxy en una DMZ (zona desmilitarizada) real y aislada — no el host que corre el servicio, y
   nunca el mismo host que administra el cluster.
 
-La exposición se limita en el router.
-`roles/host_hardening` no configura firewall de host: ufw entra en
-conflicto con las reglas de iptables de kube-proxy y no es compatible con
-K8s.
+La exposición se limita en el router **y en cada nodo** (ver la siguiente
+sección). `roles/host_hardening` no configura el firewall de host: ufw entra
+en conflicto con las reglas de iptables de kube-proxy y no es compatible con
+K8s; de eso se ocupa el rol `host_firewall`, que usa `nftables`.
+
+## Firewall de host, servicios expuestos y autenticación
+
+Una auditoría del repo y del clúster vivo encontró que, además de la DMZ del
+incidente, los nodos tenían la cadena `INPUT` en `ACCEPT` y varios servicios
+accesibles desde toda la LAN (red local) y el WiFi sin autenticación. El
+resultado, y lo que se hizo con cada hallazgo, está resumido aquí; la regla
+general y la lista de excepciones viven en
+[Modelo de autenticación](modelo-de-autenticacion.md). La columna "Arreglo" describe el diseño; lo que se despliega por
+etapas (NetworkPolicy `default-deny`, etiquetas PSA, `oauth2-proxy`) se indica como "por activar".
+
+| Hallazgo | Arreglo |
+|---|---|
+| No había firewall de host gestionado: la LAN y el WiFi alcanzaban `22`, `6443`, `8443`, `10250`, `9100`, `11434`... | Rol `host_firewall` con `nftables`: tabla propia, evaluada antes de kube-proxy y sin tocar las cadenas de Calico |
+| Ollama sin autenticación, con `/api/pull`, `/api/create` y `/api/delete` | Socket solo en la IP del nodo, `nftables` con el puerto `11434` solo desde los nodos de K3s y los pods, Kong solo por HTTPS y autenticación Bearer en el router, que además bloquea los verbos de gestión. El Ollama del nodo sigue sin autenticar: la protección real es el token del router más las NetworkPolicy |
+| Kong Manager (puertos `8002` y `8445`, NodePort) y Admin API sin autenticación | Kong Manager desactivado; Admin API solo interna (su NetworkPolicy está por activar) |
+| ArgoCD con el usuario `admin` local y su secreto inicial | `admin.enabled: "false"` y borrar el secreto inicial; el pipeline usa un token `ci` con caducidad |
+| Sin NetworkPolicy en `kong`, `monitoring`, `ai`, `gateway` y `arc-*` | Manifiestos de `default-deny` y permisos explícitos por namespace, **por activar** de a una (las de logs, `ai/tools`, `alert-triage` y Open Terminal ya viajan con su aplicación) |
+| Open WebUI con registro abierto y sin Dex | Dex con el team `devops`, registro cerrado |
+| Incus (`8443`) abierto a la LAN | Limitado por `nftables`; grupo OIDC específico |
+| `adbd` (Android Debug Bridge, sin credenciales) escuchando en `deborah:5555`, lanzado por `usbdevice.service` | Deshabilitar y enmascarar esa unidad y verificar que el puerto cierra |
+| node-exporter y métricas de MetalLB y FRR abiertos a la LAN | Escuchar solo en la IP del nodo y `nftables` hacia el recolector |
+| `alert-triage` y `mcpo` sin token | Token Bearer o clave de API, NetworkPolicy |
+| BIND sin transferencias de zona y con la versión visible | `allow-transfer { none; }` y versión oculta. El DNS sirve a toda la red (otras subredes del router, VPN): no se limita por origen ni se activa el límite de tasa (opt-in con `bind_dns_restrict_clients` y `bind_dns_rate_limit_enabled`) |
+| K3s sin Dex ni cifrado de Secrets | Al mover el control plane ([guía](../operacion/mover-control-plane.md)): banderas `oidc-*`, `--secrets-encryption` e instalador con suma de verificación |
+| `rpcbind`, `dnsmasq`, SSH con `AllowUsers` sin definir, `auditd` mínimo | Deshabilitar lo que no se usa, `AllowUsers devops amaceo` y reglas de `auditd` enviadas a [VictoriaLogs](../operacion/logs.md) |
+
+!!! danger "El firewall se aplica con auto-reversión"
+    Un error de `nftables` puede dejarte sin SSH. El rol aplica las reglas con una **auto-reversión a los 300
+    segundos (5 minutos)**: se prueban conexiones nuevas (SSH, API de K3s) y hay que confirmar a mano; si no, un
+    temporizador de systemd retira las reglas. Se aplica de a un nodo (`playbook-firewall.yml`): primero
+    `--check` en `oliver`, luego `invincible` y por último `deborah`. Para quitarlo de emergencia en el nodo:
+    `sudo systemctl disable --now homelab-firewall`. El detalle del rol está en su
+    [README](https://github.com/maceosoft/homelab/blob/main/ansible/roles/host_firewall/README.md).
+
+El acceso por SSH con la identidad de Dex (opkssh) solo funciona si la política
+desplegada en cada nodo coincide con la organización actual del equipo
+(`maceosoft:devops`); si cambia la organización hay que volver a aplicar
+`playbook-opkssh.yml`.
+
+La cuenta compartida `devops` (con `sudo` sin contraseña) se mantiene como cuenta
+de SSO por decisión explícita; el control es `AllowUsers` y el rastro de `auditd`.
 
 ## Qué hace el hardening (resumen)
 
@@ -67,8 +109,9 @@ ansible-playbook -i inventory.ini playbook-hardening.yml --limit deborah
 
 ## Orden de reconstrucción de `deborah`
 
-`deborah` es el control-plane K3s (`k3s_control_plane_host` en
-`group_vars/all.yml`) — hay que rearmarla en orden antes
+`deborah` es hoy el control-plane K3s (`k3s_api_ip` en
+`group_vars/all.yml`; se muda a `oliver` con
+[Mover el control plane](../operacion/mover-control-plane.md)) — hay que rearmarla en orden antes
 de que vuelva a ser útil. El orden completo, paso a paso con los comandos
 exactos, vive en un solo lugar para no duplicarlo (y que no se desactualice
 en dos partes distintas):
@@ -116,7 +159,7 @@ ansible-playbook -i inventory.ini playbook-rotate-root-passwords.yml \
 - Si el router lo soporta, este es también el momento de evaluar VLANs (redes locales virtuales)
   (ver roadmap abajo) en vez de una LAN plana única.
 
-## Roadmap (no implementado todavía, siguiente nivel)
+## Roadmap (pendiente, siguiente nivel)
 
 - **Segmentación con VLANs** — separar la VLAN (red local virtual) del cluster HomeLab de
   cualquier otra cosa en la LAN (IoT, invitados, etc.), en vez de confiar
@@ -128,9 +171,13 @@ ansible-playbook -i inventory.ini playbook-rotate-root-passwords.yml \
   `NetworkPolicy`, Pod Security Admission). Ver
   [guía oficial de K3s](https://docs.k3s.io/security/hardening-guide) y
   [`kube-bench`](https://github.com/aquasecurity/kube-bench).
-- **Cifrado de secrets en reposo** en K3s (`--secrets-encryption`).
-- **NetworkPolicies** entre namespaces del cluster (hoy no hay ninguna
-  declarada en `gitops/`).
+- **Cifrado de secrets en reposo** en K3s (`--secrets-encryption`): se activa al
+  [mover el control plane](../operacion/mover-control-plane.md).
+- **NetworkPolicies** `default-deny` entre namespaces (`ai`, `monitoring`, `kong`,
+  `gateway`, `arc-*`): los manifiestos están listos pero se activan por etapas,
+  namespace por namespace. Ver [Qué está activo](modelo-de-autenticacion.md#que-esta-activo-y-que-esta-por-activar).
+- **Pod Security Admission** (PSA) en modo `warn` y `audit` con el nivel `restricted`
+  antes de hacerlo obligatorio (etiquetas listas, por activar).
 
 ## Fuentes consultadas
 

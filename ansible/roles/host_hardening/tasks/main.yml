@@ -44,6 +44,15 @@
   when: host_hardening_ssh_password_authentication == "no"
 
 # --- SSH ------------------------------------------------------------------
+- name: "Verificar: la cuenta de conexion esta en AllowUsers (no quedar afuera)"
+  ansible.builtin.assert:
+    that: host_hardening_connect_user in host_hardening_ssh_allow_users
+    fail_msg: >-
+      '{{ host_hardening_connect_user }}' no esta en host_hardening_ssh_allow_users
+      ({{ host_hardening_ssh_allow_users | join(', ') }}): AllowUsers te dejaria afuera
+      de {{ inventory_hostname }}. Agregala o conectate con otra cuenta.
+  when: host_hardening_ssh_allow_users | length > 0
+
 - name: Banner legal /etc/issue.net
   ansible.builtin.template:
     src: issue.net.j2
@@ -159,25 +168,44 @@
   when: host_hardening_enable_auditd
   register: host_hardening_auditd_pkg
 
-- name: Reglas de auditoria basicas (cuentas, sudo, ssh)
-  ansible.builtin.copy:
+- name: Comprobar que rutas vigiladas por auditd existen
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop: "{{ host_hardening_audit_watch_paths }}"
+  register: host_hardening_audit_paths
+  when: host_hardening_enable_auditd
+
+- name: Reglas de auditoria (cuentas, sudo, ssh, k3s, opkssh, execve, mount/setuid)
+  ansible.builtin.template:
+    src: audit-rules.j2
     dest: /etc/audit/rules.d/90-host-hardening.rules
     owner: root
     group: root
     mode: "0640"
-    content: |
-      -w /etc/passwd -p wa -k identity
-      -w /etc/shadow -p wa -k identity
-      -w /etc/sudoers -p wa -k privilege_escalation
-      -w /etc/sudoers.d/ -p wa -k privilege_escalation
-      -w /etc/ssh/sshd_config -p wa -k sshd_config
-      -w /etc/ssh/sshd_config.d/ -p wa -k sshd_config
   when: host_hardening_enable_auditd
   register: host_hardening_audit_rules
 
+- name: Reglas de auditoria inmutables (-e 2, opcional)
+  ansible.builtin.copy:
+    dest: /etc/audit/rules.d/99-finalize.rules
+    owner: root
+    group: root
+    mode: "0640"
+    content: |
+      # Congela las reglas hasta el proximo reinicio.
+      -e 2
+  when: host_hardening_enable_auditd and host_hardening_audit_immutable
+  register: host_hardening_audit_immutable_rules
+
+- name: Quitar el archivo de reglas inmutables si ya no se pide
+  ansible.builtin.file:
+    path: /etc/audit/rules.d/99-finalize.rules
+    state: absent
+  when: host_hardening_enable_auditd and not host_hardening_audit_immutable
+
 - name: Cargar reglas de auditd (augenrules)
   ansible.builtin.command: augenrules --load
-  when: host_hardening_enable_auditd and host_hardening_audit_rules is changed
+  when: host_hardening_enable_auditd and (host_hardening_audit_rules is changed or host_hardening_audit_immutable_rules is changed)
   changed_when: false
 
 - name: Habilitar auditd
@@ -205,3 +233,7 @@
   when:
     - host_hardening_enable_time_sync
     - not (ansible_check_mode and host_hardening_timesyncd_pkg is changed)
+
+# --- Servicios, actualizaciones y journald ---------------------------------
+- name: Servicios innecesarios, unattended-upgrades y journald
+  ansible.builtin.import_tasks: services.yml

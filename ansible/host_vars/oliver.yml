@@ -3,7 +3,9 @@ incus_role: "Miembro (scheduler manual, quorum only)"
 incus_cluster_role: member
 incus_cluster_groups: [x86-nodes, default]
 incus_scheduler_manual: true
-k3s_role: agent
+# Pasa a server (control-plane) al terminar la mudanza (k3s_move_done en group_vars/all.yml).
+# Sigue siendo workload-tier=light; como server usa los mismos k3s_agent_kubelet_args.
+k3s_role: "{{ 'server' if k3s_move_done | bool else 'agent' }}"
 ip_static: true
 k3s_agent_kubelet_args:
   - max-pods=110
@@ -13,3 +15,12 @@ k3s_node_labels:
 ansible_python_interpreter: /usr/bin/python3
 has_wifi: true
 wifi_iface: wlo1
+
+# --- Ollama (rol ollama_ondemand) ---
+# i3-6100T, 7,7 GB (~5 GB libres): embeddings y modelos de hasta 3B.
+ollama_ondemand_models:
+  - nomic-embed-text
+  - qwen2.5:3b-instruct
+ollama_ondemand_memory_max: 3500M
+ollama_node_priority: 40
+ollama_node_tags: [x86, embeddings, light, always-on]

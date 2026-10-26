@@ -1,0 +1,87 @@
+---
+# Excepciones de exposición para scripts/audit_exposure.sh (solo lectura).
+# Todo lo que NO esté aquí y se detecte expuesto hace fallar la auditoría (exit 1).
+# Regla del modelo: personas -> Dex (nativo u oauth2-proxy); máquinas -> token + red;
+# lo que no puede llevar login queda aquí con la restricción de red que lo sustituye.
+
+# Services NodePort / LoadBalancer permitidos.
+services:
+  - namespace: kong
+    name: kong-gateway-proxy
+    type: LoadBalancer
+    reason: "Gateway HTTP(S) del HomeLab (192.168.23.200). Los listeners HTTP solo redirigen a HTTPS."
+
+# HTTPRoutes: cómo se autentican las personas en cada backend.
+#   auth: dex-native    = la app habla OIDC con Dex por sí misma (verificar en su configuración)
+#   auth: oauth2-proxy  = el backend es un oauth2-proxy (el script también lo autodetecta por nombre)
+#   auth: machine-token = API de máquinas con token propio (indicar cuál en reason)
+#   auth: none          = sin login; solo con reason y control de red explícito
+httproutes:
+  - namespace: argocd
+    name: argocd-server
+    auth: dex-native
+    reason: "ArgoCD con Dex (SSO GitHub). El admin local debe estar deshabilitado (admin.enabled=false)."
+  - namespace: monitoring
+    name: grafana
+    auth: dex-native
+    reason: "Grafana con auth.generic_oauth hacia Dex; el login local queda como respaldo."
+  - namespace: ai
+    name: open-webui
+    auth: dex-native
+    reason: "Open WebUI solo con Dex (OAUTH_*): sin formulario local ni registro (ENABLE_LOGIN_FORM y ENABLE_PASSWORD_AUTH en False)."
+  - namespace: ai
+    name: ollama-router
+    auth: machine-token
+    reason: "API de Ollama tras el router: exige Bearer por cliente; los humanos no la usan."
+
+# Namespaces sin NetworkPolicy aceptados (sistema/operadores sin tráfico entrante propio).
+namespaces_without_networkpolicy:
+  - { name: default, reason: "Sin cargas." }
+  - { name: kube-system, reason: "Sistema de K3s." }
+  - { name: kube-public, reason: "Sistema." }
+  - { name: kube-node-lease, reason: "Sistema." }
+  - { name: tigera-operator, reason: "Operador de Calico, hostNetwork." }
+  - { name: calico-system, reason: "Calico, hostNetwork; sus puertos se limitan en el firewall del nodo." }
+  - { name: metallb-system, reason: "MetalLB, hostNetwork; sus puertos se limitan en el firewall del nodo." }
+  - { name: cert-manager, reason: "Sin puertos de servicio publicados." }
+  - { name: openebs, reason: "Sin puertos de servicio publicados." }
+  - { name: system-upgrade, reason: "Controlador de actualizaciones, sin puertos publicados." }
+  - { name: terraform, reason: "Sin puertos de servicio publicados." }
+  # Temporales: sus NetworkPolicy están etapadas en gitops. Revisar el 2026-12-01 y quitar.
+  - { name: arc-systems, reason: "TEMPORAL (revisar 2026-12-01): política etapada (fase arc-*)." }
+  - { name: k8sgpt-operator-system, reason: "TEMPORAL (revisar 2026-12-01): política etapada." }
+  - { name: kong, reason: "TEMPORAL (revisar 2026-12-01): default-deny etapado; Admin API aún sin política." }
+  - { name: gateway, reason: "TEMPORAL (revisar 2026-12-01): política etapada." }
+  - { name: ai-sandbox, reason: "TEMPORAL (revisar 2026-12-01): política etapada." }
+
+# Puertos en escucha por nodo (modo AUDIT_NODES). Registro de exposición residual: lo que
+# no puede llevar login queda con restricción de red (host_firewall).
+node_ports:
+  - { port: 22, proto: tcp, reason: "SSH: llave/SSO; firewall: LAN y operador." }
+  - { port: 6443, proto: tcp, reason: "API de K3s; firewall: nodos, pods y operador." }
+  - { port: 10250, proto: tcp, reason: "Kubelet (authn/authz propios); firewall: nodos y pods." }
+  - { port: 8443, proto: tcp, reason: "Incus (OIDC/certificados); firewall: nodos, pods y operador." }
+  - { port: 9100, proto: tcp, reason: "node-exporter; firewall: nodos y pods." }
+  - { port: 9120, proto: tcp, reason: "Métricas MetalLB/FRR; firewall: nodos y pods." }
+  - { port: 9140, proto: tcp, reason: "Métricas MetalLB/FRR; firewall: nodos y pods." }
+  - { port: 9141, proto: tcp, reason: "Métricas MetalLB/FRR; firewall: nodos y pods." }
+  - { port: 179, proto: tcp, reason: "BGP de Calico (bird); firewall: nodos." }
+  - { port: 2623, proto: tcp, reason: "FRR mgmtd; firewall: nodos y pods." }
+  - { port: 7946, proto: tcp, reason: "memberlist de MetalLB; firewall: nodos y pods." }
+  - { port: 7946, proto: udp, reason: "memberlist de MetalLB; firewall: nodos y pods." }
+  - { port: 5473, proto: tcp, reason: "Typha de Calico; firewall: nodos y pods." }
+  - { port: 30980, proto: tcp, reason: "healthCheckNodePort de kong-gateway-proxy (externalTrafficPolicy Local); firewall: nodos." }
+  - { port: 19443, proto: tcp, reason: "Webhook statuscleaner de MetalLB; firewall: nodos." }
+  - { port: 53, proto: tcp, reason: "BIND (deborah); ACL lan." }
+  - { port: 53, proto: udp, reason: "BIND (deborah); ACL lan." }
+  - port: 11434
+    proto: tcp
+    reason: >-
+      Ollama por socket en la IP del nodo; firewall: nodos K3s, pods (el router puede estar en
+      el mismo nodo) y host_firewall_ollama_extra_cidrs (el Mac).
+  - { port: 4789, proto: udp, reason: "VXLAN de Calico; firewall: nodos y pods." }
+  - { port: 9091, proto: tcp, reason: "Métricas de calico-node; firewall: nodos y pods." }
+  - { port: 2379, proto: tcp, reason: "etcd (tras --cluster-init); firewall: nodos." }
+  - { port: 2380, proto: tcp, reason: "etcd peers (tras --cluster-init); firewall: nodos." }
+  - { port: 10256, proto: tcp, reason: "healthz de kube-proxy; firewall: nodos y pods." }
+  - { port: 6081, proto: udp, reason: "Geneve de OVN (Incus); solo entre nodos." }

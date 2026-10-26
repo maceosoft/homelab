@@ -1,0 +1,67 @@
+---
+- name: Buscar systemd-socket-proxyd
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop: "{{ ollama_ondemand_proxyd_candidates }}"
+  register: ollama_ondemand_proxyd_stat
+
+- name: Elegir la ruta de systemd-socket-proxyd
+  ansible.builtin.set_fact:
+    ollama_ondemand_proxyd_path: >-
+      {{ ollama_ondemand_proxyd_stat.results | selectattr('stat.exists') | map(attribute='item') | first | default('') }}
+
+- name: Comprobar que systemd-socket-proxyd existe
+  ansible.builtin.assert:
+    that: ollama_ondemand_proxyd_path | length > 0
+    fail_msg: "No se encontró systemd-socket-proxyd en {{ ollama_ondemand_proxyd_candidates }}"
+    quiet: true
+
+- name: Instalar la unidad ollama.service (sin [Install], no arranca en el boot)
+  ansible.builtin.template:
+    src: ollama.service.j2
+    dest: /etc/systemd/system/ollama.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Recargar systemd
+
+- name: Crear la carpeta del drop-in de ollama.service
+  ansible.builtin.file:
+    path: /etc/systemd/system/ollama.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Instalar el drop-in de ollama.service (variables, tope de memoria, espera de arranque)
+  ansible.builtin.template:
+    src: override.conf.j2
+    dest: /etc/systemd/system/ollama.service.d/override.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Recargar systemd
+
+- name: Instalar el socket y el proxy de systemd
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - ollama-proxy.socket
+    - ollama-proxy.service
+  notify:
+    - Recargar systemd
+    - Reiniciar el socket de Ollama
+
+- name: Aplicar los cambios de unidades antes de arrancar nada
+  ansible.builtin.meta: flush_handlers
+
+- name: Dejar ollama.service deshabilitado (lo despierta el socket)
+  ansible.builtin.systemd:
+    name: ollama.service
+    enabled: false
+    daemon_reload: true
+  when: not ansible_check_mode

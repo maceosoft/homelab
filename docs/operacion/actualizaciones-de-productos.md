@@ -117,6 +117,26 @@ Después de *Create GitHub App*:
 
 5. **Borra el `.pem`** de Descargas.
 
+??? tip "Con la CLI (`gh` y `op`)"
+    **Crear la App, generar su llave e instalarla se hace solo desde la web.** Lo demás se hace con comandos (1Password
+    desbloqueado; si tienes más de una cuenta de 1Password, exporta `OP_ACCOUNT` antes; `gh` necesita
+    `gh auth refresh -s admin:read:org` una vez):
+
+    ```bash
+    APP=maceosoft-renovate
+    APP_ID=$(gh api orgs/maceosoft/installations --jq ".installations[] | select(.app_slug==\"$APP\") | .app_id")
+    # guardar la App en 1Password (el .pem se lee del archivo)
+    op item create --category "Secure Note" --vault HomeLab --title "$APP" \
+      "app_id[text]=$APP_ID" "private_key[password]=$(cat ~/Downloads/$APP.*.private-key.pem)"
+    # secretos de Actions de gitops, leídos del item por tubería
+    op read "op://HomeLab/$APP/app_id" | gh secret set RENOVATE_APP_ID --repo maceosoft/gitops
+    op read "op://HomeLab/$APP/private_key" | gh secret set RENOVATE_APP_PRIVATE_KEY --repo maceosoft/gitops
+    gh secret list --repo maceosoft/gitops
+    shred -u ~/Downloads/$APP.*.private-key.pem
+    ```
+
+    En macOS usa `rm -P` en lugar de `shred -u`.
+
 Esto no pasa por `playbook-platform-secrets.yml`: no es un Secret del clúster, lo lee GitHub Actions. Para rotar la
 llave: genera otra en la App, actualiza `private_key` en 1Password y el secreto `RENOVATE_APP_PRIVATE_KEY`, y borra la
 vieja en GitHub.
@@ -156,6 +176,13 @@ El workflow lee la URL de un secreto del repo, así que no aparece en git ni en 
 1. En GitHub, repo **`maceosoft/gitops`** → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**.
 2. **Name:** `DISCORD_WEBHOOK_UPDATES`. **Secret:** la URL del webhook, tal cual la copiaste (**sin** `/github` al final).
 3. **Add secret**.
+
+Con la CLI de GitHub, leyendo la URL sin eco:
+
+```bash
+# pega la URL del webhook y Enter
+read -rs DC_UPD; printf '%s' "$DC_UPD" | gh secret set DISCORD_WEBHOOK_UPDATES --repo maceosoft/gitops; unset DC_UPD
+```
 
 Sin este secreto el workflow funciona igual, pero no avisa en Discord (el paso lo dice en su log y sigue).
 
@@ -197,7 +224,8 @@ Sin este secreto el workflow funciona igual, pero no avisa en Discord (el paso l
 ## Probar sin crear PRs
 
 *Actions → renovate → Run workflow*, con **Simulación (dry run)** marcado: Renovate recorre todo y solo escribe en el
-log lo que haría. Con `debug` en el nivel de log se ve cada dependencia detectada.
+log lo que haría. Con la CLI de GitHub: `gh workflow run renovate.yml --repo maceosoft/gitops --ref main` (mira
+`gh workflow view renovate.yml --repo maceosoft/gitops` para ver sus inputs) y `gh run watch --repo maceosoft/gitops`. Con `debug` en el nivel de log se ve cada dependencia detectada.
 
 Si el workflow falla en el paso *Token de la GitHub App*, falta o está mal alguno de los dos secretos, o la App no está
 instalada en `gitops`.
@@ -214,11 +242,11 @@ La versión de Renovate está fija en el workflow: sube la versión a mano de ve
 
 | Qué | Cómo |
 |---|---|
-| Pausar | `gitops` → *Actions → renovate* → **⋯** → **Disable workflow** |
-| Quitar los avisos de Discord | Borra el secreto `DISCORD_WEBHOOK_UPDATES` en `gitops` → **Settings → Secrets and variables → Actions**, y el webhook en Discord (*Edit Channel → Integrations → Webhooks*) |
+| Pausar | `gitops` → *Actions → renovate* → **⋯** → **Disable workflow** (con la CLI: `gh workflow disable renovate.yml --repo maceosoft/gitops`) |
+| Quitar los avisos de Discord | Borra el secreto `DISCORD_WEBHOOK_UPDATES` en `gitops` → **Settings → Secrets and variables → Actions** (o `gh secret delete DISCORD_WEBHOOK_UPDATES --repo maceosoft/gitops`), y el webhook en Discord (*Edit Channel → Integrations → Webhooks*) |
 | Quitar del todo | Borra `renovate.json5` y `.github/workflows/renovate.yml` en un PR, los dos secretos de Actions, la App (*maceosoft → Settings → Developer settings → GitHub Apps → Edit → Advanced → Delete GitHub App*) y los items de 1Password |
 
-Cerrar los PRs abiertos de Renovate y borrar sus ramas `renovate/*` es manual.
+Cerrar los PRs abiertos de Renovate y borrar sus ramas `renovate/*` es manual (con la CLI: `gh pr list --repo maceosoft/gitops --search "head:renovate/" --json number --jq '.[].number'` para listarlos y `gh pr close <número> --delete-branch --repo maceosoft/gitops` para cerrar cada uno).
 
 ## Y Dependabot de `homelab`
 

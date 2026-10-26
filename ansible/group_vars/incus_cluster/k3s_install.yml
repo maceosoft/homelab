@@ -14,6 +14,13 @@ k3s_install:
     # (gitops/k3s-upgrade) sigue ese canal: al agregar un nodo, usar la versión que
     # muestra `kubectl get nodes`.
     version: "v1.36.5+k3s1"
+    # SHA-256 de install.sh en el tag de esa versión
+    # (https://raw.githubusercontent.com/k3s-io/k3s/<versión>/install.sh). El rol
+    # k3s_installer lo descarga y falla si no coincide; el propio install.sh verifica después
+    # el hash del binario con el sha256sum-<arch>.txt de la release. AL CAMBIAR `version`
+    # recalcúlalo:
+    #   curl -sfL "https://raw.githubusercontent.com/k3s-io/k3s/$(printf %s 'vX.Y.Z+k3sN' | sed 's/+/%2B/')/install.sh" | sha256sum
+    installer_sha256: "46177d4c99440b4c0311b67233823a8e8a2fc09693f6c89af1a7161e152fbfad"
     disable_components:
       - traefik
       - servicelb
@@ -27,6 +34,30 @@ k3s_install:
     write_kubeconfig_mode: "600"
     tls_sans_extra: []
     embedded_registry: false
+
+  # Flags de seguridad del server (rol k3s_server). Solo se aplican al INSTALAR o RECONFIGURAR
+  # un server (instalación nueva o playbook-k3s-move-controlplane.yml); un server ya activo
+  # no se reinicia por cambiarlos aquí.
+  security:
+    # --secrets-encryption: cifra los Secrets en reposo. Debe ser igual en TODOS los servers.
+    secrets_encryption: true
+    # OIDC hacia Dex: login humano al kube-apiserver con el cliente público "kubernetes"
+    # (PKCE; se declara en dex.config de gitops). Con los prefijos de abajo, el grupo
+    # maceosoft:devops llega al API como "oidc:maceosoft:devops"; gitops define un
+    # ClusterRoleBinding de ese grupo con el ClusterRole "view".
+    oidc:
+      enabled: true
+      issuer_url: https://argocd.homelab.local/api/dex
+      client_id: kubernetes
+      username_claim: email
+      groups_claim: groups
+      # Prefijos: evitan que un usuario o grupo del IdP se confunda con cuentas internas de Kubernetes.
+      username_prefix: "oidc:"
+      groups_prefix: "oidc:"
+      # CA que firma el certificado de Dex (homelab-ca). La instala el rol opkssh en el
+      # almacén del sistema; el rol k3s_server falla si el archivo no existe. Vacío = no pasar
+      # --oidc-ca-file (el apiserver usaría el almacén raíz del sistema).
+      ca_file: /usr/local/share/ca-certificates/homelab-ca.crt
 
   kube_vip:
     enabled: false
@@ -64,5 +95,7 @@ k3s_install:
 k3s_version: "{{ k3s_install.core.version }}"
 k3s_disable_components: "{{ k3s_install.core.disable_components }}"
 k3s_write_kubeconfig_mode: "{{ k3s_install.core.write_kubeconfig_mode }}"
+# Con kube-vip activo se usa la VIP; si no, el nombre estable k3s_api_endpoint (group_vars/all.yml),
+# que el DNS resuelve al control-plane vigente.
 k3s_api_url: >-
-  https://{{ k3s_install.kube_vip.address if k3s_install.kube_vip.enabled else k3s_control_plane_host }}:6443
+  https://{{ k3s_install.kube_vip.address if k3s_install.kube_vip.enabled else k3s_api_endpoint }}:6443

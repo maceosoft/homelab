@@ -1,0 +1,74 @@
+---
+- name: "¿Hace falta reiniciar? (/var/run/reboot-required)"
+  ansible.builtin.stat:
+    path: /var/run/reboot-required
+  register: node_patch_reboot_required
+
+- name: "Modo --check: qué se haría"
+  ansible.builtin.debug:
+    msg: >-
+      {{ 'Haría: kubectl drain ' ~ node_patch_k8s_node ~ ', reinicio, esperar Ready y uncordon.'
+         if node_patch_reboot_required.stat.exists
+         else 'No haría falta reiniciar (sin /var/run/reboot-required; puede aparecer tras los paquetes reales).' }}
+  when: ansible_check_mode
+
+- name: Sin reinicio
+  ansible.builtin.debug:
+    msg: "{{ inventory_hostname }} no necesita reinicio: no se drena."
+  when:
+    - not ansible_check_mode
+    - not node_patch_reboot_required.stat.exists
+
+- name: Drenar, reiniciar y devolver el nodo
+  when:
+    - not ansible_check_mode
+    - node_patch_reboot_required.stat.exists
+  block:
+    - name: "CONFIRMAR: reiniciar un nodo crítico"
+      ansible.builtin.pause:
+        prompt: >-
+          Se va a REINICIAR {{ inventory_hostname }} (control-plane de K3s y/o BIND): la API de K3s
+          y el DNS de la LAN se cortan unos minutos. Enter para reiniciar, Ctrl+C y luego A para abortar
+      when: inventory_hostname in node_patch_critical_hosts
+
+    - name: Drenar el nodo (desde la estación)
+      ansible.builtin.command: >-
+        kubectl --kubeconfig {{ node_patch_kubeconfig }} drain {{ node_patch_k8s_node }}
+        --ignore-daemonsets --delete-emptydir-data --timeout={{ node_patch_drain_timeout }}
+      delegate_to: localhost
+      become: false
+      changed_when: true
+
+    - name: Reiniciar
+      ansible.builtin.reboot:
+        reboot_timeout: "{{ node_patch_reboot_timeout }}"
+        msg: "Reinicio por parches (playbook-parchear.yml)"
+
+    - name: Esperar a que el nodo vuelva Ready
+      ansible.builtin.command: >-
+        kubectl --kubeconfig {{ node_patch_kubeconfig }} wait node/{{ node_patch_k8s_node }}
+        --for=condition=Ready --timeout={{ node_patch_ready_timeout }}
+      delegate_to: localhost
+      become: false
+      changed_when: false
+
+    - name: Devolver el nodo al clúster (uncordon)
+      ansible.builtin.command: kubectl --kubeconfig {{ node_patch_kubeconfig }} uncordon {{ node_patch_k8s_node }}
+      delegate_to: localhost
+      become: false
+      changed_when: true
+
+  rescue:
+    - name: "Fallo: intentar devolver el nodo (uncordon)"
+      ansible.builtin.command: kubectl --kubeconfig {{ node_patch_kubeconfig }} uncordon {{ node_patch_k8s_node }}
+      delegate_to: localhost
+      become: false
+      changed_when: true
+      failed_when: false
+
+    - name: "Fallo: detener la ejecución"
+      ansible.builtin.fail:
+        msg: >-
+          Falló el reinicio de {{ inventory_hostname }} (tarea: {{ ansible_failed_task.name | default('?') }}).
+          Se intentó 'kubectl uncordon {{ node_patch_k8s_node }}'; compruebe con 'kubectl get nodes'
+          y 'kubectl get pods -A -o wide' antes de seguir. No se parcheó ningún nodo más.

@@ -8,7 +8,10 @@ un disco falle:
 - **eMMC** (`deborah`): la eMMC **no tiene SMART** (`smartctl` responde «Unable to detect device type»). El kernel expone
   su desgaste en `/sys/block/mmcblk*/device/` (`life_time` y `pre_eol_info`, campos estándar JEDEC), y de ahí se lee.
 
-Solo **lee**: no escribe en los discos ni lanza autotests SMART.
+Solo **lee**: no escribe en los discos. El autotest SMART se lanza solo bajo demanda, con los tags `smart_selftest`
+(lanza `smartctl -t long`) y `smart_selftest_result` (muestra el registro de autotests y los atributos 5/187/197/198);
+ver la cabecera de `playbook-smart-metrics.yml`. Variables: `node_smart_metrics_selftest_devices`, `node_smart_metrics_selftest_type`,
+`node_smart_metrics_selftest_attributes`.
 
 ## Por qué un script con el textfile collector (y no smartctl_exporter)
 

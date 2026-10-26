@@ -43,11 +43,23 @@ exista, el job se salta con un aviso y los demás jobs corren igual.
 2. En 1Password, bóveda `HomeLab`, crea el item **`argocd-ci`** (Nota segura)
    con un campo **`token`** (Contraseña) y pega el token
    ([cómo crear un item](../maceosoft/github.md#como-crear-un-item-con-campos-propios)).
+
+    ??? tip "Con la CLI de 1Password (`op`)"
+        Un solo comando genera el token y lo guarda, sin que se vea en pantalla (necesitas el login de `argocd` del paso 1
+        y 1Password desbloqueado; si tienes más de una cuenta de 1Password, exporta `OP_ACCOUNT` antes):
+
+        ```bash
+        op item create --category "Secure Note" --vault HomeLab --title argocd-ci \
+          "token[password]=$(argocd account generate-token --account ci)"
+        ```
+
+        Para rotarlo: `op item edit argocd-ci "token[password]=$(argocd account generate-token --account ci)"`.
 3. Llévalo al clúster (crea el Secret `arc-runners/argocd-ci`), desde
    `ansible/` en `homelab`:
 
     ```bash
-    export ONEPASSWORD_ACCOUNT_NAME="Mi Cuenta"  # tu cuenta
+    # tu cuenta
+    export ONEPASSWORD_ACCOUNT_NAME="Mi Cuenta"
     # tiene que mostrar: argocd-ci (opcional) ✓ token
     ../.venv/bin/python scripts/apply_platform_secrets.py --check
     ansible-playbook -i inventory.ini playbook-platform-secrets.yml
@@ -62,6 +74,26 @@ campo y re-corre el playbook.
 `gitops` no lo gestiona OpenTofu, así que la protección de `main` se configura
 a mano: *gitops → Settings → Branches → main → Require status checks* y elige
 los checks `validate / render`, `validate / schemas` y `validate / security`.
+
+??? tip "Con la CLI de GitHub (`gh`)"
+    Con `gh auth login` hecho como owner de la org:
+
+    ```bash
+    gh api -X PUT repos/maceosoft/gitops/branches/main/protection --input - <<'JSON'
+    {
+      "required_status_checks": {"strict": false,
+        "contexts": ["validate / render", "validate / schemas", "validate / security"]},
+      "enforce_admins": false,
+      "required_pull_request_reviews": null,
+      "restrictions": null
+    }
+    JSON
+    ```
+
+    Para ver cómo quedó: `gh api repos/maceosoft/gitops/branches/main/protection --jq '.required_status_checks.contexts'`.
+    Si la respuesta es `403` (*Upgrade to GitHub Pro or make this repository public*), el plan de la organización no permite
+    proteger ramas en repos privados: en ese caso solo queda la disciplina de abrir siempre PR. Los checks de un PR se miran con
+    `gh pr checks <número> --repo maceosoft/gitops`.
 
 ## Ajustes
 

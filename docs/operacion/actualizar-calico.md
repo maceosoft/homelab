@@ -50,9 +50,12 @@ aunque `kubectl diff --server-side` salga vacío.
 **Antes:**
 
 ```bash
-kubectl get tigerastatus                       # calico y apiserver: AVAILABLE=True
-kubectl get nodes                              # los 3 Ready
-kubectl get pods -A --no-headers | awk '$4!="Running" && $4!="Completed"'   # sin pods raros
+# calico y apiserver: AVAILABLE=True
+kubectl get tigerastatus
+# los 3 Ready
+kubectl get nodes
+# sin pods raros
+kubectl get pods -A --no-headers | awk '$4!="Running" && $4!="Completed"'
 ```
 
 **Vista previa de lo que cambiaría** (solo lectura, contra el servidor):
@@ -79,7 +82,8 @@ operador escribe, para que ArgoCD y el operador no se pisen.
 **Después:**
 
 ```bash
-kubectl get installation default -o jsonpath='{.status.calicoVersion}{"\n"}'   # v3.31.7 tras la etapa 1; v3.33.0 tras la 2
+# v3.31.7 tras la etapa 1; v3.33.0 tras la 2
+kubectl get installation default -o jsonpath='{.status.calicoVersion}{"\n"}'
 kubectl get tigerastatus
 kubectl -n argocd run curl-test --rm -i --restart=Never --image=curlimages/curl --quiet -- \
   curl -s -o /dev/null -w "%{http_code}\n" http://kong-gateway-proxy.kong.svc:80/

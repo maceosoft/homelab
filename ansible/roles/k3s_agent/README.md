@@ -26,8 +26,9 @@ Requiere que el play `k3s_server` haya corrido antes (publica `k3s_token`).
 
 | Variable | Origen | Descripción |
 |---|---|---|
-| `k3s_api_url` | `group_vars/incus_cluster/k3s_install.yml` | URL del API (`https://<IP o VIP>:6443`) |
+| `k3s_api_url` | `group_vars/incus_cluster/k3s_install.yml` | URL del API (`https://k3s.homelab.local:6443`, o la VIP con kube-vip); el DNS debe resolver el nombre antes de instalar |
 | `k3s_token` | Fact del server | Token de unión (automático) |
+| `k3s_agent_token` | opcional | Si está definido, se usa en lugar de `k3s_token` (agent-token distinto del de server; lo pasa la mudanza) |
 | `k3s_agent_kubelet_args` | `host_vars/` | Args extra del kubelet (opcional) |
 | `k3s_node_labels` | `host_vars/` | Etiquetas si `node_labels.at_join: true` |
 
