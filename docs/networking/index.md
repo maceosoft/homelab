@@ -63,8 +63,10 @@ network:
 
 ```bash
 ip -br link
-sudo apt install -y netplan.io   # Debian no lo trae instalado por defecto
-sudo netplan apply              # corta SSH si cambias de IP
+# Debian no lo trae instalado por defecto
+sudo apt install -y netplan.io
+# corta SSH si cambias de IP
+sudo netplan apply
 ```
 
 El playbook Ansible instala `netplan.io`, habilita `systemd-networkd` y migra

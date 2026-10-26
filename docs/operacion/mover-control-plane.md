@@ -135,9 +135,10 @@ Otras guías que hablan del control plane: [Sacar o reemplazar un nodo](sacar-no
 Restaura el SQLite original en `deborah` desde el backup y devuelve a `oliver` a agent:
 
 ```bash
+  # o -e k3s_move_backup_passphrase=...
 ansible-playbook -i inventory.ini playbook-k3s-move-controlplane.yml --tags rollback \
   -e k3s_move_backup_stamp=<AAAAMMDDTHHMMSS> \
-  -e k3s_move_backup_age_identity=<archivo de identidad age>   # o -e k3s_move_backup_passphrase=...
+  -e k3s_move_backup_age_identity=<archivo de identidad age>
 ```
 
 La marca es la parte de fecha del nombre del archivo de backup en el directorio de backups. El rollback son cuatro

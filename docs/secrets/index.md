@@ -45,7 +45,7 @@ rm secret-plano.yaml
     [Plataforma maceosoft — Paso 2](../maceosoft/github.md#paso-2-repos-app-de-argocd-y-ftp-manual).
 
     Como el certificado (la llave pública) también está en 1Password, puedes
-    sellar sin tener acceso al clúster:
+    sellar sin tener acceso al clúster (`op read "op://HomeLab/sealed-secrets/certificate" > tls.crt` lo baja):
     `kubeseal --cert tls.crt --format yaml < secret-plano.yaml > secret-sellado.yaml`.
 
 ## SOPS + age (complemento, cero pods)
@@ -79,6 +79,10 @@ Por defecto: **cuenta personal** (`ONEPASSWORD_ACCOUNT_NAME=Personal`), bóveda
 
 Homepage `https://argocd.homelab.local` (informativa); Redirect URIs
 `https://argocd.homelab.local/api/dex/callback` (crítico).
+
+Con la CLI: la OAuth App y su client secret se crean **solo desde la web**; guardar el item con `op item create` está en
+[Plataforma maceosoft — GitHub](../maceosoft/github.md#oauth-app-maceosoft-dex). Para leer un campo sin mostrarlo:
+`op read "op://HomeLab/maceosoft-dex/GITHUB_CLIENT_ID" | wc -c`.
 
 Detalle: [Fase 4 — 4.7](../implementacion/fase-4-gitops.md#47-secretos-oauth-github-vcluster-incus-ui)
 · [`1password.md`](https://github.com/maceosoft/gitops/blob/main/argocd/secrets/1password.md)
@@ -115,6 +119,77 @@ Alertmanager lee las URL como archivos montados (`webhook_url_file`), así que n
 exige que las dos URL de Discord tengan el formato `https://discord.com/api/webhooks/<id>/<token>`. Para rotar un webhook, bórralo y
 créalo de nuevo en Discord, actualiza el item y vuelve a correr el playbook.
 
+## IA local: crear los tokens con `op`
+
+La IA local (router de Ollama, Open WebUI, Open Terminal, reportes) usa tokens aleatorios que viven en 1Password, bóveda `HomeLab`,
+y que `playbook-platform-secrets.yml` lleva al clúster. Con el CLI de 1Password (`op`) y la app desbloqueada, cada item se crea con un
+comando; cada campo recibe un valor distinto de `openssl rand -hex 32` (64 caracteres hexadecimales):
+
+| Item | Campos | Para qué |
+|---|---|---|
+| `ollama-router` | `registry_token`, `open-webui`, `k8sgpt`, `reports`, `alert-triage`, `translate` | Un token por cliente del router y otro para el registro de nodos |
+| `alert-triage-webhook` | `token` | Alertmanager lo envía a `alert-triage` |
+| `mcp-api-key` | `key` | Clave de las herramientas MCP de Open WebUI |
+| `open-terminal` | `api_key` | Clave del sandbox de Open Terminal |
+| `open-webui` | `WEBUI_SECRET_KEY` | Clave con la que Open WebUI firma las sesiones |
+
+```bash
+op item create --category "Secure Note" --vault HomeLab --title ollama-router \
+  "registry_token[password]=$(openssl rand -hex 32)" \
+  "open-webui[password]=$(openssl rand -hex 32)" \
+  "k8sgpt[password]=$(openssl rand -hex 32)" \
+  "reports[password]=$(openssl rand -hex 32)" \
+  "alert-triage[password]=$(openssl rand -hex 32)" \
+  "translate[password]=$(openssl rand -hex 32)"
+
+op item create --category "Secure Note" --vault HomeLab --title alert-triage-webhook "token[password]=$(openssl rand -hex 32)"
+
+op item create --category "Secure Note" --vault HomeLab --title mcp-api-key "key[password]=$(openssl rand -hex 32)"
+
+op item create --category "Secure Note" --vault HomeLab --title open-terminal "api_key[password]=$(openssl rand -hex 32)"
+
+op item create --category "Secure Note" --vault HomeLab --title open-webui "WEBUI_SECRET_KEY[password]=$(openssl rand -hex 32)"
+```
+
+- Si tienes más de una cuenta de 1Password, exporta `OP_ACCOUNT` con la tuya antes (es la variable estándar de `op`): los items tienen
+  que quedar en la cuenta que lee `apply_platform_secrets.py`.
+- `op` crea cada campo suelto (sin sección) y con el nombre exacto, como exige el playbook. Ojo: los valores pasados como argumento
+  del comando se ven un instante en `ps` dentro de tu propio equipo; es un riesgo menor en una estación personal, pero no uses
+  estos comandos en un equipo compartido.
+- Para ver qué hará `op` sin crear nada, añade `--dry-run` a cada comando.
+
+Después comprueba los campos, sin mostrar valores, y aplícalos:
+
+```bash
+python3 ansible/scripts/apply_platform_secrets.py --check
+cd ansible && ansible-playbook -i inventory.ini playbook-platform-secrets.yml
+```
+
+El canal `#ia` es aparte: su webhook se agrega a mano al campo `ai` del item `discord-webhooks` (ver
+[Discord y healthchecks.io](../maceosoft/discord-healthchecks.md)).
+
+### Secreto de GitHub para la traducción
+
+La traducción automática (`translate.yml`) necesita el secreto de GitHub Actions `OLLAMA_TOKEN`, con el valor del campo `translate`.
+El valor viaja por una tubería, sin imprimirse ni quedar en el historial de la terminal:
+
+```bash
+op read "op://HomeLab/ollama-router/translate" | gh secret set OLLAMA_TOKEN --repo maceosoft/homelab
+# debe aparecer OLLAMA_TOKEN
+gh secret list --repo maceosoft/homelab
+```
+
+### Rotar un token
+
+Edita el campo en la app de 1Password (usa el generador de contraseñas) o crea un valor nuevo con `op`:
+
+```bash
+op item edit ollama-router "reports[password]=$(openssl rand -hex 32)"
+```
+
+Después vuelve a correr `playbook-platform-secrets.yml` y reinicia los pods que lo usan (ver
+[Rotar credenciales](../operacion/rotar-credenciales.md)). Si cambias `translate`, repite el comando de `gh secret set`.
+
 ## Rotación de password de root (1Password SDK local)
 
 [`playbook-rotate-root-passwords.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-rotate-root-passwords.yml)
@@ -132,6 +207,10 @@ ansible-playbook -i inventory.ini playbook-rotate-root-passwords.yml
 ansible-playbook -i inventory.ini playbook-rotate-root-passwords.yml \
   --limit deborah
 ```
+
+Para leer una contraseña cuando la necesites (por ejemplo, por consola), con el CLI de 1Password y sin dejarla en el historial:
+`op read "op://HomeLab/root@deborah/password" | pbcopy` (en Linux, `xclip -selection clipboard` o `wl-copy`). Si tienes más de una
+cuenta de 1Password, exporta `OP_ACCOUNT` antes.
 
 <div class="card">
   <div class="card-kicker">Análisis de trade-offs</div>

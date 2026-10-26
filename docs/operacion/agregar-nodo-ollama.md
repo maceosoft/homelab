@@ -91,7 +91,8 @@ Sirve para `deborah`, `invincible`, `oliver` o cualquier Debian nuevo que ya est
    instalado (`pip install onepassword-sdk`) y `KUBECONFIG` exportado hacia el clúster. Desde `ansible/`:
 
     ```bash
-    ansible-playbook -i inventory.ini playbook-ollama.yml -l <nodo> --check --diff   # ensayo
+    # ensayo
+    ansible-playbook -i inventory.ini playbook-ollama.yml -l <nodo> --check --diff
     ansible-playbook -i inventory.ini playbook-ollama.yml -l <nodo>
     ```
 
@@ -130,7 +131,8 @@ al iniciar sesión y ocuparía memoria todo el tiempo. Si ya la tienes instalada
 Descarga ahora los modelos grandes que quieras tener en el Mac:
 
 ```bash
-ollama pull <modelo>      # por ejemplo, uno de 30B o más
+# por ejemplo, uno de 30B o más
+ollama pull <modelo>
 ollama list
 ```
 
@@ -168,6 +170,18 @@ No usa `sudo`. El instalador te pide el token sin mostrarlo en pantalla (o léel
 2. Instala los LaunchAgents (las tareas de `launchd` de tu usuario) en `~/Library/LaunchAgents`, **sin
    cargarlos**.
 3. Deja el comando `ollama-node` (en `~/.local/bin`; asegúrate de que esté en tu `PATH`).
+
+Con la CLI de 1Password, el token se baja a un archivo temporal que solo tú lees y se pasa con `--token-file` (si tienes más de
+una cuenta de 1Password, exporta `OP_ACCOUNT` antes); ejemplo completo:
+
+```bash
+umask 077
+op read "op://HomeLab/ollama-router/registry_token" > "$HOME/ollama-registry-token"
+./macos/install.sh --registry-url https://ollama.homelab.local --ca-file ./homelab-ca.crt \
+  --url http://192.168.20.X:11434 --allowed-cidrs 192.168.20.5/32,192.168.20.6/32,192.168.20.7/32 \
+  --token-file "$HOME/ollama-registry-token"
+rm -P "$HOME/ollama-registry-token"
+```
 
 Opciones útiles: `--name` (nombre en el registro, por defecto el nombre corto del Mac), `--priority` (por
 defecto 10, para que los servidores siempre encendidos pasen primero), `--tags` (por defecto `mac,gpu,large`),
@@ -253,7 +267,15 @@ que lo apagues con `off`.
 
 ### 9. Verificar que el nodo quedó registrado
 
-Con el interruptor en `on`, desde cualquier equipo de la LAN (red local) que pueda llegar al Mac:
+Con el interruptor en `on`, desde cualquier equipo de la LAN (red local) que pueda llegar al Mac. Primero carga los tokens en
+variables de tu terminal, sin mostrarlos (con 1Password desbloqueado; si tienes más de una cuenta, exporta `OP_ACCOUNT` antes):
+
+```bash
+REGISTRY_TOKEN=$(op read "op://HomeLab/ollama-router/registry_token")
+TOKEN=$(op read "op://HomeLab/ollama-router/reports")
+```
+
+Y ahora las pruebas:
 
 ```bash
 # 1. El Mac responde y carga Ollama bajo demanda (la primera vez tarda unos segundos):

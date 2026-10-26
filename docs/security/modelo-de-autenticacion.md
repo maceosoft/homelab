@@ -117,7 +117,8 @@ detectar regresiones:
 ```bash
 export KUBECONFIG=~/.kube/homelab-k3s.yaml
 ansible/scripts/audit_exposure.sh
-echo $?                              # 0 = sin sorpresas
+# 0 = sin sorpresas
+echo $?
 
 # Además, los puertos que escucha cada nodo (por SSH, solo lectura):
 AUDIT_NODES="deborah invincible oliver" ansible/scripts/audit_exposure.sh

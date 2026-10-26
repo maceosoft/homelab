@@ -84,7 +84,8 @@ git clone https://github.com/maceosoft/homelab.git
 cd homelab
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt   # Ansible, mkdocs, ansible-lint, etc.
+# Ansible, mkdocs, ansible-lint, etc.
+pip install -r requirements.txt
 ansible-galaxy collection install -r ansible/requirements.yml
 ```
 
@@ -202,6 +203,10 @@ Con una cuenta **owner de la organización** `maceosoft`:
    `*_password` van como Contraseña y el resto como Texto.
    [Tabla con ejemplos](../maceosoft/github.md#paso-2-repos-app-de-argocd-y-ftp-manual).
 
+Todos los comandos para crear estos items con el CLI `op` (y los de GitHub con `gh`) están en las secciones de
+[Plataforma maceosoft — GitHub](../maceosoft/github.md): las Apps y la OAuth App se **crean solo desde la web**, y de ahí en
+adelante guardar los datos en 1Password, listar instalaciones y crear los repos se hace con `op` y `gh`.
+
 Comprueba que todas las credenciales se pueden leer de 1Password. Son dos
 comandos, y ninguno toca un clúster ni muestra valores secretos:
 
@@ -220,7 +225,8 @@ aparece arriba a la izquierda en la barra lateral de la app (por ejemplo
 `Mi Cuenta`). Si no la defines, usa `Personal`.
 
 ```bash
-export ONEPASSWORD_ACCOUNT_NAME="Mi Cuenta"  # tu cuenta
+# tu cuenta
+export ONEPASSWORD_ACCOUNT_NAME="Mi Cuenta"
 .venv/bin/python ansible/scripts/apply_platform_secrets.py --check
 .venv/bin/python ansible/scripts/apply_platform_secrets.py --dry-run
 ```
@@ -262,7 +268,8 @@ hay items `ftp-<repo>` es solo informativo si ningún repo despliega).
 ansible -i ansible/inventory.ini incus_cluster -m ping
 # todos → SUCCESS
 
-export ONEPASSWORD_ACCOUNT_NAME="Mi Cuenta"  # tu cuenta
+# tu cuenta
+export ONEPASSWORD_ACCOUNT_NAME="Mi Cuenta"
 .venv/bin/python ansible/scripts/apply_platform_secrets.py --check
 # todos los items con ✓
 .venv/bin/python ansible/scripts/apply_platform_secrets.py --dry-run

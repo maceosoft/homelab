@@ -38,13 +38,29 @@ Crea el item **`ftp-<repo>`** (por ejemplo `ftp-web-clientes`) en la bóveda
 | `prod_password` | Contraseña | |
 | `prod_remote_dir` | Texto | `/home/usuario/public_html` |
 
+??? tip "Con la CLI de 1Password (`op`)"
+    Las contraseñas se leen sin eco (`read -s`) para que no queden en pantalla ni en el historial. Cambia `web-clientes` por tu repo
+    y los valores de ejemplo por los de tu cPanel. Si tienes más de una cuenta de 1Password, exporta `OP_ACCOUNT` antes.
+
+    ```bash
+    # pega cada contraseña y Enter
+    read -rs FTP_DEV_PASS;  read -rs FTP_PROD_PASS
+    op item create --category "Secure Note" --vault HomeLab --title ftp-web-clientes \
+      "dev_host[text]=dev.tu-cpanel.example.com" "dev_user[text]=usuario_dev" \
+      "dev_password[password]=$FTP_DEV_PASS" "dev_remote_dir[text]=/home/usuario/dev.maceosoft.example.com" \
+      "prod_host[text]=tu-cpanel.example.com" "prod_user[text]=usuario_prod" \
+      "prod_password[password]=$FTP_PROD_PASS" "prod_remote_dir[text]=/home/usuario/public_html"
+    unset FTP_DEV_PASS FTP_PROD_PASS
+    ```
+
 Comprueba que se lee bien y llévalo al clúster, desde la raíz de `homelab`.
 El runner de OpenTofu recibe estas credenciales como `TF_VAR_ftp` desde el
 clúster, así que este paso va **antes** del PR (pull request): si no, el
 pipeline falla por falta de credenciales.
 
 ```bash
-export ONEPASSWORD_ACCOUNT_NAME="Mi Cuenta"  # tu cuenta
+# tu cuenta
+export ONEPASSWORD_ACCOUNT_NAME="Mi Cuenta"
 .venv/bin/python ansible/scripts/apply_platform_secrets.py --check
 cd ansible
 ansible-playbook -i inventory.ini playbook-platform-secrets.yml
@@ -77,6 +93,23 @@ Campos opcionales: `ftp_protocol` (`ftp`, `ftps` o `sftp`; por defecto
 Abre un PR en `infra`: el pipeline `tofu` muestra el `plan` con lo que va a
 crear. Revísalo y mergea; al llegar a `main`, el pipeline hace el `apply`.
 
+??? tip "Con la CLI de GitHub (`gh`)"
+    Desde tu copia local de `infra`, con `gh auth login` hecho:
+
+    ```bash
+    git switch -c agregar-web-clientes
+    git commit -am "Agregar repo web-clientes" && git push -u origin agregar-web-clientes
+    gh pr create --repo maceosoft/infra --fill
+    # espera al plan de tofu
+    gh pr checks --watch --repo maceosoft/infra
+    # el plan queda como comentario
+    gh pr view --comments --repo maceosoft/infra
+    # al mergear corre el apply
+    gh pr merge --squash --repo maceosoft/infra
+    # ver el apply
+    gh run list --repo maceosoft/infra --limit 3
+    ```
+
 ## 4. Sube el código
 
 El repo nace con un README (`auto_init`). Para subir un proyecto que ya
@@ -84,11 +117,13 @@ tienes en tu máquina:
 
 ```bash
 cd <carpeta-del-proyecto>
-git init -b main            # si todavía no es un repo git
+# si todavía no es un repo git
+git init -b main
 git add -A && git commit -m "Primer commit"
 git remote add origin https://github.com/maceosoft/<repo>.git
 git pull origin main --allow-unrelated-histories
-git push -u origin main     # como owner de la org puedes pushear directo a main
+# como owner de la org puedes pushear directo a main
+git push -u origin main
 ```
 
 ## 5. Solo si tiene CI/CD: el workflow
@@ -137,13 +172,25 @@ check que exige la protección de `main` si pusiste
 
 ## 6. Verifica
 
-En GitHub, en el repo nuevo:
+En GitHub, en el repo nuevo (o con `gh`, más abajo):
 
 - *Settings → Environments*: existen `dev` y `prod` (solo si despliega).
 - En cada environment, los secrets `FTP_HOST`, `FTP_USER`, `FTP_PASSWORD` y
   `FTP_REMOTE_DIR`, y las variables `PROJECT_STACK` y `FTP_PROTOCOL`.
 - *Settings → Branches*: `main` protegida.
 - *Actions*: el primer push corre el workflow en el runner `arc-runners`.
+
+??? tip "Con la CLI de GitHub (`gh`)"
+    ```bash
+    # dev, prod
+    gh api repos/maceosoft/web-clientes/environments --jq '.environments[].name'
+    # FTP_* (solo nombres)
+    gh secret list --env prod --repo maceosoft/web-clientes
+    # PROJECT_STACK, FTP_PROTOCOL
+    gh variable list --env prod --repo maceosoft/web-clientes
+    gh api repos/maceosoft/web-clientes/branches/main/protection --jq '.required_status_checks'
+    gh run list --repo maceosoft/web-clientes --limit 3
+    ```
 
 ## Si falla
 

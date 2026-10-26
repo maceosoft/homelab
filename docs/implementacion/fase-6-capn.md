@@ -30,7 +30,8 @@ instancias Incus — clusters efímeros sin tocar el management K3s (distribuci�
       --kubernetes-version v1.36.2 \
       --control-plane-machine-count 1 \
       --worker-machine-count 2 > /tmp/demo.yaml
-    less /tmp/demo.yaml     # solo lectura: no ejecutes kubectl apply
+    # solo lectura: no ejecutes kubectl apply
+    less /tmp/demo.yaml
     ```
 
     ??? question "¿Por qué crear clústeres desde un manifiesto y no a mano?"

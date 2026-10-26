@@ -35,8 +35,10 @@ muevan a otros nodos antes de seguir.
 Desde cualquier nodo del clúster Incus:
 
 ```bash
-sudo incus list --all-projects --format csv --columns nL | grep nolan   # instancias en nolan
-sudo incus cluster evacuate nolan                                        # las mueve o detiene
+# instancias en nolan
+sudo incus list --all-projects --format csv --columns nL | grep nolan
+# las mueve o detiene
+sudo incus cluster evacuate nolan
 ```
 
 ## 3. Quitarlo de K3s
@@ -72,9 +74,12 @@ ansible-playbook -i inventory.ini playbook-bind-dns.yml
 ## Verificar
 
 ```bash
-kubectl get nodes                          # nolan ya no aparece
-ssh devops@invincible.homelab.local sudo incus cluster list   # nolan ya no aparece
-dig +short nolan.mco.local @192.168.20.5   # sin respuesta
+# nolan ya no aparece
+kubectl get nodes
+# nolan ya no aparece
+ssh devops@invincible.homelab.local sudo incus cluster list
+# sin respuesta
+dig +short nolan.mco.local @192.168.20.5
 ```
 
 En Longhorn, los volúmenes tienen que quedar *Healthy* (sin réplicas en

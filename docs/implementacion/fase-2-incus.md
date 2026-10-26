@@ -187,7 +187,8 @@ incus profile device add default eth0 nic nictype=bridged parent=br0
 Verificar:
 
 ```bash
-incus profile show default   # tiene que mostrar eth0 → parent br0
+# tiene que mostrar eth0 → parent br0
+incus profile show default
 ```
 
 ## UI de administración
@@ -271,7 +272,8 @@ incus cluster list
 # 3 miembros ONLINE
 incus cluster group list
 incus storage list
-incus profile show default   # eth0 → parent br0
+# eth0 → parent br0
+incus profile show default
 curl -kI https://incus.homelab.local:8443
 ```
 

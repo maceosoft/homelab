@@ -9,7 +9,8 @@ primero en 1Password (bóveda `HomeLab`) y después se lleva al clúster.
     cuenta en la variable de entorno:
 
     ```bash
-    export ONEPASSWORD_ACCOUNT_NAME="Mi Cuenta"  # tu cuenta
+    # tu cuenta
+    export ONEPASSWORD_ACCOUNT_NAME="Mi Cuenta"
     ```
 
     Los comandos de Ansible se corren desde `ansible/` en `homelab`.
@@ -50,9 +51,27 @@ primero en 1Password (bóveda `HomeLab`) y después se lleva al clúster.
 5. Cuando todo funcione, borra la llave **vieja** en GitHub (misma página,
    *Delete* junto a la llave anterior) y el `.pem` descargado.
 
+??? tip "Con la CLI"
+    **Generar y borrar llaves de una GitHub App solo se hace desde la web**: ni `gh` ni la API lo permiten. Lo que sí se
+    automatiza es guardar la llave nueva y revisar lo demás (con 1Password desbloqueado; si tienes más de una cuenta de
+    1Password, exporta `OP_ACCOUNT` antes):
+
+    ```bash
+    op item edit maceosoft-terraform "private_key[password]=$(cat ~/Downloads/maceosoft-terraform.<fecha>.private-key.pem)"
+    # en macOS: rm -P
+    shred -u ~/Downloads/maceosoft-terraform.<fecha>.private-key.pem
+    # comprueba que tiene contenido, sin mostrarlo
+    op read "op://HomeLab/maceosoft-terraform/private_key" | wc -c
+    # App ID e Installation ID
+    gh api orgs/maceosoft/installations --jq '.installations[] | [.app_slug, .app_id, .id] | @tsv'
+    ```
+
+    Cambia `maceosoft-terraform` por el item de la App que rotes (`maceosoft-arc-runners` o `maceosoft-argocd`). `gh` necesita
+    el permiso de organización: `gh auth refresh -s admin:read:org`.
+
 ## Credenciales FTP de un repo
 
-1. Cambia la contraseña en cPanel y actualiza el item `ftp-<repo>`.
+1. Cambia la contraseña en cPanel y actualiza el item `ftp-<repo>` (con la CLI: `read -rs P; op item edit ftp-<repo> "dev_password[password]=$P"; unset P`, o `prod_password` para producción).
 2. Aplica y relanza el pipeline, que carga los secrets nuevos en los
    environments del repo:
 
@@ -61,13 +80,14 @@ primero en 1Password (bóveda `HomeLab`) y después se lleva al clúster.
     ansible-playbook -i inventory.ini playbook-platform-secrets.yml
     ```
 
-    Después, en `maceosoft/infra`: *Actions → tofu → Run workflow* sobre `main`.
+    Después, en `maceosoft/infra`: *Actions → tofu → Run workflow* sobre `main`; con la CLI de GitHub:
+    `gh workflow run tofu.yml --repo maceosoft/infra --ref main` y `gh run watch --repo maceosoft/infra`.
 
 ## Client secret de Dex
 
 1. En la OAuth App *Maceosoft Dex*: **Generate a new client secret**. GitHub
    lo muestra una sola vez.
-2. Reemplaza `GITHUB_CLIENT_SECRET` en el item `maceosoft-dex`.
+2. Reemplaza `GITHUB_CLIENT_SECRET` en el item `maceosoft-dex` (con la CLI: `read -rs S; op item edit maceosoft-dex "GITHUB_CLIENT_SECRET[password]=$S"; unset S`). Generar el secret en la OAuth App **solo se hace desde la web**.
 3. Aplica (actualiza `argocd-secret` y reinicia Dex):
 
     ```bash
@@ -90,7 +110,8 @@ playbook los lleva al namespace `monitoring`; nunca se escriben en git.
       [Discord y healthchecks.io](../maceosoft/discord-healthchecks.md#parte-2-healthchecksio).
     - **Contraseña de Grafana:** una nueva en 1Password.
 2. Reemplaza el campo en su item (`critical`, `warnings` o `deployments` en `discord-webhooks`, `url` en `healthchecks-ping`, `password` en
-   `grafana-admin`).
+   `grafana-admin`). Con la CLI de 1Password, por ejemplo: `read -rs V; op item edit discord-webhooks "critical[password]=$V"; unset V`, o
+   `op item edit grafana-admin "password[password]=$(openssl rand -base64 24)"`.
 3. Comprueba y aplica:
 
     ```bash
@@ -127,7 +148,9 @@ openssl rand -hex 32
 
 Para rotar uno:
 
-1. Genera el valor nuevo y reemplaza **solo ese campo** en 1Password (mínimo 32 caracteres, sin espacios).
+1. Genera el valor nuevo y reemplaza **solo ese campo** en 1Password (mínimo 32 caracteres, sin espacios). Con la CLI, por ejemplo para
+   el token `reports`: `op item edit ollama-router "reports[password]=$(openssl rand -hex 32)"`; para `mcp-api-key`:
+   `op item edit mcp-api-key "key[password]=$(openssl rand -hex 32)"`. Otros comandos: [Gestión de secretos](../secrets/index.md#ia-local-crear-los-tokens-con-op).
 2. Comprueba y aplica:
 
     ```bash
@@ -146,7 +169,8 @@ Para rotar uno:
    los nodos que no tengan uno propio, así que para **retirar por completo** el compartido hay que dar uno propio a
    cada nodo antes.
 5. Si rotaste `translate`, actualiza también el secreto `OLLAMA_TOKEN` en *maceosoft/homelab → Settings → Secrets and
-   variables → Actions*.
+   variables → Actions*. Con la CLI de GitHub:
+   `op read "op://HomeLab/ollama-router/translate" | gh secret set OLLAMA_TOKEN --repo maceosoft/homelab`.
 
 ## Contraseña de root de los nodos
 
@@ -155,7 +179,8 @@ item `root@<nodo>`. No afecta al SSH (Secure Shell): el login de root por SSH
 ya está deshabilitado; esta contraseña es para la consola.
 
 ```bash
-ansible-playbook -i inventory.ini playbook-rotate-root-passwords.yml               # todos
+# todos
+ansible-playbook -i inventory.ini playbook-rotate-root-passwords.yml
 ansible-playbook -i inventory.ini playbook-rotate-root-passwords.yml --limit deborah
 ```
 
@@ -186,5 +211,5 @@ funcionando. Hazlo **antes** de activar `sealed-secrets` en
 
 - `apply_platform_secrets.py --check` muestra todo en ✓.
 - ArgoCD sigue sincronizando `gitops` (`kubectl get applications -n argocd`).
-- El runner aparece *Online* en *maceosoft → Settings → Actions → Runners*.
+- El runner aparece *Online* en *maceosoft → Settings → Actions → Runners* (con la CLI: `gh api orgs/maceosoft/actions/runners --jq '.runners[] | [.name, .status] | @tsv'`).
 - El login con GitHub funciona en ArgoCD.

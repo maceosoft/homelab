@@ -60,7 +60,8 @@ como aparece arriba a la izquierda en la barra lateral de la app (por
 ejemplo `Mi Cuenta`; si no la defines, usa `Personal`):
 
 ```bash
-export ONEPASSWORD_ACCOUNT_NAME="Mi Cuenta"  # tu cuenta
+# tu cuenta
+export ONEPASSWORD_ACCOUNT_NAME="Mi Cuenta"
 ```
 
 | Item | Tipo de item | Campos | Lo usa |
@@ -95,6 +96,18 @@ que **el título del item y el nombre de cada campo tienen que ser exactos**
 
 Usa **Contraseña** para los valores secretos (se ocultan) y **Texto** para
 el resto. Cada tabla de abajo dice qué tipo lleva cada campo.
+
+También puedes crear el item con el CLI de 1Password (`op`), con 1Password desbloqueado. Cada campo se escribe como
+`nombre[tipo]=valor`, donde el tipo es `password` (valor secreto) o `text`; `op` crea los campos sueltos, sin sección:
+
+```bash
+op item create --category "Secure Note" --vault HomeLab --title ftp-mi-repo \
+  "dev_host[text]=ftp.ejemplo.com" "dev_user[text]=usuario" "dev_password[password]=<valor>"
+```
+
+Si tienes más de una cuenta de 1Password, exporta antes `OP_ACCOUNT` con la tuya. Para un valor aleatorio usa
+`$(openssl rand -hex 32)`. Los items de la IA local (tokens del router, Open Terminal…) ya tienen sus comandos en
+[Gestión de secretos](../secrets/index.md#ia-local-crear-los-tokens-con-op).
 
 ## Paso 1 — GitHub Apps y OAuth App (manual)
 
@@ -154,6 +167,41 @@ Al pegar el `.pem` en un campo Contraseña se pierden los saltos de línea. No
 importa: el playbook reconstruye la llave. Cuando el item esté guardado,
 **borra el `.pem`** de Descargas.
 
+??? tip "Con la CLI (`gh` y `op`)"
+    **Se hacen solo desde la web:** crear la App, generar su llave privada (*Generate a private key*) y instalarla. GitHub no
+    ofrece CLI ni API para eso (la creación de Apps por manifiesto también exige confirmar en el navegador). Lo que sí se
+    automatiza es leer los dos números y guardar el item.
+
+    1. Lista las Apps instaladas en la org y saca `App ID` e `Installation ID` (necesita el permiso de organización:
+       `gh auth refresh -s admin:read:org` una sola vez):
+
+        ```bash
+        gh api orgs/maceosoft/installations --jq '.installations[] | [.app_slug, .app_id, .id, .repository_selection] | @tsv'
+        ```
+
+    2. Con el `.pem` descargado, crea el item (1Password desbloqueado; si tienes más de una cuenta de 1Password, exporta
+       `OP_ACCOUNT` antes). El valor del `.pem` se lee del archivo y nunca se escribe en el comando:
+
+        ```bash
+        APP=maceosoft-terraform
+        read -r APP_ID INST_ID < <(gh api orgs/maceosoft/installations \
+          --jq ".installations[] | select(.app_slug==\"$APP\") | \"\(.app_id) \(.id)\"")
+        op item create --category "Secure Note" --vault HomeLab --title "$APP" \
+          "app_id[text]=$APP_ID" "installation_id[text]=$INST_ID" \
+          "private_key[password]=$(cat ~/Downloads/$APP.*.private-key.pem)"
+        ```
+
+    3. Verifica sin mostrar valores y borra el `.pem`:
+
+        ```bash
+        python3 ansible/scripts/apply_platform_secrets.py --check
+        # en macOS: rm -P
+        shred -u ~/Downloads/$APP.*.private-key.pem
+        ```
+
+    El mismo comando sirve para las demás Apps: solo cambia `APP` (`maceosoft-arc-runners`, `maceosoft-argocd`, y
+    `symintel-arc-runners` / `symintel-terraform` si usas la org antigua, cambiando `orgs/maceosoft` por `orgs/symintel`).
+
 ### `maceosoft-arc-runners`
 
 Es la App con la que ARC registra el runner `arc-runners` en la org. Se
@@ -207,6 +255,9 @@ Los tres valores son **distintos** de los de `maceosoft-terraform`: cada App
 tiene su App ID, su llave y su instalación. No copies los de la otra. Cuando
 el item esté guardado, **borra el `.pem`** de Descargas.
 
+Con la CLI: crear la App y su llave es **solo web**; guardar el item es el mismo comando de
+[`maceosoft-terraform`](#maceosoft-terraform) con `APP=maceosoft-arc-runners`.
+
 ### OAuth App `Maceosoft Dex`
 
 [maceosoft → Settings → Developer settings → OAuth Apps → New OAuth App](https://github.com/organizations/maceosoft/settings/applications/new)
@@ -237,18 +288,47 @@ maceosoft-dex              (Nota segura · bóveda HomeLab)
 └── VCLUSTER_CLIENT_SECRET ••••••••  (lo genera el playbook)
 ```
 
+??? tip "Con la CLI (`op` y `gh`)"
+    **Crear la OAuth App y generar su client secret se hace solo desde la web**: GitHub no tiene API para OAuth Apps. Una vez
+    que tienes los dos valores, guárdalos sin que se vean en pantalla (si tienes más de una cuenta de 1Password, exporta
+    `OP_ACCOUNT` antes):
+
+    ```bash
+    # pega el Client ID y Enter
+    read -r  GH_CID
+    # pega el Client secret y Enter
+    read -rs GH_CSEC
+    op item create --category "Secure Note" --vault HomeLab --title maceosoft-dex \
+      "GITHUB_CLIENT_ID[text]=$GH_CID" "GITHUB_CLIENT_SECRET[password]=$GH_CSEC"
+    unset GH_CID GH_CSEC
+    ```
+
+    Para comprobar que alguien está en el team `devops` (o agregarlo): 
+    `gh api orgs/maceosoft/teams/devops/memberships/<usuario>` (devuelve `"state": "active"`) y, para sumarlo como miembro,
+    `gh api -X PUT orgs/maceosoft/teams/devops/memberships/<usuario> -f role=member`.
+
 Solo puede entrar el team **`devops`** de `maceosoft`, y sus miembros quedan
 como admin de ArgoCD. Se aplica en el
 [paso 4.7 de la Fase 4](../implementacion/fase-4-gitops.md#47-secretos-oauth-github-vcluster-incus-ui).
 
 ## Paso 2 — Repos, App de ArgoCD y FTP (manual)
 
-1. **Repos** (privados), creados en `maceosoft` y con su contenido subido con git:
+1. **Repos** (privados), creados en `maceosoft` y con su contenido subido con git. Con la CLI de GitHub, desde la carpeta de
+   cada proyecto:
+
+    ```bash
+    gh repo create maceosoft/gitops --private --source . --remote origin --push
+    # igual para core-pipelines e infra
+    gh repo list maceosoft --json name,visibility --jq '.[] | [.name, .visibility] | @tsv'
+    ```
+
+   Detalle de cada repo:
     - `gitops`.
     - `core-pipelines`: después, en *Settings → Actions → General → Access*,
       elige "Accessible from repositories in the 'maceosoft' organization".
       Mientras pruebas, los demás repos lo usan con `@main`; el tag `v1` se
-      crea cuando todo funcione (ver el README de `core-pipelines`).
+      crea cuando todo funcione (ver el README de `core-pipelines`). Con la
+      CLI: `gh api -X PUT repos/maceosoft/core-pipelines/actions/permissions/access -f access_level=organization`.
     - `infra`.
 2. **GitHub App `maceosoft-argocd`**, con la que ArgoCD lee el repo privado
    `gitops`. Va después de los repos porque se instala **solo** en `gitops`.
@@ -302,6 +382,9 @@ como admin de ArgoCD. Se aplica en el
     | `prod_password` | Contraseña | |
     | `prod_remote_dir` | Texto | `/home/usuario/public_html` |
 
+    Con la CLI de 1Password, el comando completo (contraseñas sin eco) está en
+    [Agregar un repo](../operacion/agregar-repo.md#2-solo-si-despliega-credenciales-ftp-en-1password).
+
 4. **Llave de Sealed Secrets** *(opcional: hace falta cuando empieces a
    guardar `SealedSecret` en git, p. ej. en la Fase 6)*. Sealed Secrets
    cifra los secretos con un par de llaves que, por defecto, el controlador
@@ -327,7 +410,16 @@ como admin de ArgoCD. Se aplica en el
     | `private_key` | Contraseña | El contenido completo de `tls.key` (la llave **privada**), con sus líneas `BEGIN`/`END` |
 
     Para copiar un archivo: `pbcopy < tls.crt` (macOS) o ábrelo con un editor
-    y copia todo. Cuando el item esté guardado, **borra los archivos**:
+    y copia todo. Con la CLI de 1Password los archivos se leen directamente (si tienes más de una cuenta de 1Password, exporta
+    `OP_ACCOUNT` antes):
+
+    ```bash
+    op item create --category "Secure Note" --vault HomeLab --title sealed-secrets \
+      "certificate[text]=$(cat tls.crt)" "private_key[password]=$(cat tls.key)"
+    python3 ansible/scripts/apply_platform_secrets.py --check
+    ```
+
+    Cuando el item esté guardado, **borra los archivos**:
 
     ```bash
     rm -f tls.key tls.crt
@@ -346,7 +438,8 @@ como admin de ArgoCD. Se aplica en el
 Con k3s instalado ([Fase 3](../implementacion/fase-3-k3s.md), ArgoCD incluido):
 
 ```bash
-export ONEPASSWORD_ACCOUNT_NAME="Mi Cuenta"  # tu cuenta
+# tu cuenta
+export ONEPASSWORD_ACCOUNT_NAME="Mi Cuenta"
 cd ansible
 ansible-playbook -i inventory.ini playbook-platform-secrets.yml
 ```
@@ -423,7 +516,7 @@ ArgoCD sincroniza, entre otras, estas Applications:
 ## Paso 5 — Primer pipeline de OpenTofu
 
 Haz un push a `main` de `infra`, o lánzalo desde *Actions → tofu →
-Run workflow*. El workflow
+Run workflow* (con la CLI: `gh workflow run tofu.yml --repo maceosoft/infra --ref main` y `gh run watch --repo maceosoft/infra`). El workflow
 [`tofu.yml`](https://github.com/maceosoft/core-pipelines/blob/main/.github/workflows/tofu.yml)
 corre en `arc-runners`: hace `plan` en los PRs (pull requests) y `apply` en `main`. En la
 primera ejecución crea `api`.
@@ -433,7 +526,8 @@ primera ejecución crea `api`.
 Antes del clúster, que 1Password tenga todo (desde la raíz de `homelab`):
 
 ```bash
-export ONEPASSWORD_ACCOUNT_NAME="Mi Cuenta"  # tu cuenta
+# tu cuenta
+export ONEPASSWORD_ACCOUNT_NAME="Mi Cuenta"
 # items y campos: todo ✓
 .venv/bin/python ansible/scripts/apply_platform_secrets.py --check
 # Secrets que se van a crear, sin valores
@@ -461,8 +555,8 @@ Paso a paso completo: [Operación — Rotar credenciales](../operacion/rotar-cre
 
 | Qué | Cómo |
 |---|---|
-| Private key de una GitHub App | Genera una nueva en GitHub, reemplaza `private_key` en 1Password, re-corre `playbook-platform-secrets.yml` y borra la vieja en GitHub |
+| Private key de una GitHub App | Genera una nueva en GitHub (solo web), reemplaza `private_key` en 1Password (`op item edit <item> "private_key[password]=$(cat llave.pem)"`), re-corre `playbook-platform-secrets.yml` y borra la vieja en GitHub |
 | Private key de `maceosoft-argocd` | Igual que las otras Apps: nueva llave en GitHub, reemplaza `private_key`, re-corre el playbook y borra la vieja |
-| Credenciales FTP | Edita `ftp-<repo>`, re-corre el playbook y lanza el pipeline de `infra` |
+| Credenciales FTP | Edita `ftp-<repo>` (`op item edit ftp-<repo> "prod_password[password]=..."`), re-corre el playbook y lanza el pipeline de `infra` (`gh workflow run tofu.yml --repo maceosoft/infra --ref main`) |
 | Webhook de Discord, ping URL de healthchecks.io o contraseña de Grafana | Cambia el campo en su item, re-corre `playbook-platform-secrets.yml` y sigue [Operación — Rotar credenciales](../operacion/rotar-credenciales.md#monitoreo-webhooks-de-discord-ping-de-healthchecksio-y-grafana) |
 | Client secret de Dex | Nuevo secret en la OAuth App, actualiza `GITHUB_CLIENT_SECRET` y corre `playbook-dex-oauth-secrets.yml` |

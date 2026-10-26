@@ -132,7 +132,8 @@ k3s_token*.
     con una versión más vieja.
 
 ```bash
-ansible-playbook -i inventory.ini playbook-k3s.yml --limit deborah,nolan   # el primero es el control plane
+# el primero es el control plane
+ansible-playbook -i inventory.ini playbook-k3s.yml --limit deborah,nolan
 ```
 
 El mismo playbook aplica las etiquetas de `k3s_node_labels`.
@@ -159,11 +160,15 @@ Los `ssh` entran con el [acceso por SSO](acceso-ssh.md): corre `opkssh login` an
 [4.12](../implementacion/fase-4-gitops.md#412-ssh-a-los-hosts-con-dex-opcional)).
 
 ```bash
-kubectl get nodes -o wide            # nolan en Ready, misma VERSION que el resto
-kubectl get node nolan --show-labels # etiquetas de k3s_node_labels
-ssh devops@deborah.homelab.local sudo incus cluster list          # nolan ONLINE
+# nolan en Ready, misma VERSION que el resto
+kubectl get nodes -o wide
+# etiquetas de k3s_node_labels
+kubectl get node nolan --show-labels
+# nolan ONLINE
+ssh devops@deborah.homelab.local sudo incus cluster list
 ssh devops@deborah.homelab.local sudo incus cluster group show x86-nodes
-dig +short nolan.mco.local @192.168.20.5         # 192.168.20.8
+# 192.168.20.8
+dig +short nolan.mco.local @192.168.20.5
 ```
 
 ## Si falla

@@ -25,9 +25,12 @@ Tienen que aparecer el controlador y los planes `k3s-server` y `k3s-agent`.
 ## 2. Ver el estado de las actualizaciones
 
 ```bash
-kubectl get nodes -o wide                          # columna VERSION de cada nodo
-kubectl -n system-upgrade get plans -o wide        # versión objetivo (LATESTVERSION)
-kubectl -n system-upgrade get jobs                 # un job por nodo actualizado
+# columna VERSION de cada nodo
+kubectl get nodes -o wide
+# versión objetivo (LATESTVERSION)
+kubectl -n system-upgrade get plans -o wide
+# un job por nodo actualizado
+kubectl -n system-upgrade get jobs
 ```
 
 Todos los nodos deberían terminar con la misma `VERSION`.

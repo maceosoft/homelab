@@ -158,11 +158,16 @@ abren con un túnel temporal desde tu equipo (cada comando deja la consola en `1
 
 ```bash
 export KUBECONFIG=~/.kube/homelab-k3s.yaml
-kubectl -n monitoring port-forward svc/vmsingle-vm-victoria-metrics-k8s-stack 8428:8428            # vmui
-kubectl -n monitoring port-forward svc/vmagent-vm-victoria-metrics-k8s-stack 8429:8429             # vmagent
-kubectl -n monitoring port-forward svc/vmalert-vm-victoria-metrics-k8s-stack 8880:8080             # vmalert
-kubectl -n monitoring port-forward svc/vmalertmanager-vm-victoria-metrics-k8s-stack 9093:9093      # Alertmanager
-kubectl -n monitoring port-forward svc/blackbox-exporter 9115:9115                                 # blackbox-exporter
+# vmui
+kubectl -n monitoring port-forward svc/vmsingle-vm-victoria-metrics-k8s-stack 8428:8428
+# vmagent
+kubectl -n monitoring port-forward svc/vmagent-vm-victoria-metrics-k8s-stack 8429:8429
+# vmalert
+kubectl -n monitoring port-forward svc/vmalert-vm-victoria-metrics-k8s-stack 8880:8080
+# Alertmanager
+kubectl -n monitoring port-forward svc/vmalertmanager-vm-victoria-metrics-k8s-stack 9093:9093
+# blackbox-exporter
+kubectl -n monitoring port-forward svc/blackbox-exporter 9115:9115
 ```
 
 Cada uno necesita su propia terminal, y el puerto de `vmalert` es `8880` para no chocar con el `8080` de Longhorn.
@@ -215,7 +220,8 @@ Los repositorios están en el [catálogo](#4-documentacion-y-codigo). Además:
 for u in https://argocd.homelab.local/ https://grafana.homelab.local/api/health https://incus.homelab.local:8443/ui/; do
   echo "$u -> $(curl -sk -o /dev/null -w '%{http_code}' --max-time 6 $u)"
 done
-dig @192.168.20.5 argocd.homelab.local +short     # debe dar 192.168.23.200
+# debe dar 192.168.23.200
+dig @192.168.20.5 argocd.homelab.local +short
 ```
 
 Si una URL no abre, empieza por el DNS (`dig`) y por el Gateway (`curl -k https://192.168.23.200`); la tabla de

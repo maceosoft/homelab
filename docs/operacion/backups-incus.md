@@ -16,7 +16,8 @@ Los comandos van en el nodo que aloja la instancia, con `sudo`.
 ```bash
 sudo incus snapshot create <instancia> antes-de-cambio
 # ... haces el cambio ...
-sudo incus snapshot restore <instancia> antes-de-cambio   # si salió mal
+# si salió mal
+sudo incus snapshot restore <instancia> antes-de-cambio
 ```
 
 ## Snapshots programados

@@ -63,10 +63,22 @@ Diagramas completos (Nivel 1 y 2) en [`docs/architecture/`](docs/architecture/).
 `docs/`, `mkdocs.yml` o `requirements.txt`. Índice completo, con búsqueda,
 en el sitio publicado (link arriba).
 
+Con la CLI de GitHub (`gh`):
+
+```bash
+# lanzar el despliegue a mano
+gh workflow run deploy-docs.yml --repo maceosoft/homelab --ref main
+# seguir la corrida
+gh run list --workflow deploy-docs.yml --repo maceosoft/homelab --limit 3
+# ver la configuración de GitHub Pages (URL y origen)
+gh api repos/maceosoft/homelab/pages
+```
+
 **Desarrollo local:**
 ```bash
 pip install -r requirements.txt
-mkdocs serve   # http://127.0.0.1:8000, con recarga en vivo
+# http://127.0.0.1:8000, con recarga en vivo
+mkdocs serve
 ```
 
 ## Estado
@@ -74,4 +86,4 @@ mkdocs serve   # http://127.0.0.1:8000, con recarga en vivo
 🚧 En construcción activa — guía MkDocs y playbooks Ansible listos; bootstrap
 bare-metal (Incus, K3s, GitOps) sigue el recorrido en
 [`docs/implementacion/`](docs/implementacion/). K3s v1.36.2 documentado; CNI
-default Flannel; CAPN y vCluster opcionales (sync manual).
+default Calico; CAPN y vCluster opcionales (sync manual).

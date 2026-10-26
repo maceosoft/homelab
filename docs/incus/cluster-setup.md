@@ -101,8 +101,10 @@ sudo incus admin init
 ## Join (oliver y deborah) — manual
 
 ```bash
-incus cluster add oliver           # ejecutar en invincible; genera token de un solo uso
-incus cluster add deborah   # otro token distinto
+# ejecutar en invincible; genera token de un solo uso
+incus cluster add oliver
+# otro token distinto
+incus cluster add deborah
 ```
 En cada nodo: instalar Incus y `incus admin init`, respondiendo que sí te unes, con el token correspondiente.
 
@@ -362,8 +364,10 @@ LAN: tampoco solapa con los rangos de K3s (`10.42.0.0/16` y `10.43.0.0/16`). Las
 
 ```bash
 cd ansible && source ../.venv/bin/activate
-ansible-playbook -i inventory.ini playbook-incus-cluster.yml --tags ovn --skip-tags always -e incus_ovn_enabled=true                         # preflight
-ansible-playbook -i inventory.ini playbook-incus-cluster.yml --tags ovn --skip-tags always -e incus_ovn_enabled=true -e incus_ovn_confirm=true  # instala
+# preflight
+ansible-playbook -i inventory.ini playbook-incus-cluster.yml --tags ovn --skip-tags always -e incus_ovn_enabled=true
+# instala
+ansible-playbook -i inventory.ini playbook-incus-cluster.yml --tags ovn --skip-tags always -e incus_ovn_enabled=true -e incus_ovn_confirm=true
 ```
 
 Después, un balanceador de red se crea con `incus network load-balancer create ovn-lan 192.168.23.225` y su configuración.

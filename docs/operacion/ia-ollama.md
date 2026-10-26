@@ -86,9 +86,15 @@ Como el resto de los secretos de la plataforma, vive en 1Password y **no** pasa 
     openssl rand -hex 32
     ```
 
-2. En 1Password, en la bóveda `HomeLab`, crea un item (tipo *Nota segura*) llamado `open-webui` con un campo de texto
-   `WEBUI_SECRET_KEY` y pega ahí el valor. El nombre del item y del campo tienen que ser exactos y el campo no debe ir dentro
-   de una sección.
+2. Crea el item en 1Password (bóveda `HomeLab`, tipo *Nota segura*, llamado `open-webui`, con el campo `WEBUI_SECRET_KEY`). Con el
+   CLI `op` y 1Password desbloqueado, un solo comando genera la clave y crea el item:
+
+    ```bash
+    op item create --category "Secure Note" --vault HomeLab --title open-webui "WEBUI_SECRET_KEY[password]=$(openssl rand -hex 32)"
+    ```
+
+   Con `op` no hace falta el paso 1: el comando ya genera el valor. Desde la app de 1Password también sirve: el nombre del item y del
+   campo tienen que ser exactos y el campo no debe ir dentro de una sección.
 3. Comprueba el item sin mostrar el valor: `python3 ansible/scripts/apply_platform_secrets.py --check` debe mostrar
    `✓ WEBUI_SECRET_KEY` bajo `open-webui`.
 4. Aplícalo (crea el namespace `ai` y el Secret `ai/open-webui-secret`):
@@ -150,8 +156,8 @@ tiene desactivados los títulos, etiquetas y autocompletado automáticos.
 ## Comprobar el router
 
 ```bash
-# Con el token de un cliente (guárdalo en una variable, no lo pegues en comandos que queden en el historial)
-TOKEN=...
+# Con el token de un cliente, leído de 1Password sin mostrarlo (si tienes más de una cuenta, exporta OP_ACCOUNT antes)
+TOKEN=$(op read "op://HomeLab/ollama-router/reports")
 
 # Nodos vivos y sus modelos
 curl -s -H "Authorization: Bearer $TOKEN" https://ollama.homelab.local/api/tags
@@ -164,11 +170,14 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST -H "Authorization: Bearer $TOKE
 Y que un nodo duerme y despierta (por SSH al nodo, ver [Entrar por SSH](acceso-ssh.md)):
 
 ```bash
-systemctl is-active ollama                   # inactive en reposo
+# inactive en reposo
+systemctl is-active ollama
 # tras un chat real por el router:
-systemctl is-active ollama                   # active
+# active
+systemctl is-active ollama
 # unos 5 minutos después:
-systemctl is-active ollama                   # inactive otra vez
+# inactive otra vez
+systemctl is-active ollama
 ```
 
 ## Open WebUI con Dex
@@ -217,7 +226,8 @@ Consultar métricas o Kubernetes no despierta ningún nodo; solo lo despierta el
 Para verificar los permisos de la cuenta de servicio de las herramientas:
 
 ```bash
-kubectl auth can-i --list --as=system:serviceaccount:ai:<cuenta>   # sin verbos de escritura
+# sin verbos de escritura
+kubectl auth can-i --list --as=system:serviceaccount:ai:<cuenta>
 ```
 
 ## Resumen de alertas a Discord

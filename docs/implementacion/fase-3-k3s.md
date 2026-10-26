@@ -33,8 +33,10 @@ LoadBalancer vía GitOps después.
     kubectl create deployment demo --image=nginx --replicas=2
     kubectl get pods -l app=demo
     kubectl delete pod -l app=demo --wait=false
-    kubectl get pods -l app=demo        # aparecen pods nuevos
-    kubectl delete deployment demo      # limpieza
+    # aparecen pods nuevos
+    kubectl get pods -l app=demo
+    # limpieza
+    kubectl delete deployment demo
     ```
 
     ??? question "¿Qué diferencia hay entre un pod y un deployment?"

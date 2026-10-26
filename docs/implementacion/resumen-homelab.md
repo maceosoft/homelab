@@ -54,7 +54,8 @@ Verificación:
 ```bash
 curl -kI https://argocd.homelab.local
 curl -kI https://vcluster.homelab.local
-curl -kI https://grafana.homelab.local   # solo si instalaste el monitoreo (4.13)
+# solo si instalaste el monitoreo (4.13)
+curl -kI https://grafana.homelab.local
 curl -kI https://incus.homelab.local:8443
 ```
 

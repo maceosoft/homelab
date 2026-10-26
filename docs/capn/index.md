@@ -32,7 +32,8 @@ export LXC_IMAGE_NAME=kubeadm/v1.36.1
 export CONTROL_PLANE_MACHINE_TARGET="@x86-nodes"
 export CONTROL_PLANE_MACHINE_TYPE=container
 export WORKER_MACHINE_TARGET="@arm64-nodes"
-export WORKER_MACHINE_TYPE=container   # arm64: solo container, sin imágenes VM oficiales
+# arm64: solo container, sin imágenes VM oficiales
+export WORKER_MACHINE_TYPE=container
 
 clusterctl generate cluster demo -i incus \
   --kubernetes-version v1.36.2 \
