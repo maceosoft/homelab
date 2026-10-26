@@ -10,7 +10,14 @@ host_hardening_ssh_max_auth_tries: 3
 host_hardening_ssh_login_grace_time: 20
 host_hardening_ssh_client_alive_interval: 300
 host_hardening_ssh_client_alive_count_max: 2
-host_hardening_ssh_allow_users: []  # vacio = no restringe por usuario (solo por key)
+# Usuarios que pueden entrar por SSH: la cuenta SSO compartida (devops, via opkssh) y la
+# local del operador. Vacio = no restringe. El rol aborta si la cuenta con la que se
+# conecta Ansible no esta en la lista (no dejarte afuera).
+host_hardening_ssh_allow_users:
+  - devops
+  - amaceo
+# Direcciones donde escucha sshd (vacio = todas, el comportamiento actual).
+host_hardening_ssh_listen_addresses: []
 
 # --- Cuentas por defecto ---------------------------------------------------
 # Usuarios tipicos de imagenes SBC/cloud con password default documentada.
@@ -39,6 +46,54 @@ host_hardening_regenerate_ssh_host_keys: false
 
 # --- auditd -----------------------------------------------------------
 host_hardening_enable_auditd: true
+# Rutas vigiladas por escritura/atributos. Solo se cargan las que existen en el host
+# (una regla -w sobre una ruta inexistente puede abortar la carga de reglas).
+host_hardening_audit_watch_paths:
+  - /etc/rancher
+  - /var/lib/rancher/k3s/server/tls
+  - /etc/opk
+  - /etc/ssh/sshd_config.d
+  - /etc/homelab-firewall
+  - /root/.ssh
+  - /home/devops/.ssh
+  - /home/amaceo/.ssh
+# execve de usuarios reales (auid >= 1000): visibilidad de comandos tras un incidente.
+host_hardening_audit_execve: true
+# Reglas para b32 (solo x86_64 las tiene; en arm64 sin compat puede fallar la carga).
+host_hardening_audit_b32: "{{ ansible_facts['architecture'] == 'x86_64' }}"
+# Congela las reglas (-e 2): cambiarlas exige reiniciar el host. Desactivado a proposito.
+host_hardening_audit_immutable: false
+
+# --- Servicios innecesarios ----------------------------------------------------
+# usbdevice.service (imagen Orange Pi) lanza adbd en 0.0.0.0:5555, sin credenciales.
+host_hardening_disable_usbdevice: true
+# rpcbind (111): solo hace falta en un servidor NFS. Marcar en host_vars si el nodo lo es.
+host_hardening_nfs_server: false
+host_hardening_disable_rpcbind: true
+# dnsmasq.service suelto (Incus corre el suyo propio, no usa esta unidad).
+host_hardening_disable_dnsmasq: true
+
+# --- Actualizaciones automaticas (unattended-upgrades, solo seguridad) -----------
+host_hardening_unattended_upgrades: true
+# Ventana (OnCalendar de apt-daily-upgrade.timer) y dispersion aleatoria.
+host_hardening_unattended_window: "*-*-* 03:30:00"
+host_hardening_unattended_random_delay: 30min
+# Reinicio automatico: NUNCA en el control-plane (se fuerza false en k3s_server).
+host_hardening_unattended_reboot: false
+host_hardening_unattended_reboot_time: "04:30"
+host_hardening_unattended_blacklist: []
+
+# --- journald -------------------------------------------------------------------
+host_hardening_journald: true
+host_hardening_journald_max_use: 200M
+host_hardening_journald_max_file: 20M
+host_hardening_journald_retention: 30day
+# Si /var/log es tmpfs (orangepi-ramlog en deborah) un journal "persistente" viviria
+# en RAM y se copiaria a /var/log.hdd solo de forma periodica: se queda volatil con
+# tope chico (los logs duraderos van a VictoriaLogs via Vector). true = persistente
+# igualmente bajo /var/log (tope host_hardening_journald_ramlog_max_use).
+host_hardening_journald_persist_on_ramlog: false
+host_hardening_journald_ramlog_max_use: 64M
 
 # --- Sincronizacion horaria ---------------------------------------------
 host_hardening_enable_time_sync: true

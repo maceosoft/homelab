@@ -1,0 +1,20 @@
+---
+# Ollama bajo demanda: ollama.service queda apagado; un socket de systemd lo despierta con la primera petición
+# y se apaga solo tras ollama_ondemand_idle_time sin tráfico. El agente de registro es el rol ollama_node.
+# Tags: install (binario), units (systemd), models (descarga de modelos).
+
+- name: Instalar Ollama (binario por arquitectura)
+  ansible.builtin.import_tasks: install.yml
+  tags: install
+
+- name: Instalar las unidades systemd de Ollama
+  ansible.builtin.import_tasks: units.yml
+  tags: units
+
+- name: Descargar los modelos del nodo
+  ansible.builtin.import_tasks: models.yml
+  tags: models
+
+- name: Habilitar y arrancar el socket
+  ansible.builtin.import_tasks: socket.yml
+  tags: units

@@ -34,7 +34,7 @@ Solo `deborah`.
 4. `/etc/bind/named.conf.local`: declara las zonas `mco.local`,
    `20.168.192.in-addr.arpa` y `homelab.local`.
 5. Genera `/var/lib/bind/db.mco.local` (un `A` por host de `incus_cluster`, con su
-   `static_ip`; `ns` es `dns_primary` y `k3s` es `k3s_control_plane_host`),
+   `static_ip`; `ns` es `dns_primary` y `k3s` es `k3s_api_ip`; en `homelab.local` el registro `k3s` es el endpoint del API de K3s),
    `/var/lib/bind/db.mco.local.inv` (los `PTR`) y `/var/lib/bind/db.homelab.local`
    (dominio de servicios publicados: un registro por cada servidor de `incus_cluster` con su `static_ip`; `incus` → `incus_cluster_leader`; `argocd`, `vcluster`, `api` y `grafana` → `gateway_ip`, la IP fija del Gateway en MetalLB, definida en `group_vars/all.yml`).
    El serial es la fecha (`YYYYMMDD01`).

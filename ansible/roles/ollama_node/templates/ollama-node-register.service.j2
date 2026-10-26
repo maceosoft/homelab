@@ -1,0 +1,28 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Agente de registro de Ollama (publica los modelos del nodo en el router)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User={{ ollama_node_user }}
+Group={{ ollama_node_user }}
+SupplementaryGroups={{ ollama_node_read_group }}
+ExecStart=/usr/bin/python3 {{ ollama_node_lib_dir }}/ollama_node.py register --loop
+# Configuración en {{ ollama_node_config_dir }}/config.json.
+Restart=always
+RestartSec=10
+
+# Solo lee los manifests de Ollama y habla por red con el router.
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+ReadOnlyPaths={{ ollama_ondemand_models_dir }}
+
+[Install]
+WantedBy=multi-user.target

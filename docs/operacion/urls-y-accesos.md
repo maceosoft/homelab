@@ -4,6 +4,36 @@ Dónde está cada herramienta del HomeLab, cómo se entra y con qué credenciale
 resuelven **dentro de la LAN**, porque las sirve el DNS (sistema de nombres de dominio) del propio HomeLab: BIND en `deborah`, `192.168.20.5`.
 Si tu equipo no usa ese DNS, agrega las entradas a tu archivo `hosts` (ver [Resumen del HomeLab](../implementacion/resumen-homelab.md)).
 
+<div class="card">
+  <div class="card-kicker">Accesos principales</div>
+  <div class="option-grid">
+    <div class="card-col">
+      <div class="card-title">Argo CD</div>
+      <div class="text-muted">GitOps · inicio de sesión con GitHub</div>
+      <div class="text-muted"><a href="https://argocd.homelab.local">argocd.homelab.local</a></div>
+    </div>
+    <div class="card-col">
+      <div class="card-title">Incus UI</div>
+      <div class="text-muted">Instancias, redes y balanceadores · SSO o TLS</div>
+      <div class="text-muted"><a href="https://incus.homelab.local:8443/ui/">incus.homelab.local:8443</a></div>
+    </div>
+    <div class="card-col">
+      <div class="card-title">Grafana <span class="tag">Opcional</span></div>
+      <div class="text-muted">Temperaturas y uso de los nodos · SSO con GitHub</div>
+      <div class="text-muted"><a href="https://grafana.homelab.local">grafana.homelab.local</a></div>
+    </div>
+    <div class="card-col">
+      <div class="card-title">Longhorn <span class="tag">Por túnel</span></div>
+      <div class="text-muted">Almacenamiento replicado · sin login</div>
+      <div class="text-muted"><code>kubectl port-forward</code> → <code>127.0.0.1:8080</code></div>
+    </div>
+    <div class="card-col">
+      <div class="card-title">Documentación</div>
+      <div class="text-muted">Esta guía</div>
+      <div class="text-muted"><a href="https://homelab.maceo.cl">homelab.maceo.cl</a></div>
+    </div>
+  </div>
+</div>
 
 ## Catálogo
 
@@ -28,6 +58,7 @@ Lo que usas para **operar y cambiar** el HomeLab.
 | Prioridad | Producto | Dirección | Cómo se entra | Acceso | Para qué |
 |---|---|---|---|---|---|
 | ⭐ | **Argo CD** | [`https://argocd.homelab.local`](https://argocd.homelab.local) | 🌐 | SSO con GitHub (team `devops`) | Ver qué está desplegado, sincronizar y comparar con git |
+| 🔧 | **Open WebUI** (asistente de IA) | [`https://open-webui.homelab.local`](https://open-webui.homelab.local) | 🌐 | SSO con GitHub (team `devops`) | Chat con el asistente local del HomeLab; un mensaje real puede despertar un nodo de Ollama ([guía](ia-ollama.md)) |
 | ⭐ | **Incus UI** | [`https://incus.homelab.local:8443/ui/`](https://incus.homelab.local:8443/ui/) | 🌐 | SSO con GitHub o certificado TLS | Máquinas virtuales, contenedores, redes y balanceadores |
 | ⭐ | **SSH a los servidores** | `ssh devops@<servidor>.homelab.local` (`invincible`, `oliver`, `deborah`) | 💻 | Identidad de GitHub con `opkssh` ([guía](acceso-ssh.md)) | Entrar a los nodos |
 | ⭐ | **API de Kubernetes** | `https://192.168.20.5:6443` (`deborah`) | 💻 | `kubeconfig` | `kubectl` sobre el clúster |
@@ -54,7 +85,8 @@ Piezas de las que dependen las demás. Sirven para diagnosticar.
 | Prioridad | Producto | Dirección | Cómo se entra | Acceso | Para qué |
 |---|---|---|---|---|---|
 | 🔍 | **Dex** (SSO) | [`https://argocd.homelab.local/api/dex`](https://argocd.homelab.local/api/dex/.well-known/openid-configuration) | 🌐 | Sin interfaz propia | Emisor OIDC: lo usan Argo CD, Incus UI, vCluster, Grafana y el SSH con `opkssh` |
-| 🔍 | **Gateway** (Kong) | `192.168.23.200` | 💻 | — | Recibe el tráfico de `argocd`, `grafana`, `vcluster` y `api` |
+| 🔍 | **Gateway** (Kong) | `192.168.23.200` | 💻 | — | Recibe el tráfico de `argocd`, `grafana`, `vcluster`, `api`, `open-webui` y `ollama` |
+| 🔍 | **Ollama** (API de IA) | `https://ollama.homelab.local` | 💻 | Token Bearer (un token por cliente) | Router único de los nodos de Ollama; solo HTTPS. Dentro del clúster: `http://ollama-router.ai.svc`. La usan Open WebUI, K8sGPT, los reportes y la traducción ([guía](ia-ollama.md), [agregar un nodo](agregar-nodo-ollama.md)) |
 | 🔍 | **DNS** (BIND) | `192.168.20.5` | 💻 | — | Zonas `homelab.local` y `mco.local` |
 
 ### 4. Documentación y código

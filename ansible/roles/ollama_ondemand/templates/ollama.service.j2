@@ -1,0 +1,33 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Ollama (servidor de modelos de lenguaje)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/ollama serve
+User={{ ollama_ondemand_user }}
+Group={{ ollama_ondemand_user }}
+Environment=HOME={{ ollama_ondemand_home }}
+Restart=on-failure
+RestartSec=3
+
+# Endurecimiento: solo escribe en su carpeta; sin capacidades ni privilegios nuevos. Solo CPU: no se ocultan /dev ni
+# /sys (PrivateDevices=yes se omite a propósito; Ollama lee /sys/devices para detectar CPU y RAM).
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths={{ ollama_ondemand_home }}
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictSUIDSGID=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+
+# No tiene [Install]: lo arranca ollama-proxy.service bajo demanda.

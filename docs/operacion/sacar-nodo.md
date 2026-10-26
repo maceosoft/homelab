@@ -6,9 +6,11 @@ equipo, saca el viejo con este procedimiento y agrega el nuevo con
 [Agregar un nodo](agregar-nodo.md).
 
 !!! danger "Nodos que no se sacan con este procedimiento"
-    - **`deborah`** es el control plane de K3s y el DNS (BIND): sacarlo
-      apaga el clúster. Hay que reconstruirlo (ver el
+    - **El nodo del control plane** de K3s (hoy `deborah`; `oliver` cuando se haga la
+      [mudanza](mover-control-plane.md)): sacarlo apaga el clúster. Primero hay que
+      [mover el control plane](mover-control-plane.md) a otro nodo o reconstruirlo (ver el
       [runbook de bootstrap](https://github.com/maceosoft/homelab/blob/main/ansible/bootstrap/README.md)).
+    - **`deborah`** además es el DNS (BIND) de la LAN: antes de sacarla hay que mover el DNS.
     - **`invincible`** es el *leader* de Incus y aloja la UI (interfaz de usuario) de Incus:
       antes hay que mover esos roles a otro nodo.
     - **Quorum de Incus:** el clúster tiene 3 miembros. Con 2, sigue

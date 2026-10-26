@@ -47,3 +47,23 @@ Ver `defaults/main.yml`. Las relevantes: `opkssh_version`, `opkssh_issuer`,
 Para quitar todo lo que instala este rol (sshd, binario, `/etc/opk`, cuenta `devops`):
 [`playbook-uninstall-opkssh.yml`](../../playbook-uninstall-opkssh.yml). Es seguro por
 defecto: sin `-e opkssh_uninstall_confirm=true` solo muestra qué haría.
+
+## Si el login SSO es rechazado (`Permission denied (publickey)`)
+
+Causa conocida: la política **desplegada** en los nodos quedó con la organización
+anterior (`/etc/opk/policy.d/devops-team.yml` y `/etc/opk/devops-team.sh` comparan
+contra `symintel:devops`), mientras que el token de Dex trae `maceosoft:devops`. El
+repo ya está bien (`opkssh_allowed_group: "maceosoft:devops"`); falta re-aplicar el rol.
+En el log de sshd aparece `AuthorizedKeysCommand opkssh verify ... failed, status 1`.
+
+Re-aplicar (el rol es idempotente; solo cambian la política y su script):
+
+```bash
+export KUBECONFIG=~/.kube/homelab-k3s.yaml
+ansible-playbook -i inventory.ini playbook-opkssh.yml --check --diff   # revisar primero
+ansible-playbook -i inventory.ini playbook-opkssh.yml --limit oliver   # piloto
+sudo journalctl -u ssh -n 30 --no-pager                                # en el nodo, tras un intento
+```
+
+Ansible entra con el usuario local (`amaceo`) y la llave del agente SSH; no depende
+del login SSO que se está reparando.

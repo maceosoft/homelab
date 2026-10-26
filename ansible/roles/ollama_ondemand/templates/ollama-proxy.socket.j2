@@ -1,0 +1,11 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Socket de Ollama bajo demanda
+
+[Socket]
+ListenStream={{ ollama_ondemand_listen }}
+# La IP del nodo puede aparecer después de sockets.target en el arranque: permite enlazarla antes.
+FreeBind=yes
+
+[Install]
+WantedBy=sockets.target

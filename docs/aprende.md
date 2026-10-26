@@ -46,6 +46,11 @@ Hay otra opción gratuita de Google, la Gem [Learning coach](https://gemini.goog
 arma planes de estudio y te hace preguntas, pero no conoce esta documentación a menos que le pases `llms-full.txt`.
 Su disponibilidad depende de tu cuenta y país.
 
+Si tienes acceso al HomeLab (team `devops`), su propio asistente local también sirve: en Open WebUI puedes subir
+`llms-full.txt` como colección de conocimiento y preguntarle con ella (RAG, *Retrieval-Augmented Generation*). Corre en
+los equipos de la casa, sin costo y sin enviar nada fuera; es más lento que los asistentes en la nube. Ver
+[Asistente de IA local](operacion/ia-ollama.md#preguntarle-al-asistente-por-el-homelab-rag).
+
 ## Qué aprenderás en cada fase
 
 Cada fase de la [guía](implementacion/index.md) tiene un bloque **Aprende esta fase** con una analogía, los

@@ -16,6 +16,16 @@ GitOps, y que no pueden vivir en git:
   monitoring/grafana-admin                 usuario y contraseña de admin de Grafana (opcional: monitoreo)
   argocd/argocd-notifications-secret       webhooks de Discord de las notificaciones de ArgoCD (opcional:
                                            campo "deployments" de discord-webhooks)
+  ai/open-webui-secret                     WEBUI_SECRET_KEY de Open WebUI (opcional: asistente de IA)
+  ai/ollama-router-secrets                 tokens del router de Ollama, todos los campos del item (opcional: IA)
+  ai/ollama-token-open-webui               token de Open WebUI ante el router (clave "token")
+  monitoring/ollama-token-reports          token de los reportes diario/semanal (clave "token")
+  monitoring/ollama-token-alert-triage     token de alert-triage ante el router (clave "token")
+  k8sgpt-operator-system/ollama-token-k8sgpt   token de K8sGPT ante el router (clave "token")
+  monitoring/alert-triage-webhook          token del webhook de alert-triage (opcional; clave "token")
+  ai/mcp-api-key                           API key de mcpo, los tool servers MCP (opcional; clave "key")
+  ai-sandbox/open-terminal-api-key         API key de Open Terminal (opcional; clave "api_key"; el namespace y su PSA son de GitOps)
+  ai/open-terminal-api-key                 el mismo valor, para Open WebUI (clave "api_key")
   namespace terraform                      state de OpenTofu (lo escribe el runner)
 
 El único scale set (arc-runners, desplegado por ArgoCD desde maceosoft/gitops)
@@ -33,8 +43,16 @@ docs/maceosoft/github.md:
   symintel-terraform    (opcional) app_id, installation_id, private_key: App de OpenTofu de la org antigua
   discord-webhooks      (opcional, monitoreo) critical, warnings: URL de un webhook de Discord por canal;
                         deployments (opcional): webhook del canal de despliegues, para las notificaciones de ArgoCD
+                        ai (opcional): webhook del canal #ia, para el reporte semanal con IA (clave "ai" del Secret)
   healthchecks-ping     (opcional, monitoreo) url: ping URL del check de healthchecks.io
   grafana-admin         (opcional, monitoreo) password y, si quieres, username (default: admin)
+  open-webui            (opcional, asistente de IA) WEBUI_SECRET_KEY: clave aleatoria de 64 caracteres hex
+                        (cómo generarla: docs/operacion/ia-ollama.md)
+  ollama-router         (opcional, IA) registry_token, open-webui, k8sgpt, reports, alert-triage, translate: un token por
+                        cliente del router de Ollama (>= 32 caracteres sin espacios; genéralos con: openssl rand -hex 32)
+  alert-triage-webhook  (opcional, IA) token: Bearer con el que Alertmanager llama a alert-triage (openssl rand -hex 32)
+  mcp-api-key           (opcional, IA) key: API key de mcpo para los tool servers MCP (openssl rand -hex 32)
+  open-terminal         (opcional, IA) api_key: API key de Open Terminal (>= 32 caracteres sin espacios; openssl rand -hex 32)
   ftp-<repo>            (uno por repo con deploy) dev_host, dev_user,
                         dev_password, dev_remote_dir, prod_host, prod_user,
                         prod_password, prod_remote_dir
@@ -90,6 +108,36 @@ MONITORING_NAMESPACE = "monitoring"
 ARGOCD_NAMESPACE = "argocd"
 ARGOCD_NOTIFICATIONS_SECRET = "argocd-notifications-secret"
 DISCORD_ITEM = "discord-webhooks"
+# Asistente de IA (opcional): Open WebUI (gitops: argocd/apps/open-webui.yaml) lee este Secret en el namespace "ai".
+AI_NAMESPACE = "ai"
+OPEN_WEBUI_ITEM = "open-webui"
+OPEN_WEBUI_SECRET_NAME = "open-webui-secret"
+# Firma las sesiones de Open WebUI: una clave corta o con patrón sería adivinable.
+OPEN_WEBUI_KEY_RE = re.compile(r"^[0-9a-f]{64}$")
+# Router de Ollama (gitops: ai/ollama-router): un token Bearer por cliente. El Secret del router lleva todos los campos del
+# item; cada cliente recibe solo el suyo (clave "token") en el namespace donde corre.
+OLLAMA_ROUTER_ITEM = "ollama-router"
+OLLAMA_ROUTER_SECRET = "ollama-router-secrets"
+OLLAMA_ROUTER_FIELDS = ("registry_token", "open-webui", "k8sgpt", "reports", "alert-triage", "translate")
+# campo del item -> namespace del Secret ollama-token-<campo> (translate y registry_token no tienen Secret propio)
+OLLAMA_CLIENT_TOKENS = {
+    "open-webui": AI_NAMESPACE,
+    "reports": MONITORING_NAMESPACE,
+    "alert-triage": MONITORING_NAMESPACE,
+    "k8sgpt": "k8sgpt-operator-system",
+}
+# Items de un solo campo: item -> (campo, [(namespace, Secret, clave), ...]); el mismo valor va a cada destino.
+SANDBOX_NAMESPACE = "ai-sandbox"
+# Namespaces cuyas etiquetas PSA declara GitOps (ai-sandbox: restricted en ai/open-terminal/namespace.yaml): este script
+# solo se asegura de que existan, sin etiqueta PSA, y con la anotación que impide que ArgoCD los pode.
+GITOPS_NAMESPACES = (AI_NAMESPACE, SANDBOX_NAMESPACE)
+SINGLE_TOKEN_ITEMS = {
+    "alert-triage-webhook": ("token", [(MONITORING_NAMESPACE, "alert-triage-webhook", "token")]),
+    "mcp-api-key": ("key", [(AI_NAMESPACE, "mcp-api-key", "key")]),
+    "open-terminal": ("api_key", [(SANDBOX_NAMESPACE, "open-terminal-api-key", "api_key"), (AI_NAMESPACE, "open-terminal-api-key", "api_key")]),
+}
+# Un token corto o con espacios sería adivinable o rompería la cabecera Authorization.
+TOKEN_MIN_LEN = 32
 HEARTBEAT_ITEM = "healthchecks-ping"
 GRAFANA_ITEM = "grafana-admin"
 # Un webhook de Discord con otro destino mandaría las alertas a un tercero: se valida el formato.
@@ -113,10 +161,14 @@ async def resolve(client, ref: str) -> str:
         raise RuntimeError(f"{ref}: {exc} (revisa con --check)") from exc
 
 
-def namespace(name: str, *, baseline: bool = False, privileged: bool = False) -> dict:
+def namespace(name: str, *, baseline: bool = False, privileged: bool = False, keep: bool = False) -> dict:
+    """keep=True: namespace cuyas etiquetas (PSA) son de GitOps: sin etiqueta PSA aquí y ArgoCD no lo poda ni lo borra."""
     level = "privileged" if privileged else "baseline" if baseline else None
     labels = {"pod-security.kubernetes.io/enforce": level} if level else {}
-    return {"apiVersion": "v1", "kind": "Namespace", "metadata": {"name": name, "labels": labels}}
+    ns = {"apiVersion": "v1", "kind": "Namespace", "metadata": {"name": name, "labels": labels}}
+    if keep:
+        ns["metadata"]["annotations"] = {"argocd.argoproj.io/sync-options": "Prune=false,Delete=false"}
+    return ns
 
 
 def secret(ns: str, name: str, data: dict[str, str], labels: dict[str, str] | None = None, type_: str = "Opaque") -> dict:
@@ -181,7 +233,9 @@ async def read_app(client, item: str) -> dict[str, str]:
 async def read_app_optional(client, item: str) -> dict[str, str] | None:
     """Como read_app, pero None si el item no existe (opcional). Error si tiene solo parte de los campos."""
     ref = f"op://{VAULT_NAME}/{item}"
-    raw = {f: (await read_optional(client, f"{ref}/{f}")).strip() for f in ("app_id", "installation_id", "private_key")}
+    raw = {}
+    for f in ("app_id", "installation_id", "private_key"):
+        raw[f] = (await read_optional(client, f"{ref}/{f}")).strip()
     if not any(raw.values()):
         return None
     missing = [f for f, v in raw.items() if not v]
@@ -200,7 +254,9 @@ async def read_monitoring(client) -> dict[str, str] | None:
         "url": ref(HEARTBEAT_ITEM, "url"),
         "password": ref(GRAFANA_ITEM, "password"),
     }
-    values = {k: (await read_optional(client, r)).strip() for k, r in wanted.items()}
+    values = {}
+    for k, r in wanted.items():
+        values[k] = (await read_optional(client, r)).strip()
     if not any(values.values()):
         return None
     missing = [wanted[k] for k, v in values.items() if not v]
@@ -225,7 +281,44 @@ async def read_monitoring(client) -> dict[str, str] | None:
             "No se aplica para no enviar notificaciones a otro destino."
         )
     values["deployments"] = deployments
+    # Opcional: webhook del canal #ia (reporte semanal con IA).
+    ai = (await read_optional(client, ref(DISCORD_ITEM, "ai"))).strip()
+    if ai and not DISCORD_WEBHOOK_RE.match(ai):
+        raise RuntimeError(
+            f"{ref(DISCORD_ITEM, 'ai')}: no parece un webhook de Discord (https://discord.com/api/webhooks/<id>/<token>). "
+            "No se aplica para no enviar el reporte a otro destino."
+        )
+    values["ai"] = ai
     return values
+
+
+def check_token(value: str, ref: str) -> str:
+    """Valida un token de máquina (>= 32 caracteres, sin espacios) sin mostrar su valor."""
+    if len(value) < TOKEN_MIN_LEN or re.search(r"\s", value):
+        raise RuntimeError(
+            f"{ref}: tiene que ser un token de al menos {TOKEN_MIN_LEN} caracteres sin espacios (genéralo con: openssl rand -hex 32)."
+        )
+    return value
+
+
+async def read_ollama_tokens(client) -> dict[str, str] | None:
+    """Tokens del router de Ollama, o None si no existe el item (opcional). Error si faltan campos o son inválidos."""
+    ref = lambda field: f"op://{VAULT_NAME}/{OLLAMA_ROUTER_ITEM}/{field}"  # noqa: E731
+    values = {}
+    for f in OLLAMA_ROUTER_FIELDS:
+        values[f] = (await read_optional(client, ref(f))).strip()
+    if not any(values.values()):
+        return None
+    missing = [ref(f) for f, v in values.items() if not v]
+    if missing:
+        raise RuntimeError("Item del router de Ollama incompleto en 1Password: faltan " + ", ".join(missing) + " (revisa con --check).")
+    return {f: check_token(v, ref(f)) for f, v in values.items()}
+
+
+def ensure_namespace(manifests: list[dict], name: str, **kwargs) -> None:
+    """Añade el Namespace solo si todavía no está en la lista (varios bloques comparten namespace)."""
+    if not any(m["kind"] == "Namespace" and m["metadata"]["name"] == name for m in manifests):
+        manifests.append(namespace(name, **kwargs))
 
 
 async def read_ftp(client) -> dict[str, dict]:
@@ -237,10 +330,11 @@ async def read_ftp(client) -> dict[str, dict]:
             continue
         repo = overview.title[len(FTP_ITEM_PREFIX):]
         ref = f"op://{VAULT_NAME}/{overview.title}"
-        result[repo] = {
-            env: {f: (await resolve(client, f"{ref}/{env}_{f}")).strip() for f in FTP_FIELDS}
-            for env in ("dev", "prod")
-        }
+        result[repo] = {}
+        for env in ("dev", "prod"):
+            result[repo][env] = {}
+            for f in FTP_FIELDS:
+                result[repo][env][f] = (await resolve(client, f"{ref}/{env}_{f}")).strip()
     return result
 
 
@@ -356,8 +450,14 @@ async def build_manifests() -> list[dict]:
     if monitoring:
         manifests.append(namespace(MONITORING_NAMESPACE, privileged=True))
         manifests.append(
-            secret(MONITORING_NAMESPACE, "discord-webhooks", {"critical": monitoring["critical"], "warnings": monitoring["warnings"]})
+            secret(
+                MONITORING_NAMESPACE,
+                "discord-webhooks",
+                {"critical": monitoring["critical"], "warnings": monitoring["warnings"], **({"ai": monitoring["ai"]} if monitoring["ai"] else {})},
+            )
         )
+        if not monitoring["ai"]:
+            print(f"Aviso: sin el campo 'ai' en {DISCORD_ITEM!r}: el reporte semanal con IA no tendrá canal en Discord.", file=sys.stderr)
         manifests.append(secret(MONITORING_NAMESPACE, "healthchecks-ping", {"url": monitoring["url"]}))
         manifests.append(
             secret(MONITORING_NAMESPACE, "grafana-admin", {"admin-user": monitoring["username"], "admin-password": monitoring["password"]})
@@ -380,6 +480,39 @@ async def build_manifests() -> list[dict]:
             f"Aviso: sin items {DISCORD_ITEM!r}, {HEARTBEAT_ITEM!r} y {GRAFANA_ITEM!r} en 1Password: el monitoreo no se configura.",
             file=sys.stderr,
         )
+
+    webui_key = (await read_optional(client, f"op://{VAULT_NAME}/{OPEN_WEBUI_ITEM}/WEBUI_SECRET_KEY")).strip()
+    if webui_key:
+        if not OPEN_WEBUI_KEY_RE.match(webui_key):
+            raise RuntimeError(
+                f"op://{VAULT_NAME}/{OPEN_WEBUI_ITEM}/WEBUI_SECRET_KEY: tiene que ser un valor aleatorio de 64 caracteres "
+                "hexadecimales (genéralo con: openssl rand -hex 32)."
+            )
+        manifests.append(namespace(AI_NAMESPACE, keep=True))
+        manifests.append(secret(AI_NAMESPACE, OPEN_WEBUI_SECRET_NAME, {"WEBUI_SECRET_KEY": webui_key}))
+    else:
+        print(f"Aviso: sin item {OPEN_WEBUI_ITEM!r} en 1Password: Open WebUI no arrancará (opcional: asistente de IA).", file=sys.stderr)
+
+    ollama = await read_ollama_tokens(client)
+    if ollama:
+        # ai y k8sgpt-operator-system sin etiqueta PSS; monitoring "privileged" como en el bloque del monitoreo.
+        ensure_namespace(manifests, AI_NAMESPACE, keep=True)
+        manifests.append(secret(AI_NAMESPACE, OLLAMA_ROUTER_SECRET, dict(ollama)))
+        for field, ns in OLLAMA_CLIENT_TOKENS.items():
+            ensure_namespace(manifests, ns, privileged=(ns == MONITORING_NAMESPACE), keep=(ns in GITOPS_NAMESPACES))
+            manifests.append(secret(ns, f"ollama-token-{field}", {"token": ollama[field]}))
+    else:
+        print(f"Aviso: sin item {OLLAMA_ROUTER_ITEM!r} en 1Password: el router de Ollama y sus clientes no arrancarán (opcional: IA).", file=sys.stderr)
+    for item, (field, targets) in SINGLE_TOKEN_ITEMS.items():
+        ref = f"op://{VAULT_NAME}/{item}/{field}"
+        value = (await read_optional(client, ref)).strip()
+        if value:
+            check_token(value, ref)
+            for ns, name, key in targets:
+                ensure_namespace(manifests, ns, privileged=(ns == MONITORING_NAMESPACE), keep=(ns in GITOPS_NAMESPACES))
+                manifests.append(secret(ns, name, {key: value}))
+        else:
+            print(f"Aviso: sin item {item!r} en 1Password: no se crean sus Secrets (opcional: IA).", file=sys.stderr)
     return manifests
 
 
@@ -402,7 +535,8 @@ async def check() -> int:
     """Muestra, sin valores, qué campos tiene cada item esperado y qué falta."""
     client = await create_client()
     vault_id = await find_vault_id(client)
-    by_title = {o.title.lower(): o for o in await client.items.list(vault_id)}
+    overviews = await client.items.list(vault_id)
+    by_title = {o.title.lower(): o for o in overviews}
     expected = dict(EXPECTED)
     expected.update({t: FTP_EXPECTED for t in by_title if t.startswith(FTP_ITEM_PREFIX)})
     ok = True
@@ -500,6 +634,14 @@ async def check() -> int:
             if title == DISCORD_ITEM:
                 # Opcional: no hace fallar la comprobación, pero si existe tiene que tener el formato correcto.
                 dep = (found.get("deployments") or "").strip()
+                ai = (found.get("ai") or "").strip()
+                if not ai:
+                    print("    · ai (opcional): sin él, el reporte semanal con IA no tiene canal")
+                elif DISCORD_WEBHOOK_RE.match(ai):
+                    print("    ✓ ai (opcional)")
+                else:
+                    print("    ✗ ai (opcional): no parece un webhook de Discord")
+                    ok = False
                 if not dep:
                     print("    · deployments (opcional): sin él, ArgoCD no notifica a Discord")
                 elif DISCORD_WEBHOOK_RE.match(dep):
@@ -507,6 +649,31 @@ async def check() -> int:
                 else:
                     print("    ✗ deployments (opcional): no parece un webhook de Discord")
                     ok = False
+    # Opcional: clave de sesión de Open WebUI (asistente de IA).
+    if OPEN_WEBUI_ITEM in by_title:
+        item = await client.items.get(vault_id, by_title[OPEN_WEBUI_ITEM].id)
+        found = {f.title: f.value for f in item.fields}
+        value = (found.get("WEBUI_SECRET_KEY") or "").strip()
+        good = bool(OPEN_WEBUI_KEY_RE.match(value))
+        print(f"  {OPEN_WEBUI_ITEM}  (opcional: asistente de IA)")
+        print(f"    {'✓' if good else '✗'} WEBUI_SECRET_KEY" + ("" if good else " (falta o no son 64 caracteres hexadecimales)"))
+        ok = ok and good
+    else:
+        print(f"  · sin item {OPEN_WEBUI_ITEM} (opcional: Open WebUI no arrancará sin él)")
+    # Opcional: tokens de IA (router de Ollama, alert-triage, mcpo): campos presentes y con formato de token.
+    token_items = {OLLAMA_ROUTER_ITEM: OLLAMA_ROUTER_FIELDS, **{i: (v[0],) for i, v in SINGLE_TOKEN_ITEMS.items()}}
+    for title, names in token_items.items():
+        if title not in by_title:
+            print(f"  · sin item {title} (opcional: IA)")
+            continue
+        item = await client.items.get(vault_id, by_title[title].id)
+        found = {f.title: f.value for f in item.fields}
+        print(f"  {title}  (opcional: IA)")
+        for name in names:
+            value = (found.get(name) or "").strip()
+            good = len(value) >= TOKEN_MIN_LEN and not re.search(r"\s", value)
+            print(f"    {'✓' if good else '✗'} {name}" + ("" if good else f" (falta o no es un token de {TOKEN_MIN_LEN}+ caracteres sin espacios)"))
+            ok = ok and good
     return 0 if ok else 1
 
 
@@ -525,7 +692,14 @@ async def main() -> int:
         return 0
 
     doc = {"apiVersion": "v1", "kind": "List", "items": manifests}
-    subprocess.run(["kubectl", "apply", "-f", "-"], input=json.dumps(doc), text=True, check=True)
+    # Server-side: los stringData no quedan en la anotación last-applied-configuration (que es legible en claro).
+    subprocess.run(["kubectl", "apply", "--server-side", "--force-conflicts", "--field-manager=platform-secrets", "-f", "-"],
+                   input=json.dumps(doc), text=True, check=True)
+    # Secrets creados antes con apply del lado cliente: quita esa anotación (best effort; sin ella no pasa nada).
+    for m in manifests:
+        if m["kind"] == "Secret":
+            subprocess.run(["kubectl", "annotate", "secret", m["metadata"]["name"], "-n", m["metadata"]["namespace"],
+                            "kubectl.kubernetes.io/last-applied-configuration-"], check=False, capture_output=True)
     tofu_vars = next(m for m in manifests if m["metadata"]["name"] == "tofu-vars")
     ftp_repos = sorted(json.loads(tofu_vars["stringData"]["TF_VAR_ftp"]))
     monitoring_note = "; monitoreo configurado" if any(m["metadata"]["name"] == "discord-webhooks" for m in manifests) else ""

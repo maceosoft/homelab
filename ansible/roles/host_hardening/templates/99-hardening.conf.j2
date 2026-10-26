@@ -17,3 +17,6 @@ Banner /etc/issue.net
 {% if host_hardening_ssh_allow_users %}
 AllowUsers {{ host_hardening_ssh_allow_users | join(' ') }}
 {% endif %}
+{% for addr in host_hardening_ssh_listen_addresses %}
+ListenAddress {{ addr }}
+{% endfor %}

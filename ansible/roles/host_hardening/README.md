@@ -33,6 +33,14 @@ VPN del router reenviada).
    certificados TLS del cluster de Incus (`the provided certificate isn't
    valid yet`).
 
+7. **journald** — drop-in `50-homelab.conf`. En hosts con `/var/log` en disco queda
+   persistente (tope 200M). En **deborah**, `/var/log` es un tmpfs de 200 MB
+   (orangepi-ramlog, con copia periódica en `/var/log.hdd`): un journal persistente ahí
+   viviría en RAM, así que se deja **volátil** con tope de 64M (`RuntimeMaxUse`) y los
+   logs duraderos van a VictoriaLogs. Interruptor:
+   `host_hardening_journald_persist_on_ramlog: true` (persistente bajo `/var/log`, tope
+   `host_hardening_journald_ramlog_max_use`).
+
 ## Playbook
 
 [`playbook-hardening.yml`](../../playbook-hardening.yml) — `hosts: incus_cluster`

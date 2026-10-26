@@ -1,0 +1,160 @@
+---
+# Servicios innecesarios, unattended-upgrades y journald (ver defaults/main.yml).
+
+# --- usbdevice.service (adbd en 5555) -------------------------------------------
+- name: Buscar usbdevice.service
+  ansible.builtin.command: systemctl list-unit-files usbdevice.service --no-legend  # noqa: command-instead-of-module
+  register: host_hardening_usbdevice
+  changed_when: false
+  failed_when: host_hardening_usbdevice.rc not in [0, 1]
+  check_mode: false
+  when: host_hardening_disable_usbdevice
+
+- name: Detener, deshabilitar y enmascarar usbdevice.service (si existe)
+  ansible.builtin.systemd:
+    name: usbdevice.service
+    state: stopped
+    enabled: false
+    masked: true
+  when:
+    - host_hardening_disable_usbdevice
+    - host_hardening_usbdevice.stdout | default('') | length > 0
+
+- name: Comprobar que 5555 ya no escucha
+  ansible.builtin.command: ss -H -ltn 'sport = :5555'
+  register: host_hardening_adb_port
+  changed_when: false
+  check_mode: false
+  failed_when: host_hardening_adb_port.stdout | length > 0 and not ansible_check_mode
+  when: host_hardening_disable_usbdevice
+
+# --- rpcbind (111) -------------------------------------------------------------------
+- name: Buscar rpcbind
+  ansible.builtin.command: systemctl list-unit-files rpcbind.service rpcbind.socket --no-legend  # noqa: command-instead-of-module
+  register: host_hardening_rpcbind
+  changed_when: false
+  failed_when: host_hardening_rpcbind.rc not in [0, 1]
+  check_mode: false
+  when: host_hardening_disable_rpcbind and not host_hardening_nfs_server
+
+- name: Deshabilitar y enmascarar rpcbind (nodo sin servidor NFS)
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: stopped
+    enabled: false
+    masked: true
+  loop:
+    - rpcbind.socket
+    - rpcbind.service
+  when:
+    - host_hardening_disable_rpcbind
+    - not host_hardening_nfs_server
+    - item in host_hardening_rpcbind.stdout | default('')
+
+# --- dnsmasq ----------------------------------------------------------------------------
+- name: Buscar dnsmasq.service
+  ansible.builtin.command: systemctl list-unit-files dnsmasq.service --no-legend  # noqa: command-instead-of-module
+  register: host_hardening_dnsmasq
+  changed_when: false
+  failed_when: host_hardening_dnsmasq.rc not in [0, 1]
+  check_mode: false
+  when: host_hardening_disable_dnsmasq
+
+- name: Deshabilitar dnsmasq.service (si esta presente)
+  ansible.builtin.systemd:
+    name: dnsmasq.service
+    state: stopped
+    enabled: false
+    masked: true
+  when:
+    - host_hardening_disable_dnsmasq
+    - host_hardening_dnsmasq.stdout | default('') | length > 0
+
+# --- unattended-upgrades (solo seguridad) ------------------------------------------------
+- name: Instalar unattended-upgrades
+  ansible.builtin.apt:
+    name: unattended-upgrades
+    state: present
+  when: host_hardening_unattended_upgrades
+  register: host_hardening_uu_pkg
+
+- name: Configurar unattended-upgrades (solo seguridad, sin reinicio en el control-plane)
+  ansible.builtin.template:
+    src: 52homelab-unattended-upgrades.j2
+    dest: /etc/apt/apt.conf.d/52homelab-unattended-upgrades
+    owner: root
+    group: root
+    mode: "0644"
+  when: host_hardening_unattended_upgrades
+
+- name: Crear el directorio del drop-in del temporizador
+  ansible.builtin.file:
+    path: /etc/systemd/system/apt-daily-upgrade.timer.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: host_hardening_unattended_upgrades
+
+- name: Ventana de apt-daily-upgrade.timer
+  ansible.builtin.template:
+    src: apt-daily-upgrade-window.conf.j2
+    dest: /etc/systemd/system/apt-daily-upgrade.timer.d/50-homelab-window.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when: host_hardening_unattended_upgrades
+
+- name: Recargar systemd y habilitar el temporizador de apt
+  ansible.builtin.systemd:
+    daemon_reload: true
+    name: apt-daily-upgrade.timer
+    enabled: true
+    state: started
+  when:
+    - host_hardening_unattended_upgrades
+    - not (ansible_check_mode and host_hardening_uu_pkg is changed)
+
+# --- journald ----------------------------------------------------------------------------
+- name: Detectar si /var/log es tmpfs (ramlog)
+  ansible.builtin.command: findmnt -no FSTYPE /var/log
+  register: host_hardening_varlog_fs
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: host_hardening_journald
+
+- name: Decidir el modo de journald
+  ansible.builtin.set_fact:
+    host_hardening_journald_ramlog: "{{ (host_hardening_varlog_fs.stdout | default('') | trim) == 'tmpfs' }}"
+  when: host_hardening_journald
+
+- name: Directorio del drop-in de journald
+  ansible.builtin.file:
+    path: /etc/systemd/journald.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: host_hardening_journald
+
+- name: Drop-in de journald
+  ansible.builtin.template:
+    src: journald-homelab.conf.j2
+    dest: /etc/systemd/journald.conf.d/50-homelab.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when: host_hardening_journald
+  notify: Reiniciar journald
+
+- name: Directorio del journal persistente
+  ansible.builtin.file:
+    path: /var/log/journal
+    state: directory
+    owner: root
+    group: systemd-journal
+    mode: "2755"
+  when:
+    - host_hardening_journald
+    - not host_hardening_journald_ramlog or host_hardening_journald_persist_on_ramlog

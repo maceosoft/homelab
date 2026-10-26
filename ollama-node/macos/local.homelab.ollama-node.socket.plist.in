@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- Agente de socket: launchd escucha en @LISTEN_PORT@ y lanza el proxy solo cuando llega una conexión. -->
+  <key>Label</key>
+  <string>local.homelab.ollama-node.socket</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>@PYTHON@</string>
+    <string>@SCRIPT@</string>
+    <string>--config</string>
+    <string>@CONFIG@</string>
+    <string>proxy</string>
+  </array>
+  <key>Sockets</key>
+  <dict>
+    <key>Listeners</key>
+    <dict>
+      <key>SockServiceName</key>
+      <string>@LISTEN_PORT@</string>
+      <key>SockType</key>
+      <string>stream</string>
+      <key>SockFamily</key>
+      <string>IPv4</string>
+      <key>SockPassive</key>
+      <true/>
+    </dict>
+  </dict>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>@PATH@</string>
+  </dict>
+  <key>ProcessType</key>
+  <string>Interactive</string>
+  <key>ExitTimeOut</key>
+  <integer>30</integer>
+  <key>StandardOutPath</key>
+  <string>@LOG_DIR@/socket.log</string>
+  <key>StandardErrorPath</key>
+  <string>@LOG_DIR@/socket.log</string>
+</dict>
+</plist>

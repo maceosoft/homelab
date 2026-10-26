@@ -90,6 +90,49 @@ La aplicación raíz `homelab-root` agrupa todas las demás: en su vista de árb
 | **`k3s-upgrade`** | [system-upgrade-controller](https://github.com/rancher/system-upgrade-controller) | Upgrades K3s escalonados. |
 | **`victoria-metrics-config`** *(opcional)* | [VictoriaMetrics](https://docs.victoriametrics.com/operator/) | Reglas de alerta (`VMRule`), scrapes de cert-manager, Longhorn y ArgoCD, y la `HTTPRoute` de Grafana. Va después de `victoria-metrics` porque sus CRD los instala ese chart. |
 
+### Asistente de IA (carpeta `ai/`)
+
+| Application | Para qué sirve |
+|---|---|
+| **`ollama-router`** | Namespace `ai`, Service, ruta de Kong (solo HTTPS, `ollama.homelab.local`) y router único de los nodos de Ollama: registro automático, token Bearer por cliente, elección del nodo por modelo y métricas por modelo y nodo. Reemplaza a los Services por nodo, a la caché de `/api/tags`. |
+| **`open-webui`** | Chat web del asistente (`open-webui.homelab.local`), con SSO por Dex (cliente `open-webui`). |
+| **`open-terminal`** | Terminal con ejecución de código para el asistente, aislado en el namespace `ai-sandbox` y accesible solo desde Open WebUI. |
+| **`ai-tools`** | Herramientas de solo lectura (Kubernetes y métricas) que usa el asistente. |
+| **`k8sgpt`** | K8sGPT: análisis del clúster explicado por Ollama. El resumen de alertas vive en `ai/alert-triage`. **Etapado** (comentado en `root-appset.yaml`): su chart trae un ClusterRole `*/*/*`; la decisión de activarlo es del usuario (ver [Modelo de autenticación](../security/modelo-de-autenticacion.md#comprobaciones-opcionales)). |
+
+### Logs y reportes (carpetas `monitoring/` y `ai/log-report/`)
+
+| Application | Para qué sirve |
+|---|---|
+| **`victoria-logs`** | VictoriaLogs: base de datos de logs (retención de 30 días), solo ClusterIP. |
+| **`vector`** | Vector: DaemonSet que lee los logs de los pods y el journal de los nodos y los envía a VictoriaLogs. |
+| **`log-report`** | CronJobs `log-digest-daily` (resumen diario guardado como log) y `log-report-weekly` (reporte semanal con IA al canal `#ia`). |
+
+Ver [Logs centralizados y reportes con IA](../operacion/logs.md).
+
+### Seguridad (carpeta `security/` y NetworkPolicies por namespace)
+
+Manifiestos de seguridad, casi todos **por activar** de a uno (comentados en `root-appset.yaml`, con README de
+comprobaciones y rollback):
+
+- NetworkPolicies `default-deny` con permisos explícitos (Applications `netpol-ai`, `netpol-monitoring`,
+  `netpol-longhorn-system`, `netpol-kong`, `netpol-gateway` y `netpol-arc-runners`, carpeta
+  [`security/networkpolicies/`](https://github.com/maceosoft/gitops/tree/main/security/networkpolicies)). La de
+  `ai-sandbox` viaja con la app `open-terminal`.
+- Etiquetas de Pod Security Admission en modo `warn` y `audit` (`namespace-labels`) y `allowedRoutes` por selector.
+- `oauth2-proxy` (opcional) para publicar interfaces internas detrás de Dex.
+- [`security/k8sgpt-rbac/`](https://github.com/maceosoft/gitops/tree/main/security/k8sgpt-rbac) y
+  [`security/calico-policy-edit/`](https://github.com/maceosoft/gitops/tree/main/security/calico-policy-edit):
+  documentación y propuestas para K8sGPT (etapado) y para el riesgo de Calico.
+
+**Activa:** `security-rbac`, que da solo lectura (`view`) al grupo `oidc:maceosoft:devops` cuando se entra con Dex. Las
+NetworkPolicy de logs, `ai/tools`, `alert-triage` y Open Terminal ya viajan con su aplicación. Kong Manager desactivado y
+ArgoCD sin el `admin` local forman parte de la configuración normal. Los scripts de los CronJobs de reportes tienen su
+fuente versionada en [`scripts/log-report/`](https://github.com/maceosoft/gitops/tree/main/scripts/log-report). Ver
+[Modelo de autenticación](../security/modelo-de-autenticacion.md).
+
+Ver [Asistente de IA local](../operacion/ia-ollama.md).
+
 ### Sync manual (tú decides cuándo)
 
 | Application | Producto | Para qué sirve |
@@ -116,6 +159,7 @@ La aplicación raíz `homelab-root` agrupa todas las demás: en su vista de árb
 | [`monitoring/`](https://github.com/maceosoft/gitops/tree/main/monitoring) | Values del chart de VictoriaMetrics, reglas, scrapes, ruta de Grafana y pruebas de las reglas (`victoria-metrics` y `victoria-metrics-config`). |
 | [`vcluster/values/platform.yaml`](https://github.com/maceosoft/gitops/blob/main/vcluster/values/platform.yaml) | Helm values Platform + OIDC Dex. |
 | [`capn/clusters/`](https://github.com/maceosoft/gitops/tree/main/capn/clusters) | Clusters generados con `clusterctl`. |
+| [`ai/`](https://github.com/maceosoft/gitops/tree/main/ai) | Manifiestos del asistente de IA: `ollama-router`, `open-webui`, `open-terminal`, `tools`, `alert-triage`, `k8sgpt` y `log-report`. |
 | [`cni/calico/`](https://github.com/maceosoft/gitops/tree/main/cni/calico) | Installation CR Calico (`calico-config` Application). |
 
 ---

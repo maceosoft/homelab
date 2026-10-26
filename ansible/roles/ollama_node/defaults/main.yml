@@ -1,0 +1,39 @@
+---
+# ollama_node — agente de registro de Ollama (ollama_node.py). Ver README.md del rol.
+# Usa las variables de ollama_ondemand (usuario, socket y carpeta de modelos) de este mismo host.
+
+# Publica en el router (ns ai) los modelos del nodo cada 60 s leyendo los manifests, sin despertar a Ollama.
+ollama_node_enabled: true
+# Usuario sin privilegios que ejecuta el agente: DISTINTO del que sirve los modelos. Solo lee los manifests (por
+# pertenecer al grupo ollama_node_read_group) y es dueño de su token.
+ollama_node_user: ollama-node
+ollama_node_read_group: "{{ ollama_ondemand_user }}"
+# Nombre con el que el nodo aparece en el registro.
+ollama_node_name: "{{ inventory_hostname }}"
+# URL con la que el router alcanza este nodo.
+ollama_node_url: "http://{{ ollama_ondemand_listen }}"
+# Base del registro (Kong, HTTPS); el agente añade /_registry/nodes/<nombre>.
+ollama_node_registry_url: "https://ollama.homelab.local"
+# Más prioridad = el router prefiere ese nodo cuando varios tienen el modelo.
+ollama_node_priority: 50
+ollama_node_tags: []
+# Segundos entre latidos (el TTL del registro es 3 latidos).
+ollama_node_interval: 60
+
+# Rutas del agente en el nodo.
+ollama_node_src: "{{ playbook_dir }}/../ollama-node/ollama_node.py"
+ollama_node_lib_dir: /usr/local/lib/ollama-node
+ollama_node_config_dir: /etc/ollama-node
+ollama_node_token_file: /etc/ollama-node/registry-token
+ollama_node_ca_file: /etc/ollama-node/homelab-ca.crt
+
+# Token del registro: se lee en la estación del operador desde 1Password (scripts/read_ollama_registry_token.py).
+ollama_node_token_item: ollama-router
+# Campo propio del nodo, p. ej. "registry_token_{{ inventory_hostname }}" (token por nodo, si el router lo admite).
+# Si no existe en 1Password se usa ollama_node_token_fallback_field (el compartido).
+ollama_node_token_field: registry_token
+ollama_node_token_fallback_field: registry_token
+
+# CA del HomeLab para validar https://ollama.homelab.local. Misma fuente que el rol opkssh (kubectl, secret
+# cert-manager/homelab-ca, KUBECONFIG exportado en la estación).
+ollama_node_install_homelab_ca: true

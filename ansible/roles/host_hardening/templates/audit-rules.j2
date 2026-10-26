@@ -1,0 +1,17 @@
+# Generado por rol host_hardening -- no editar a mano.
+-w /etc/passwd -p wa -k identity
+-w /etc/shadow -p wa -k identity
+-w /etc/sudoers -p wa -k privilege_escalation
+-w /etc/sudoers.d/ -p wa -k privilege_escalation
+-w /etc/ssh/sshd_config -p wa -k sshd_config
+{% for r in host_hardening_audit_paths.results | default([]) if r.stat.exists %}
+-w {{ r.item }} -p wa -k homelab_sensitive
+{% endfor %}
+{% if host_hardening_audit_execve %}
+-a always,exit -F arch=b64 -S execve -F auid>=1000 -F auid!=unset -k exec_user
+{% if host_hardening_audit_b32 %}
+-a always,exit -F arch=b32 -S execve -F auid>=1000 -F auid!=unset -k exec_user
+{% endif %}
+{% endif %}
+-a always,exit -F arch=b64 -S mount,umount2 -F auid>=1000 -F auid!=unset -k mounts
+-a always,exit -F arch=b64 -S setuid,setgid,setreuid,setregid,setresuid,setresgid -F auid>=1000 -F auid!=unset -k setuid

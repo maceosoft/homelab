@@ -1,7 +1,7 @@
 # k3s_fetch_kubeconfig
 
 Copia el **kubeconfig del server** al operador y reescribe la URL del API
-con `k3s_api_url` (IP fija o VIP kube-vip).
+con `k3s_api_url` (nombre estable `k3s_api_endpoint` o VIP kube-vip). El certificado del API incluye ese nombre solo si el server se instaló o reconfiguró con él como SAN (la mudanza lo hace en deborah).
 
 ## Playbook
 

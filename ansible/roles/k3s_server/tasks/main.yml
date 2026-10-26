@@ -12,17 +12,45 @@
     k3s_server_effective_api_host: >-
       {{ k3s_install.kube_vip.address if k3s_install.kube_vip.enabled else ansible_host }}
 
+# Si el archivo de CA de OIDC no existe, el kube-apiserver no arranca: se comprueba antes.
+- name: Comprobar la CA de OIDC (Dex) en el nodo
+  ansible.builtin.stat:
+    path: "{{ k3s_install.security.oidc.ca_file }}"
+  register: k3s_server_oidc_ca
+  when:
+    - k3s_server_oidc_enabled | bool
+    - k3s_install.security.oidc.ca_file | length > 0
+
+- name: Exigir la CA de OIDC antes de instalar
+  ansible.builtin.assert:
+    that:
+      - k3s_server_oidc_ca.stat.exists
+    fail_msg: >-
+      No existe {{ k3s_install.security.oidc.ca_file }} en {{ inventory_hostname }}. Aplica el rol
+      opkssh (instala homelab-ca) o ajusta k3s_install.security.oidc.ca_file.
+    quiet: true
+  when:
+    - k3s_server_oidc_enabled | bool
+    - k3s_install.security.oidc.ca_file | length > 0
+
 # Igual que en k3s_agent: se necesita el código de salida de systemctl is-active.
 - name: Comprobar si K3s server ya esta activo  # noqa: command-instead-of-module
   ansible.builtin.command: systemctl is-active k3s
   register: k3s_server_active
   changed_when: false
   failed_when: false
+  check_mode: false
 
+- name: Descargar el instalador de K3s verificado
+  ansible.builtin.include_role:
+    name: k3s_installer
+  when: k3s_server_active.stdout != "active" or k3s_server_reconfigure | bool
+
+# El token y --server solo se pasan al unir un server; --cluster-init solo en el inicial.
 - name: Instalar K3s server (control-plane)
   ansible.builtin.shell: |
     set -o pipefail
-    curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="{{ k3s_version }}" \
+    INSTALL_K3S_VERSION="{{ k3s_version }}" \
       INSTALL_K3S_EXEC="server \
       {% for c in k3s_disable_components %}--disable {{ c }} {% endfor %}\
       --write-kubeconfig-mode {{ k3s_write_kubeconfig_mode }} \
@@ -32,11 +60,31 @@
       --flannel-backend {{ 'none' if (k3s_install.core.cni | default('flannel')) != 'flannel' else k3s_install.core.flannel_backend }} \
       {% if (k3s_install.core.cni | default('flannel')) != 'flannel' %}--disable-network-policy {% endif %}\
       {% if k3s_install.core.embedded_registry %}--embedded-registry {% endif %}\
-      {% for san in k3s_server_effective_tls_sans %}--tls-san {{ san }} {% endfor %}" sh -
+      {% if k3s_server_cluster_init | bool %}--cluster-init {% endif %}\
+      {% if k3s_server_join_url | length > 0 %}--server {{ k3s_server_join_url }} {% endif %}\
+      {% if k3s_server_secrets_encryption | bool %}--secrets-encryption {% endif %}\
+      {% if k3s_server_oidc_enabled | bool %}\
+      --kube-apiserver-arg=oidc-username-prefix={{ k3s_install.security.oidc.username_prefix }} \
+      --kube-apiserver-arg=oidc-groups-prefix={{ k3s_install.security.oidc.groups_prefix }} \
+      --kube-apiserver-arg=oidc-issuer-url={{ k3s_install.security.oidc.issuer_url }} \
+      --kube-apiserver-arg=oidc-client-id={{ k3s_install.security.oidc.client_id }} \
+      --kube-apiserver-arg=oidc-username-claim={{ k3s_install.security.oidc.username_claim }} \
+      --kube-apiserver-arg=oidc-groups-claim={{ k3s_install.security.oidc.groups_claim }} \
+      {% if k3s_install.security.oidc.ca_file | length > 0 %}--kube-apiserver-arg=oidc-ca-file={{ k3s_install.security.oidc.ca_file }} {% endif %}\
+      {% endif %}\
+      {% for arg in k3s_agent_kubelet_args | default([]) %}--kubelet-arg={{ arg }} {% endfor %}\
+      {% for san in k3s_server_effective_tls_sans %}--tls-san {{ san }} {% endfor %}" \
+      sh {{ k3s_installer_path }}
   args:
     executable: /bin/bash
-    creates: /etc/rancher/k3s/k3s.yaml
-  when: k3s_server_active.stdout != "active"
+    creates: "{{ omit if k3s_server_reconfigure | bool else '/etc/rancher/k3s/k3s.yaml' }}"
+  # Los tokens van por entorno (no por argv, que lo ven ps y auditd); el instalador los guarda
+  # en /etc/systemd/system/k3s.service.env (0600).
+  environment: >-
+    {{ ({'K3S_TOKEN': k3s_server_token} if k3s_server_token | length > 0 else {})
+       | combine({'K3S_AGENT_TOKEN': k3s_server_agent_token} if k3s_server_agent_token | length > 0 else {}) }}
+  when: k3s_server_active.stdout != "active" or k3s_server_reconfigure | bool
+  no_log: true
 
 - name: Esperar API server
   ansible.builtin.wait_for:
@@ -46,13 +94,14 @@
     timeout: 120
   when:
     - not ansible_check_mode
-    - k3s_server_active.stdout != "active"
+    - k3s_server_active.stdout != "active" or k3s_server_reconfigure | bool
 
 - name: Leer token de union para workers
   ansible.builtin.slurp:
     src: /var/lib/rancher/k3s/server/node-token
   register: k3s_server_node_token
   when: not ansible_check_mode
+  no_log: true
 
 # k3s_token es un contrato entre roles: lo lee k3s_agent (hostvars del server) y también se puede
 # pasar con -e k3s_token=...; el README del agente y las guías lo nombran así. No se renombra.

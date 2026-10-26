@@ -1,0 +1,18 @@
+# Generado por rol host_hardening -- no editar a mano.
+[Journal]
+{% if host_hardening_journald_ramlog and not host_hardening_journald_persist_on_ramlog %}
+# /var/log es tmpfs (ramlog): el journal se queda en RAM (/run) con tope chico;
+# lo duradero va a VictoriaLogs (Vector). Evita gastar la eMMC y la RAM de /var/log.
+Storage=volatile
+RuntimeMaxUse={{ host_hardening_journald_ramlog_max_use }}
+{% elif host_hardening_journald_ramlog %}
+Storage=persistent
+SystemMaxUse={{ host_hardening_journald_ramlog_max_use }}
+SyncIntervalSec=5m
+{% else %}
+Storage=persistent
+SystemMaxUse={{ host_hardening_journald_max_use }}
+{% endif %}
+SystemMaxFileSize={{ host_hardening_journald_max_file }}
+MaxRetentionSec={{ host_hardening_journald_retention }}
+Compress=yes

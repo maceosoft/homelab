@@ -1,0 +1,978 @@
+---
+# Mudanza guiada del control-plane de K3s: de k3s_move_source (deborah) a k3s_move_target (oliver).
+#
+# MÉTODO. El repo no documentaba cómo mover el estado, y la documentación oficial de K3s solo
+# describe, para SQLite, copiar server/db y el token (backup/restore en el mismo nodo); no dice
+# nada de llevarlo a otro nodo (además, el token incluye el hash de la CA, así que habría que
+# copiar también server/tls, sin respaldo oficial). Lo documentado y soportado es convertir el
+# datastore a etcd embebido reiniciando con --cluster-init, unir otro server con el mismo token
+# y, para quedar con un solo server, `k3s server --cluster-reset`. Eso hace este playbook:
+#   1. verificaciones previas      (tag preflight)
+#   2. backup fuera del nodo       (tag backup)    detiene K3s en el origen unos minutos
+#   3. SQLite -> etcd en el origen (tag convert)   reinstala con --cluster-init y flags de seguridad
+#   4. destino como 2.º server     (tag join)      drena oliver, quita su agent, une el server
+#   5. repunte del DNS             (tag dns)       k3s.homelab.local -> IP del destino
+#   6. retiro del origen           (tag retire)    cluster-reset en el destino, origen como agent
+#   7. verificación final          (tag verify)
+# Rollback: ver el play al final (tag rollback, nunca corre solo).
+#
+# ANTES: playbook-bind-dns.yml aplicado (registro "k3s"), y homelab-ca en los nodos (rol opkssh).
+# Ventana de mantenimiento: el API cae durante 2, 3 y 6; los pods siguen corriendo, salvo los
+# del origen, que se drenan en 6.
+#
+# Ejecutar (desde ansible/):
+#   ansible-playbook -i inventory.ini playbook-k3s-move-controlplane.yml --check --diff   # ensayo
+#   ansible-playbook -i inventory.ini playbook-k3s-move-controlplane.yml
+# Variables: k3s_move_target, k3s_move_confirm (pausas; false para no interactivo),
+# k3s_move_backup_dir, k3s_move_drain_source, k3s_move_rotate_secrets, k3s_move_allow_unsynced,
+# k3s_move_backup_age_recipient | k3s_move_backup_passphrase | k3s_move_backup_unencrypted=true,
+# k3s_move_agent_token. Los agents pasan a usar un agent-token DISTINTO del token de server.
+# El inventario NO se modifica: al terminar se edita a mano (ver el resumen final).
+
+- name: Preparar grupos dinámicos de la mudanza
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: [always]
+  tasks:
+    - name: Registrar origen, destino y nodo DNS
+      ansible.builtin.add_host:
+        name: "{{ item.host }}"
+        groups: "{{ item.group }}"
+      loop:
+        - { host: "{{ k3s_move_source }}", group: k3s_move_src }
+        - { host: "{{ k3s_move_target }}", group: k3s_move_dst }
+        - { host: "{{ k3s_move_dns_host }}", group: k3s_move_dns }
+      changed_when: false
+      loop_control:
+        label: "{{ item.group }}={{ item.host }}"
+
+    - name: Modo de cifrado del backup
+      ansible.builtin.set_fact:
+        k3s_move_backup_mode: >-
+          {{ 'age' if k3s_move_backup_age_recipient | default('') | length > 0
+             else ('gpg' if k3s_move_backup_passphrase | default('') | length > 0 else 'none') }}
+
+    - name: Exigir cifrado del backup (o aceptarlo sin cifrar de forma explícita)
+      ansible.builtin.assert:
+        that: k3s_move_backup_mode != 'none' or k3s_move_backup_unencrypted | default(false) | bool
+        fail_msg: >-
+          El backup contiene la CA y el token del clúster y no puede salir del nodo en claro. Define
+          k3s_move_backup_age_recipient (clave pública age) o k3s_move_backup_passphrase (gpg simétrico,
+          desde 1Password con -e), o pasa -e k3s_move_backup_unencrypted=true bajo tu responsabilidad.
+        quiet: true
+      when: "'rollback' not in ansible_run_tags"
+
+    - name: Directorio local de backups (0700)
+      ansible.builtin.file:
+        path: "{{ k3s_move_backup_dir }}"
+        state: directory
+        mode: "0700"
+
+    # Se genera una vez y queda en <backup_dir>/agent-token (0600): reejecutar reutiliza el mismo.
+    # Guárdalo también en 1Password. Rotarlo después: `k3s token rotate` (ver README del rol k3s_server).
+    - name: Agent-token distinto del token de server
+      ansible.builtin.set_fact:
+        k3s_move_agent_token_eff: >-
+          {{ k3s_move_agent_token | default(lookup('ansible.builtin.password', k3s_move_backup_dir ~ '/agent-token length=48 chars=ascii_letters,digits')) }}
+      no_log: true
+
+- name: Verificaciones previas
+  hosts: k3s_move_src:k3s_move_dst
+  become: true
+  gather_facts: true
+  tags: [move, preflight]
+  vars:
+    k3s_move_kubectl: k3s kubectl
+  tasks:
+    - name: Origen y destino distintos, origen es k3s_server y destino agent
+      ansible.builtin.assert:
+        that:
+          - k3s_move_source != k3s_move_target
+          - k3s_move_source in groups['k3s_server']
+          - k3s_move_target in groups['k3s_agent']
+        fail_msg: >-
+          La mudanza parte con {{ k3s_move_source }} en [k3s_server] y {{ k3s_move_target }} en
+          [k3s_agent]. ¿Ya se hizo? Revisa inventory.ini y k3s_move_done.
+        quiet: true
+      run_once: true  # noqa: run-once[task]
+
+    - name: Estado del origen (solo lectura)
+      when: inventory_hostname == k3s_move_source
+      block:
+        - name: K3s activo en el origen
+          ansible.builtin.command: systemctl is-active k3s  # noqa: command-instead-of-module
+          changed_when: false
+          check_mode: false
+
+        - name: Nodos del clúster
+          ansible.builtin.command: "{{ k3s_move_kubectl }} get nodes -o json"
+          register: k3s_move_nodes
+          changed_when: false
+          check_mode: false
+
+        - name: Volúmenes de Longhorn
+          ansible.builtin.command: "{{ k3s_move_kubectl }} -n longhorn-system get volumes.longhorn.io -o json"
+          register: k3s_move_longhorn
+          changed_when: false
+          check_mode: false
+
+        - name: Applications de ArgoCD
+          ansible.builtin.command: "{{ k3s_move_kubectl }} -n argocd get applications.argoproj.io -o json"
+          register: k3s_move_apps
+          changed_when: false
+          check_mode: false
+
+        - name: Interpretar las salidas JSON
+          ansible.builtin.set_fact:
+            k3s_move_nodes_j: "{{ k3s_move_nodes.stdout | from_json }}"
+            k3s_move_lh_j: "{{ k3s_move_longhorn.stdout | from_json }}"
+            k3s_move_apps_j: "{{ k3s_move_apps.stdout | from_json }}"
+
+        - name: Todos los nodos Ready
+          ansible.builtin.assert:
+            that:
+              - k3s_move_nodes_j['items'] | length == groups['incus_cluster'] | length
+              - >-
+                k3s_move_nodes_j['items'] | map(attribute='status.conditions') | flatten
+                | selectattr('type', 'equalto', 'Ready') | rejectattr('status', 'equalto', 'True')
+                | list | length == 0
+            fail_msg: "Hay nodos ausentes o NotReady (kubectl get nodes). No se muda con el clúster dañado."
+            quiet: true
+
+        - name: Longhorn sin volúmenes degradados ni fallidos
+          ansible.builtin.assert:
+            that:
+              - >-
+                k3s_move_lh_j['items'] | selectattr('status.robustness', 'in', ['degraded', 'faulted'])
+                | list | length == 0
+            fail_msg: "Hay volúmenes de Longhorn degraded/faulted. Déjalos sanos antes de mudar."
+            quiet: true
+
+        - name: ArgoCD sincronizado y sano
+          ansible.builtin.assert:
+            that:
+              - >-
+                k3s_move_allow_unsynced | default(false) | bool or
+                (k3s_move_apps_j['items'] | rejectattr('status.sync.status', 'equalto', 'Synced') | list | length == 0
+                and k3s_move_apps_j['items'] | rejectattr('status.health.status', 'equalto', 'Healthy') | list | length == 0)
+            fail_msg: >-
+              Hay Applications fuera de Synced/Healthy. Corrígelas o usa
+              -e k3s_move_allow_unsynced=true bajo tu responsabilidad.
+            quiet: true
+
+        - name: Datastore actual del origen
+          ansible.builtin.stat:
+            path: /var/lib/rancher/k3s/server/db/etcd
+          register: k3s_move_src_etcd
+
+        - name: Tamaño del estado del servidor
+          ansible.builtin.command: du -sh /var/lib/rancher/k3s/server
+          register: k3s_move_src_size
+          changed_when: false
+          check_mode: false
+
+        - name: Mostrar datastore y tamaño
+          ansible.builtin.debug:
+            msg: >-
+              Datastore: {{ 'etcd embebido (la conversión se omite)' if k3s_move_src_etcd.stat.exists
+              else 'SQLite (se convertirá a etcd)' }}. Tamaño: {{ k3s_move_src_size.stdout }}.
+
+    - name: El endpoint del API resuelve a la IP vigente desde cada nodo
+      ansible.builtin.command: getent hosts {{ k3s_api_endpoint }}
+      register: k3s_move_dns_now
+      changed_when: false
+      check_mode: false
+      failed_when: k3s_move_dns_now.rc != 0 or k3s_api_ip not in k3s_move_dns_now.stdout
+
+    - name: La CA de OIDC existe en el nodo
+      ansible.builtin.stat:
+        path: "{{ k3s_install.security.oidc.ca_file }}"
+      register: k3s_move_ca
+      failed_when: not k3s_move_ca.stat.exists
+      when: k3s_install.security.oidc.enabled | bool
+
+- name: Backup del estado del origen
+  hosts: k3s_move_src
+  become: true
+  gather_facts: false
+  tags: [move, backup]
+  tasks:
+    # Se calcula UNA vez, antes de parar K3s: todos los pasos usan la misma ruta.
+    - name: Marca de tiempo única del backup
+      ansible.builtin.set_fact:
+        k3s_move_stamp: "{{ lookup('pipe', 'date +%Y%m%dT%H%M%S') }}"
+      run_once: true  # noqa: run-once[task]
+
+    - name: Rutas del backup
+      ansible.builtin.set_fact:
+        k3s_move_backup_plain: "/root/k3s-move-{{ k3s_move_stamp }}-{{ inventory_hostname }}.tgz"
+        k3s_move_backup_remote: >-
+          /root/k3s-move-{{ k3s_move_stamp }}-{{ inventory_hostname }}.tgz{{
+          {'age': '.age', 'gpg': '.gpg', 'none': ''}[hostvars['localhost'].k3s_move_backup_mode] }}
+
+    - name: Confirmar el backup
+      ansible.builtin.pause:
+        prompt: |
+          Se DETENDRÁ K3s en {{ inventory_hostname }} para copiar server/ (db, tls, token) de forma consistente.
+          El API queda caído unos minutos; los pods siguen corriendo. El backup contiene la CA y el token del
+          clúster: se cifra en el nodo ({{ hostvars['localhost'].k3s_move_backup_mode }}) y se guarda en
+          {{ k3s_move_backup_dir }} (0700). Si algo falla, K3s se vuelve a iniciar solo. Enter para seguir
+      when: k3s_move_confirm | default(true) | bool and not ansible_check_mode
+
+    - name: Instalar la herramienta de cifrado en el nodo
+      ansible.builtin.apt:
+        name: "{{ 'age' if hostvars['localhost'].k3s_move_backup_mode == 'age' else 'gnupg' }}"
+        state: present
+      when: hostvars['localhost'].k3s_move_backup_mode != 'none'
+
+    - name: Parar K3s, empaquetar, cifrar y sacar el backup
+      block:
+        - name: Detener K3s en el origen
+          ansible.builtin.systemd:
+            name: k3s
+            state: stopped
+
+        # umask 077: el tar nace en 0600, sin ventana de lectura.
+        - name: Empaquetar server/ y /etc/rancher
+          ansible.builtin.shell: |
+            set -o pipefail
+            umask 077
+            tar --create --gzip --preserve-permissions --file={{ k3s_move_backup_plain | quote }} \
+              --directory=/ var/lib/rancher/k3s/server etc/rancher
+          args:
+            executable: /bin/bash
+          changed_when: true
+
+        - name: Listar el contenido para verificar db, tls y token  # noqa: command-instead-of-module
+          ansible.builtin.command: tar --list --gzip --file={{ k3s_move_backup_plain }}
+          register: k3s_move_tar_list
+          changed_when: false
+          check_mode: false
+          failed_when: >-
+            k3s_move_tar_list.stdout is not search('server/db/') or
+            k3s_move_tar_list.stdout is not search('server/tls/') or
+            k3s_move_tar_list.stdout is not search('server/token')
+
+        - name: Cifrar el backup con age
+          ansible.builtin.shell: |
+            umask 077
+            age --recipient {{ k3s_move_backup_age_recipient | quote }} --output {{ k3s_move_backup_remote | quote }} {{ k3s_move_backup_plain | quote }}
+          args:
+            executable: /bin/bash
+          changed_when: true
+          when: hostvars['localhost'].k3s_move_backup_mode == 'age'
+
+        - name: Cifrar el backup con gpg (contraseña por entorno, no por argv)
+          ansible.builtin.shell: |
+            umask 077
+            gpg --batch --yes --pinentry-mode loopback --symmetric --cipher-algo AES256 \
+              --passphrase-fd 3 --output {{ k3s_move_backup_remote | quote }} {{ k3s_move_backup_plain | quote }} 3<<<"$K3S_MOVE_PASS"
+          args:
+            executable: /bin/bash
+          environment:
+            K3S_MOVE_PASS: "{{ k3s_move_backup_passphrase }}"
+          changed_when: true
+          no_log: true
+          when: hostvars['localhost'].k3s_move_backup_mode == 'gpg'
+
+        - name: Borrar el tar sin cifrar
+          ansible.builtin.command: shred --remove {{ k3s_move_backup_plain | quote }}
+          changed_when: true
+          when: hostvars['localhost'].k3s_move_backup_mode != 'none'
+
+        - name: Copiar el backup fuera del nodo (verifica checksum)
+          ansible.builtin.fetch:
+            src: "{{ k3s_move_backup_remote }}"
+            dest: "{{ k3s_move_backup_dir }}/"
+            flat: true
+            validate_checksum: true
+
+        - name: Permisos locales del backup
+          ansible.builtin.file:
+            path: "{{ k3s_move_backup_dir }}/{{ k3s_move_backup_remote | basename }}"
+            mode: "0600"
+          delegate_to: localhost
+          become: false
+          when: not ansible_check_mode
+      rescue:
+        # Un fallo no puede dejar el API caído: se reinicia K3s antes de abortar.
+        - name: Reiniciar K3s en el origen tras el fallo
+          ansible.builtin.systemd:
+            name: k3s
+            state: started
+
+        - name: Abortar con mensaje claro
+          ansible.builtin.fail:
+            msg: >-
+              El backup falló y K3s se volvió a iniciar en {{ inventory_hostname }} (sin cambios en el clúster).
+              Revisa el error anterior, borra /root/k3s-move-* en el nodo si quedó algo y reintenta.
+
+    - name: Guardar la marca del backup para los plays siguientes
+      ansible.builtin.set_fact:
+        k3s_move_backup_stamp: "{{ k3s_move_stamp }}"
+
+- name: Convertir el origen a etcd embebido y aplicar flags de seguridad
+  hosts: k3s_move_src
+  become: true
+  gather_facts: true
+  tags: [move, convert]
+  tasks:
+    - name: Confirmar la conversión
+      ansible.builtin.pause:
+        prompt: |
+          Backup hecho: {{ k3s_move_backup_dir }}/{{ k3s_move_backup_remote | default('(ver paso backup)') | basename }}
+          Se reinstalará K3s en {{ inventory_hostname }} con --cluster-init (SQLite a etcd), --secrets-encryption,
+          OIDC hacia Dex y el SAN {{ k3s_api_endpoint }}. Es el paso que no se deshace sin el rollback. Enter para seguir
+      when: k3s_move_confirm | default(true) | bool and not ansible_check_mode
+
+    - name: Reinstalar el server con --cluster-init
+      ansible.builtin.include_role:
+        name: k3s_server
+      vars:
+        k3s_server_cluster_init: true
+        k3s_server_reconfigure: true
+        k3s_server_agent_token: "{{ hostvars['localhost'].k3s_move_agent_token_eff }}"
+
+    - name: Esperar a que el API responda
+      ansible.builtin.command: k3s kubectl get nodes
+      register: k3s_move_api_up
+      until: k3s_move_api_up.rc == 0
+      retries: 30
+      delay: 10
+      changed_when: false
+      check_mode: false
+
+    - name: Comprobar que el datastore ya es etcd
+      ansible.builtin.stat:
+        path: /var/lib/rancher/k3s/server/db/etcd
+      register: k3s_move_etcd
+      failed_when: not k3s_move_etcd.stat.exists and not ansible_check_mode
+
+    - name: Guardar el token del clúster (server/token)
+      ansible.builtin.slurp:
+        src: /var/lib/rancher/k3s/server/token
+      register: k3s_move_token_raw
+      no_log: true
+      when: not ansible_check_mode
+
+    - name: Publicar el token como hecho del origen
+      ansible.builtin.set_fact:
+        k3s_move_token: "{{ k3s_move_token_raw.content | b64decode | trim }}"
+      no_log: true
+      when: k3s_move_token_raw.content is defined
+
+- name: Repuntar los agents al nombre estable
+  hosts: k3s_agent:!k3s_move_dst
+  become: true
+  serial: 1
+  tags: [move, convert]
+  tasks:
+    # Los agents instalados antes de k3s_api_endpoint tienen K3S_URL con la IP del origen; el
+    # nombre ya incluye el SAN tras la reinstalación del origen.
+    - name: K3S_URL del agent apunta al nombre
+      ansible.builtin.lineinfile:
+        path: /etc/systemd/system/k3s-agent.service.env
+        regexp: "^K3S_URL="
+        line: "K3S_URL='{{ k3s_api_url }}'"
+        mode: "0600"
+      register: k3s_move_agent_url
+
+    # Los agents dejan de usar el token de server: pasan al agent-token (el de server sigue siendo
+    # válido para ellos, pero ya no lo guardan).
+    - name: K3S_TOKEN del agent es el agent-token
+      ansible.builtin.lineinfile:
+        path: /etc/systemd/system/k3s-agent.service.env
+        regexp: "^K3S_TOKEN="
+        line: "K3S_TOKEN='{{ hostvars['localhost'].k3s_move_agent_token_eff }}'"
+        mode: "0600"
+      register: k3s_move_agent_tok
+      no_log: true
+
+    - name: Reiniciar el agent si cambió  # noqa: no-handler
+      ansible.builtin.systemd:
+        name: k3s-agent
+        state: restarted
+        daemon_reload: true
+      when: k3s_move_agent_url is changed or k3s_move_agent_tok is changed
+
+- name: Destino como segundo server (control-plane)
+  hosts: k3s_move_dst
+  become: true
+  gather_facts: true
+  tags: [move, join]
+  vars:
+    k3s_move_src_host: "{{ k3s_move_source }}"
+  tasks:
+    - name: Confirmar el paso sobre el destino
+      ansible.builtin.pause:
+        prompt: |
+          Se DRENARÁ {{ inventory_hostname }}, se QUITARÁ su K3s agent (se borran sus imágenes y estado local de K3s)
+          y se instalará como SEGUNDO server uniéndose a {{ k3s_move_src_host }} con el mismo token. Enter para seguir
+      when: k3s_move_confirm | default(true) | bool and not ansible_check_mode
+
+    - name: Exigir el token del clúster
+      ansible.builtin.assert:
+        that: hostvars[k3s_move_src_host].k3s_move_token | default('') | length > 0
+        fail_msg: "Falta el token (se obtiene en el paso convert). No reanudes con --tags sin haberlo corrido en la misma ejecución."
+        quiet: true
+      when: not ansible_check_mode
+
+    - name: Drenar el destino
+      ansible.builtin.command: >-
+        k3s kubectl drain {{ inventory_hostname }} --ignore-daemonsets --delete-emptydir-data --timeout=300s
+      delegate_to: "{{ k3s_move_src_host }}"
+      changed_when: true
+
+    - name: Guardar la contraseña de nodo del agent (evita "duplicate hostname")
+      ansible.builtin.copy:
+        src: /etc/rancher/node/password
+        dest: /root/k3s-move-node-password
+        remote_src: true
+        mode: "0600"
+      failed_when: false
+
+    - name: Copiar la contraseña de nodo fuera del nodo
+      ansible.builtin.fetch:
+        src: /root/k3s-move-node-password
+        dest: "{{ k3s_move_backup_dir }}/{{ inventory_hostname }}-node-password"
+        flat: true
+      failed_when: false
+      no_log: true
+
+    - name: Desinstalar el K3s agent del destino
+      ansible.builtin.command: /usr/local/bin/k3s-agent-uninstall.sh
+      args:
+        removes: /usr/local/bin/k3s-agent-uninstall.sh
+      changed_when: true
+
+    - name: Restaurar la contraseña de nodo
+      ansible.builtin.copy:
+        src: /root/k3s-move-node-password
+        dest: /etc/rancher/node/password
+        remote_src: true
+        mode: "0600"
+        directory_mode: "0755"
+      when: not ansible_check_mode
+
+    - name: Instalar K3s server en el destino (mismo token, mismos SANs)
+      ansible.builtin.include_role:
+        name: k3s_server
+      vars:
+        k3s_server_join_url: "https://{{ hostvars[k3s_move_src_host].ansible_host }}:6443"
+        k3s_server_token: "{{ hostvars[k3s_move_src_host].k3s_move_token | default('') }}"
+        k3s_server_agent_token: "{{ hostvars['localhost'].k3s_move_agent_token_eff }}"
+        k3s_server_reconfigure: true
+
+    - name: Esperar a que el destino sea control-plane y etcd
+      ansible.builtin.command: k3s kubectl get nodes -l node-role.kubernetes.io/etcd=true -o name
+      register: k3s_move_etcd_nodes
+      until: k3s_move_etcd_nodes.stdout_lines | length == 2
+      retries: 30
+      delay: 10
+      changed_when: false
+      check_mode: false
+
+    - name: Reactivar la planificación en el destino
+      ansible.builtin.command: k3s kubectl uncordon {{ inventory_hostname }}
+      changed_when: true
+
+- name: Repuntar el DNS del API al destino
+  hosts: k3s_move_dns
+  become: true
+  tags: [move, dns]
+  tasks:
+    - name: Confirmar el repunte
+      ansible.builtin.pause:
+        prompt: |
+          Ambos servers están arriba. Se repuntará {{ k3s_api_endpoint }} a {{ hostvars[k3s_move_target].ansible_host }}
+          (zonas homelab.local y mco.local en BIND de {{ inventory_hostname }}). Enter para seguir
+      when: k3s_move_confirm | default(true) | bool and not ansible_check_mode
+
+    - name: Re-aplicar BIND con k3s_api_ip del destino  # noqa: var-naming[no-role-prefix]
+      ansible.builtin.include_role:
+        name: bind_dns
+      vars:
+        k3s_api_ip: "{{ hostvars[k3s_move_target].ansible_host }}"
+
+- name: Esperar a que los nodos resuelvan la IP nueva
+  hosts: k3s_move_src:k3s_move_dst:k3s_agent
+  become: true
+  tags: [move, dns]
+  vars:
+    k3s_move_expected_ip: "{{ hostvars[k3s_move_target].ansible_host }}"
+  tasks:
+    # TTL de la zona: 300 s. Hasta 8 min de espera.
+    - name: El endpoint resuelve a la IP del destino
+      ansible.builtin.command: getent hosts {{ k3s_api_endpoint }}
+      register: k3s_move_dns_new
+      until: k3s_move_expected_ip in k3s_move_dns_new.stdout
+      retries: 24
+      delay: 20
+      changed_when: false
+      check_mode: false
+      when: not ansible_check_mode
+
+- name: Retiro del origen (1/4) - confirmar y drenar
+  hosts: k3s_move_dst
+  become: true
+  gather_facts: false
+  tags: [move, retire]
+  tasks:
+    - name: Exigir el token del clúster
+      ansible.builtin.assert:
+        that: hostvars[k3s_move_source].k3s_move_token | default('') | length > 0
+        fail_msg: "Falta el token (se obtiene en el paso convert). No reanudes con --tags sin haberlo corrido en la misma ejecución."
+        quiet: true
+      when: not ansible_check_mode
+
+    - name: Confirmar el retiro del origen
+      ansible.builtin.pause:
+        prompt: |
+          Se DRENARÁ y DETENDRÁ {{ k3s_move_source }}, se reiniciará el etcd de {{ k3s_move_target }} como único miembro
+          (k3s server --cluster-reset; el API cae unos minutos) y {{ k3s_move_source }} se reinstalará como AGENT.
+          Los pods de {{ k3s_move_source }} se mueven o quedan Pending si no caben. Enter para seguir
+      when: k3s_move_confirm | default(true) | bool and not ansible_check_mode
+
+    - name: Drenar el origen
+      ansible.builtin.command: >-
+        k3s kubectl drain {{ k3s_move_source }} --ignore-daemonsets --delete-emptydir-data --timeout=600s
+      changed_when: true
+      when: k3s_move_drain_source | default(true) | bool
+
+- name: Retiro del origen (2/4) - detener el origen
+  hosts: k3s_move_src
+  become: true
+  gather_facts: false
+  tags: [move, retire]
+  tasks:
+    - name: Guardar la contraseña de nodo del origen
+      ansible.builtin.copy:
+        src: /etc/rancher/node/password
+        dest: /root/k3s-move-node-password
+        remote_src: true
+        mode: "0600"
+      failed_when: false
+
+    # Con 2 miembros, detenerlo deja el etcd sin quórum: el API del destino cae hasta el reset.
+    - name: Detener K3s en el origen
+      ansible.builtin.systemd:
+        name: k3s
+        state: stopped
+
+- name: Retiro del origen (3/4) - destino como único miembro de etcd
+  hosts: k3s_move_dst
+  become: true
+  gather_facts: false
+  tags: [move, retire]
+  tasks:
+    - name: Detener K3s en el destino
+      ansible.builtin.systemd:
+        name: k3s
+        state: stopped
+
+    - name: Dejar el etcd del destino como único miembro (--cluster-reset)
+      ansible.builtin.shell: |
+        set -o pipefail
+        set -a
+        . /etc/systemd/system/k3s.service.env
+        set +a
+        k3s server --cluster-reset 2>&1 | tail -n 20
+      args:
+        executable: /bin/bash
+      register: k3s_move_reset
+      changed_when: true
+      failed_when: "'membership has been reset' not in k3s_move_reset.stdout"
+
+    - name: Reconfigurar el destino como server único (sin --server, mismo token)
+      ansible.builtin.include_role:
+        name: k3s_server
+      vars:
+        k3s_server_token: "{{ hostvars[k3s_move_source].k3s_move_token | default('') }}"
+        k3s_server_agent_token: "{{ hostvars['localhost'].k3s_move_agent_token_eff }}"
+        k3s_server_reconfigure: true
+
+    # Un server inicial no debe quedar con K3S_URL/--server apuntando a otro nodo.
+    - name: Confirmar que k3s.service.env del destino no tiene K3S_URL
+      ansible.builtin.command: grep -c '^K3S_URL=' /etc/systemd/system/k3s.service.env
+      register: k3s_move_url_env
+      changed_when: false
+      check_mode: false
+      failed_when: k3s_move_url_env.stdout | int > 0
+
+    - name: Esperar el API en el destino
+      ansible.builtin.command: k3s kubectl get nodes
+      register: k3s_move_api_dst
+      until: k3s_move_api_dst.rc == 0
+      retries: 30
+      delay: 10
+      changed_when: false
+      check_mode: false
+
+- name: Retiro del origen (4/4) - origen como agent
+  hosts: k3s_move_src
+  become: true
+  gather_facts: false
+  tags: [move, retire]
+  tasks:
+    - name: Desinstalar el server del origen
+      ansible.builtin.command: /usr/local/bin/k3s-uninstall.sh
+      args:
+        removes: /usr/local/bin/k3s-uninstall.sh
+      changed_when: true
+
+    - name: Restaurar la contraseña de nodo del origen
+      ansible.builtin.copy:
+        src: /root/k3s-move-node-password
+        dest: /etc/rancher/node/password
+        remote_src: true
+        mode: "0600"
+        directory_mode: "0755"
+      when: not ansible_check_mode
+
+    # El rol k3s_agent usa k3s_agent_token si está definido (no el token de server).
+    - name: Agent-token para el rol k3s_agent
+      ansible.builtin.set_fact:
+        k3s_agent_token: "{{ hostvars['localhost'].k3s_move_agent_token_eff }}"
+      no_log: true
+
+    - name: Instalar el origen como agent (K3S_URL con el nombre estable)
+      ansible.builtin.include_role:
+        name: k3s_agent
+
+    - name: Reactivar la planificación del origen
+      ansible.builtin.command: k3s kubectl uncordon {{ k3s_move_source }}
+      register: k3s_move_uncordon
+      until: k3s_move_uncordon.rc == 0
+      retries: 18
+      delay: 10
+      changed_when: true
+      delegate_to: "{{ k3s_move_target }}"
+
+    # El objeto Node del origen conserva las etiquetas y anotaciones de control-plane/etcd de
+    # cuando era server; se quitan para que nada lo trate como miembro (el "-" final borra).
+    - name: Quitar etiquetas de control-plane/etcd del Node del origen
+      ansible.builtin.command: >-
+        k3s kubectl label node {{ k3s_move_source }}
+        node-role.kubernetes.io/control-plane- node-role.kubernetes.io/master- node-role.kubernetes.io/etcd-
+      changed_when: true
+      delegate_to: "{{ k3s_move_target }}"
+
+    - name: Quitar anotaciones de etcd del Node del origen
+      ansible.builtin.command: >-
+        k3s kubectl annotate node {{ k3s_move_source }}
+        etcd.k3s.cattle.io/node-address- etcd.k3s.cattle.io/node-name-
+      changed_when: true
+      delegate_to: "{{ k3s_move_target }}"
+
+- name: Cifrado de Secrets existentes en el destino (opcional)
+  hosts: k3s_move_dst
+  become: true
+  gather_facts: false
+  tags: [move, retire]
+  tasks:
+    # Con un solo server la rotación es el caso simple del procedimiento oficial. Sin verificar
+    # aquí: duración con muchos Secrets (~5 por segundo según la documentación).
+    - name: Rotar claves y recifrar Secrets
+      ansible.builtin.command: k3s secrets-encrypt rotate-keys
+      changed_when: true
+      when:
+        - k3s_move_rotate_secrets | default(true) | bool
+        - k3s_install.security.secrets_encryption | bool
+
+    - name: Estado del cifrado
+      ansible.builtin.command: k3s secrets-encrypt status
+      register: k3s_move_enc
+      until: "'reencrypt_finished' in k3s_move_enc.stdout or not (k3s_move_rotate_secrets | default(true) | bool)"
+      retries: 30
+      delay: 20
+      changed_when: false
+      check_mode: false
+      when: k3s_install.security.secrets_encryption | bool
+
+- name: Verificación final
+  hosts: k3s_move_dst
+  become: true
+  gather_facts: false
+  tags: [move, verify]
+  tasks:
+    - name: Nodos
+      ansible.builtin.command: k3s kubectl get nodes -o wide
+      register: k3s_move_final_nodes
+      changed_when: false
+      check_mode: false
+      failed_when: k3s_move_final_nodes.stdout is search('NotReady')
+
+    - name: Flags de seguridad en la unidad del destino  # noqa: command-instead-of-module
+      ansible.builtin.command: systemctl cat k3s
+      register: k3s_move_unit
+      changed_when: false
+      check_mode: false
+      failed_when: >-
+        (k3s_install.security.secrets_encryption | bool and '--secrets-encryption' not in k3s_move_unit.stdout) or
+        (k3s_install.security.oidc.enabled | bool and 'oidc-issuer-url' not in k3s_move_unit.stdout)
+
+    - name: Volúmenes de Longhorn sin degradar
+      ansible.builtin.command: k3s kubectl -n longhorn-system get volumes.longhorn.io -o json
+      register: k3s_move_final_lh
+      changed_when: false
+      check_mode: false
+      until: >-
+        (k3s_move_final_lh.stdout | from_json)['items']
+        | selectattr('status.robustness', 'in', ['degraded', 'faulted']) | list | length == 0
+      retries: 30
+      delay: 20
+
+    - name: Applications de ArgoCD
+      ansible.builtin.command: k3s kubectl -n argocd get applications.argoproj.io
+      register: k3s_move_final_apps
+      changed_when: false
+      check_mode: false
+
+    - name: El certificado del API incluye el endpoint (desde la estación)
+      ansible.builtin.shell: |
+        set -o pipefail
+        openssl s_client -connect {{ k3s_api_endpoint }}:6443 -servername {{ k3s_api_endpoint }} </dev/null 2>/dev/null \
+          | openssl x509 -noout -text | grep -A1 'Alternative Name'
+      args:
+        executable: /bin/bash
+      delegate_to: localhost
+      become: false
+      register: k3s_move_san
+      changed_when: false
+      check_mode: false
+      failed_when: k3s_api_endpoint not in k3s_move_san.stdout
+
+    - name: Un solo miembro de etcd y no es el origen
+      ansible.builtin.command: k3s kubectl get nodes -l node-role.kubernetes.io/etcd=true -o name
+      register: k3s_move_final_etcd
+      changed_when: false
+      check_mode: false
+      failed_when: k3s_move_final_etcd.stdout_lines != ['node/' ~ k3s_move_target]
+
+    - name: Pasos manuales que quedan
+      ansible.builtin.debug:
+        msg:
+          - "Estado final: {{ k3s_move_final_nodes.stdout_lines }}"
+          - "1. inventory.ini: deborah a [k3s_agent], oliver a [k3s_server]."
+          - "2. group_vars/all.yml: k3s_api_ip=192.168.20.7 y k3s_move_done=true (el DNS ya quedó repuntado)."
+          - "3. ansible-playbook playbook-k3s.yml --tags kubeconfig  (nuevo kubeconfig con el nombre estable)."
+          - >-
+            4. Revisar kubectl get applications -n argocd, Longhorn y Kong; el login OIDC entra como grupo
+            oidc:maceosoft:devops (ClusterRoleBinding de gitops, ClusterRole view).
+          - >-
+            5. Guardar en 1Password el agent-token ({{ k3s_move_backup_dir }}/agent-token) y la clave o
+            contraseña del backup; rotar tokens con `k3s token rotate` si hace falta.
+          - "6. El backup cifrado queda en {{ k3s_move_backup_dir }}; /root/k3s-move-* de los nodos se borra al final de este play."
+
+- name: Limpiar archivos temporales de la mudanza en los nodos
+  hosts: k3s_move_src:k3s_move_dst
+  become: true
+  gather_facts: false
+  tags: [move, verify]
+  tasks:
+    - name: Buscar /root/k3s-move-*
+      ansible.builtin.find:
+        paths: /root
+        patterns: "k3s-move-*"
+      register: k3s_move_leftovers
+
+    - name: Borrar /root/k3s-move-*
+      ansible.builtin.command: shred --remove {{ item.path | quote }}
+      loop: "{{ k3s_move_leftovers.files }}"
+      loop_control:
+        label: "{{ item.path }}"
+      changed_when: true
+
+# --- Rollback --------------------------------------------------------------------------------
+# Restaura el SQLite original en el origen desde el backup (db + tls + token) y deja el destino
+# como agent. Se pierde todo cambio del clúster posterior al backup. Solo con --tags rollback:
+#   ansible-playbook -i inventory.ini playbook-k3s-move-controlplane.yml --tags rollback \
+#     -e k3s_move_backup_stamp=<marca> [-e k3s_move_backup_dir=<dir>] \
+#     [-e k3s_move_backup_age_identity=<archivo de identidad age> | -e k3s_move_backup_passphrase=...]
+# Orden: 1) el DNS vuelve al origen y se espera la propagación (si no, el agent reinstalado en el
+# destino intentaría unirse a sí mismo por k3s.homelab.local); 2) se restaura el origen;
+# 3) el destino vuelve a agent; 4) los demás agents recuperan el token original.
+- name: Rollback (1/4) - DNS de vuelta al origen
+  hosts: k3s_move_dns
+  become: true
+  tags: [never, rollback]
+  tasks:
+    - name: Exigir la marca del backup
+      ansible.builtin.assert:
+        that: k3s_move_backup_stamp is defined
+        fail_msg: "Pasa -e k3s_move_backup_stamp=<AAAAMMDDTHHMMSS> (marca en el nombre del backup en {{ k3s_move_backup_dir }})."
+        quiet: true
+      run_once: true  # noqa: run-once[task]
+
+    - name: Confirmar el rollback
+      ansible.builtin.pause:
+        prompt: |
+          ROLLBACK: se borrará K3s de {{ k3s_move_source }} y {{ k3s_move_target }} y se restaurará el backup
+          {{ k3s_move_backup_stamp }} de {{ k3s_move_source }} (SQLite, tls, token) desde {{ k3s_move_backup_dir }}.
+          Se pierde lo ocurrido en el clúster después del backup. Enter para seguir
+      when: k3s_move_confirm | default(true) | bool and not ansible_check_mode
+
+    - name: Re-aplicar BIND con la IP del origen  # noqa: var-naming[no-role-prefix]
+      ansible.builtin.include_role:
+        name: bind_dns
+      vars:
+        k3s_api_ip: "{{ hostvars[k3s_move_source].ansible_host }}"
+
+- name: Rollback (2/4) - esperar la propagación del DNS
+  hosts: k3s_move_src:k3s_move_dst:k3s_agent
+  become: true
+  tags: [never, rollback]
+  vars:
+    k3s_move_expected_ip: "{{ hostvars[k3s_move_source].ansible_host }}"
+  tasks:
+    # TTL de la zona: 300 s. Hasta 8 min de espera.
+    - name: El endpoint resuelve a la IP del origen
+      ansible.builtin.command: getent hosts {{ k3s_api_endpoint }}
+      register: k3s_move_dns_back
+      until: k3s_move_expected_ip in k3s_move_dns_back.stdout
+      retries: 24
+      delay: 20
+      changed_when: false
+      check_mode: false
+      when: not ansible_check_mode
+
+- name: Rollback (3/4) - restaurar el origen
+  hosts: k3s_move_src
+  become: true
+  gather_facts: true
+  tags: [never, rollback]
+  tasks:
+    - name: Localizar el backup en la estación
+      ansible.builtin.find:
+        paths: "{{ k3s_move_backup_dir }}"
+        patterns: "k3s-move-{{ k3s_move_backup_stamp }}-{{ inventory_hostname }}.tgz*"
+      register: k3s_move_rb_find
+      delegate_to: localhost
+      become: false
+
+    - name: Exactamente un backup con esa marca
+      ansible.builtin.assert:
+        that: k3s_move_rb_find.files | length == 1
+        fail_msg: "No hay un único backup {{ k3s_move_backup_stamp }} de {{ inventory_hostname }} en {{ k3s_move_backup_dir }}."
+        quiet: true
+
+    - name: Rutas del backup a restaurar
+      ansible.builtin.set_fact:
+        k3s_move_rb_src: "{{ k3s_move_rb_find.files[0].path }}"
+        k3s_move_rb_plain: "{{ k3s_move_backup_dir }}/.rollback-{{ k3s_move_backup_stamp }}.tgz"
+
+    - name: Descifrar con age (estación)
+      ansible.builtin.shell: |
+        umask 077
+        age --decrypt --identity {{ k3s_move_backup_age_identity | quote }} \
+          --output {{ k3s_move_rb_plain | quote }} {{ k3s_move_rb_src | quote }}
+      args:
+        executable: /bin/bash
+      delegate_to: localhost
+      become: false
+      changed_when: true
+      when: k3s_move_rb_src is match('.*\.age$')
+
+    - name: Descifrar con gpg (estación)
+      ansible.builtin.shell: |
+        umask 077
+        gpg --batch --yes --pinentry-mode loopback --passphrase-fd 3 --decrypt \
+          --output {{ k3s_move_rb_plain | quote }} {{ k3s_move_rb_src | quote }} 3<<<"$K3S_MOVE_PASS"
+      args:
+        executable: /bin/bash
+      environment:
+        K3S_MOVE_PASS: "{{ k3s_move_backup_passphrase }}"
+      delegate_to: localhost
+      become: false
+      changed_when: true
+      no_log: true
+      when: k3s_move_rb_src is match('.*\.gpg$')
+
+    - name: Desinstalar K3s (server) del origen
+      ansible.builtin.command: /usr/local/bin/k3s-uninstall.sh
+      args:
+        removes: /usr/local/bin/k3s-uninstall.sh
+      changed_when: true
+
+    - name: Desinstalar K3s (agent) del origen
+      ansible.builtin.command: /usr/local/bin/k3s-agent-uninstall.sh
+      args:
+        removes: /usr/local/bin/k3s-agent-uninstall.sh
+      changed_when: true
+
+    - name: Copiar el backup (ya descifrado) al origen
+      ansible.builtin.copy:
+        src: "{{ k3s_move_rb_plain if k3s_move_rb_src is match('.*\\.(age|gpg)$') else k3s_move_rb_src }}"
+        dest: /root/k3s-move-restore.tgz
+        mode: "0600"
+
+    - name: Borrar el tar descifrado de la estación
+      ansible.builtin.command: shred --remove {{ k3s_move_rb_plain | quote }}
+      delegate_to: localhost
+      become: false
+      changed_when: true
+      when: k3s_move_rb_src is match('.*\.(age|gpg)$')
+
+    - name: Restaurar server/ y /etc/rancher  # noqa: command-instead-of-module
+      ansible.builtin.command: tar --extract --gzip --preserve-permissions --file=/root/k3s-move-restore.tgz --directory=/
+      changed_when: true
+
+    - name: Borrar el tar restaurado del nodo
+      ansible.builtin.command: shred --remove /root/k3s-move-restore.tgz
+      changed_when: true
+
+    - name: Reinstalar el server original (SQLite, sin los flags nuevos)
+      ansible.builtin.include_role:
+        name: k3s_server
+      vars:
+        k3s_server_secrets_encryption: false
+        k3s_server_oidc_enabled: false
+        k3s_server_reconfigure: true
+
+- name: Rollback (4/4) - destino y agents de vuelta al token original
+  hosts: k3s_move_dst:k3s_agent
+  become: true
+  gather_facts: false
+  tags: [never, rollback]
+  tasks:
+    - name: Desinstalar K3s (server) del destino
+      ansible.builtin.command: /usr/local/bin/k3s-uninstall.sh
+      args:
+        removes: /usr/local/bin/k3s-uninstall.sh
+      changed_when: true
+      when: inventory_hostname == k3s_move_target
+
+    - name: Restaurar la contraseña de nodo del destino
+      ansible.builtin.copy:
+        src: "{{ k3s_move_backup_dir }}/{{ inventory_hostname }}-node-password"
+        dest: /etc/rancher/node/password
+        mode: "0600"
+        directory_mode: "0755"
+      when: inventory_hostname == k3s_move_target
+
+    # Con el SQLite restaurado el token de agents vuelve a ser el original (node-token que publica
+    # el rol k3s_server), no el agent-token nuevo.
+    - name: Reinstalar el destino como agent contra el origen
+      ansible.builtin.include_role:
+        name: k3s_agent
+      when: inventory_hostname == k3s_move_target
+
+    - name: Token original en los agents que siguieron vivos
+      ansible.builtin.lineinfile:
+        path: /etc/systemd/system/k3s-agent.service.env
+        regexp: "^K3S_TOKEN="
+        line: "K3S_TOKEN='{{ hostvars[k3s_move_source].k3s_token }}'"
+        mode: "0600"
+      register: k3s_move_rb_tok
+      no_log: true
+      when: inventory_hostname != k3s_move_target
+
+    - name: Reiniciar el agent si cambió el token  # noqa: no-handler
+      ansible.builtin.systemd:
+        name: k3s-agent
+        state: restarted
+        daemon_reload: true
+      when:
+        - inventory_hostname != k3s_move_target
+        - k3s_move_rb_tok is changed

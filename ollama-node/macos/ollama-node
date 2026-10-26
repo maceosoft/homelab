@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+# Interruptor del nodo Ollama del Mac: ollama-node on|off|status|logs|config
+set -euo pipefail
+
+APP_DIR="${OLLAMA_NODE_HOME:-$HOME/Library/Application Support/ollama-node}"
+AGENTS_DIR="${OLLAMA_NODE_AGENTS_DIR:-$HOME/Library/LaunchAgents}"
+LOG_DIR="${OLLAMA_NODE_LOG_DIR:-$HOME/Library/Logs/ollama-node}"
+LAUNCHCTL="${OLLAMA_NODE_LAUNCHCTL:-launchctl}"
+CONFIG="${OLLAMA_NODE_CONFIG:-$APP_DIR/config.json}"
+PY="${OLLAMA_NODE_PYTHON:-/usr/bin/python3}"
+DOMAIN="gui/$(id -u)"
+LABELS=(local.homelab.ollama-node.socket local.homelab.ollama-node.register)
+
+usage() {
+  echo "uso: ollama-node on|off|status|logs [socket|register]|config [edit]" >&2
+  exit 2
+}
+
+agent_plist() { printf '%s/%s.plist' "$AGENTS_DIR" "$1"; }
+
+is_loaded() { "$LAUNCHCTL" print "$DOMAIN/$1" >/dev/null 2>&1; }
+
+agent() { "$PY" "$APP_DIR/ollama_node.py" --config "$CONFIG" "$@"; }
+
+cmd_on() {
+  [ -f "$CONFIG" ] || { echo "falta $CONFIG: ejecuta install.sh primero" >&2; exit 1; }
+  mkdir -p "$LOG_DIR"
+  for l in "${LABELS[@]}"; do
+    [ -f "$(agent_plist "$l")" ] || { echo "falta $(agent_plist "$l"): ejecuta install.sh" >&2; exit 1; }
+    if is_loaded "$l"; then
+      echo "ya cargado: $l"
+    else
+      "$LAUNCHCTL" bootstrap "$DOMAIN" "$(agent_plist "$l")"
+      echo "cargado: $l"
+    fi
+  done
+  echo "nodo ON: escucha bajo demanda y se registra en el clúster."
+}
+
+cmd_off() {
+  # Primero se retira el latido (si no, volvería a registrarse), luego se da de baja y se cierra el socket.
+  if is_loaded "${LABELS[1]}"; then
+    "$LAUNCHCTL" bootout "$DOMAIN/${LABELS[1]}" || true
+  fi
+  if [ -f "$CONFIG" ]; then
+    agent deregister || echo "aviso: no se pudo avisar al registro (expirará solo en ~180 s)" >&2
+  fi
+  if is_loaded "${LABELS[0]}"; then
+    "$LAUNCHCTL" bootout "$DOMAIN/${LABELS[0]}" || true
+  fi
+  echo "nodo OFF: sin socket, sin latido, fuera del registro."
+}
+
+cmd_status() {
+  local any=0 port
+  for l in "${LABELS[@]}"; do
+    if is_loaded "$l"; then echo "$l: cargado"; any=1; else echo "$l: no cargado"; fi
+  done
+  [ "$any" = 1 ] && echo "estado: ON" || echo "estado: OFF"
+  if [ -f "$CONFIG" ]; then
+    port=$("$PY" -c 'import json,sys;print(json.load(open(sys.argv[1])).get("listen_port",11434))' "$CONFIG")
+    if pgrep -f "ollama serve" >/dev/null 2>&1; then echo "ollama serve: en ejecución"; else echo "ollama serve: detenido (se inicia bajo demanda)"; fi
+    echo "puerto de escucha: $port"
+    agent status || true
+  fi
+}
+
+cmd_logs() {
+  local which="${1:-}"
+  mkdir -p "$LOG_DIR"
+  case "$which" in
+    socket|register) exec tail -n 100 -f "$LOG_DIR/$which.log" ;;
+    "") touch "$LOG_DIR/socket.log" "$LOG_DIR/register.log"; exec tail -n 50 -f "$LOG_DIR/socket.log" "$LOG_DIR/register.log" ;;
+    *) usage ;;
+  esac
+}
+
+cmd_config() {
+  if [ "${1:-}" = "edit" ]; then exec "${EDITOR:-nano}" "$CONFIG"; fi
+  echo "# $CONFIG"
+  cat "$CONFIG"
+}
+
+case "${1:-}" in
+  on) cmd_on ;;
+  off) cmd_off ;;
+  status) cmd_status ;;
+  logs) shift; cmd_logs "${1:-}" ;;
+  config) shift; cmd_config "${1:-}" ;;
+  *) usage ;;
+esac

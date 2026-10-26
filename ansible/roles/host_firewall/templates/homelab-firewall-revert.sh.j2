@@ -1,0 +1,23 @@
+#!/bin/sh
+# Generado por el rol host_firewall -- no editar a mano.
+# Revierte el firewall a la última versión CONFIRMADA; si no hay ninguna, borra
+# nuestra tabla (el host queda como antes de aplicar el rol).
+# Lo ejecuta el temporizador transitorio homelab-firewall-revert; también sirve
+# a mano: sudo {{ host_firewall_revert_script }} --force
+set -eu
+# Carrera con la confirmación: quien crea primero el directorio de bloqueo gana. Si la
+# confirmación llegó antes, el temporizador no revierte. "--force" (rescue/manual) lo ignora.
+LOCK="{{ host_firewall_lock_dir }}"
+if [ "${1:-}" != "--force" ] && ! mkdir "$LOCK" 2>/dev/null; then
+    echo "homelab-firewall: reglas ya confirmadas, no se revierte"
+    exit 0
+fi
+RULES="{{ host_firewall_rules_file }}"
+NFT="{{ host_firewall_nft_bin }}"
+if [ -s "$RULES" ]; then
+    "$NFT" -f "$RULES"
+    echo "homelab-firewall: restauradas las reglas confirmadas ($RULES)"
+else
+    "$NFT" delete table inet homelab_filter 2>/dev/null || true
+    echo "homelab-firewall: tabla inet homelab_filter eliminada (no había versión confirmada)"
+fi

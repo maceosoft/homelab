@@ -1,0 +1,100 @@
+---
+- name: Elegir el asset de Ollama según la arquitectura
+  ansible.builtin.set_fact:
+    ollama_ondemand_asset_key: "{{ ollama_ondemand_arch_map[ansible_facts['architecture']] | default('') }}"
+
+- name: Comprobar que la arquitectura tiene asset y checksum
+  ansible.builtin.assert:
+    that:
+      - ollama_ondemand_asset_key | length > 0
+      - ollama_ondemand_asset_key in ollama_ondemand_assets
+      - ollama_ondemand_assets[ollama_ondemand_asset_key].checksum is match('^sha256:[0-9a-f]{64}$')
+    fail_msg: >-
+      Arquitectura {{ ansible_facts['architecture'] }} sin asset válido en ollama_ondemand_assets
+      (debe traer name y checksum sha256:<64 hex>).
+    quiet: true
+
+- name: Fijar nombre, URL y archivo del asset
+  ansible.builtin.set_fact:
+    ollama_ondemand_asset: "{{ ollama_ondemand_assets[ollama_ondemand_asset_key] }}"
+    ollama_ondemand_archive: "/var/tmp/ollama-{{ ollama_ondemand_version }}-{{ ollama_ondemand_asset_key }}.tar.zst"
+
+- name: Instalar zstd (para descomprimir el release de Ollama)
+  ansible.builtin.apt:
+    name: zstd
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Crear el usuario del sistema de Ollama
+  ansible.builtin.user:
+    name: "{{ ollama_ondemand_user }}"
+    system: true
+    home: "{{ ollama_ondemand_home }}"
+    create_home: true
+    shell: /usr/sbin/nologin
+
+# El usuario de Ollama es dueño de su carpeta; el grupo (ollama_node_read_group del agente de registro) solo la recorre y lee.
+- name: Crear la carpeta de modelos con permisos 0750
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ollama_ondemand_user }}"
+    group: "{{ ollama_ondemand_user }}"
+    mode: "0750"
+  loop:
+    - "{{ ollama_ondemand_home }}"
+    - "{{ ollama_ondemand_models_dir | dirname }}"
+    - "{{ ollama_ondemand_models_dir }}"
+
+- name: Leer la versión de Ollama instalada
+  ansible.builtin.slurp:
+    src: /usr/local/lib/ollama/.version
+  register: ollama_ondemand_installed
+  failed_when: false
+
+- name: Decidir si hay que instalar o actualizar
+  ansible.builtin.set_fact:
+    ollama_ondemand_needs_install: >-
+      {{ (ollama_ondemand_installed.content | default('') | b64decode | trim) != ollama_ondemand_version }}
+
+- name: Descargar el release de Ollama
+  ansible.builtin.get_url:
+    url: "{{ ollama_ondemand_download_base }}/{{ ollama_ondemand_asset.name }}"
+    dest: "{{ ollama_ondemand_archive }}"
+    checksum: "{{ ollama_ondemand_asset.checksum }}"
+    owner: root
+    group: root
+    mode: "0644"
+  when: ollama_ondemand_needs_install | bool
+
+# El release trae bibliotecas propias: se borran las de la versión anterior para no mezclar archivos.
+- name: Quitar las bibliotecas de la versión anterior
+  ansible.builtin.file:
+    path: /usr/local/lib/ollama
+    state: absent
+  when: ollama_ondemand_needs_install | bool
+
+- name: Extraer Ollama en /usr/local
+  ansible.builtin.unarchive:
+    src: "{{ ollama_ondemand_archive }}"
+    dest: /usr/local
+    remote_src: true
+    owner: root
+    group: root
+  when: ollama_ondemand_needs_install | bool and not ansible_check_mode
+  notify: Recargar systemd
+
+- name: Registrar la versión instalada
+  ansible.builtin.copy:
+    content: "{{ ollama_ondemand_version }}\n"
+    dest: /usr/local/lib/ollama/.version
+    owner: root
+    group: root
+    mode: "0644"
+  when: not ansible_check_mode
+
+- name: Borrar el archivo descargado
+  ansible.builtin.file:
+    path: "{{ ollama_ondemand_archive }}"
+    state: absent

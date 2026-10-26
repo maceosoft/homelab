@@ -1,0 +1,40 @@
+---
+# ollama.service tiene StopWhenUnneeded=yes: arrancado a mano, systemd lo detiene al instante. Por eso los modelos se
+# descargan a través del socket (OLLAMA_HOST = ollama_ondemand_listen): la conexión despierta la cadena
+# proxy -> ollama.service y la mantiene viva mientras dura el pull.
+- name: Descargar los modelos (a través del socket, que despierta a Ollama)
+  when: not ansible_check_mode and (ollama_ondemand_models | length > 0)
+  environment:
+    OLLAMA_HOST: "{{ ollama_ondemand_listen }}"
+    HOME: "{{ ollama_ondemand_home }}"
+  block:
+    - name: Arrancar el socket (necesario para despertar a Ollama)
+      ansible.builtin.systemd:
+        name: ollama-proxy.socket
+        state: started
+
+    - name: Listar los modelos ya descargados
+      ansible.builtin.command: /usr/local/bin/ollama list
+      become: true
+      become_user: "{{ ollama_ondemand_user }}"
+      register: ollama_ondemand_list
+      changed_when: false
+      retries: 3
+      delay: 5
+      until: ollama_ondemand_list.rc == 0
+
+    - name: Descargar los modelos que faltan
+      ansible.builtin.command: "/usr/local/bin/ollama pull {{ item }}"
+      become: true
+      become_user: "{{ ollama_ondemand_user }}"
+      loop: "{{ ollama_ondemand_models }}"
+      when: (item if ':' in item else item ~ ':latest') not in ollama_ondemand_list.stdout
+      changed_when: true
+  always:
+    - name: Detener el proxy y Ollama tras la descarga
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        state: stopped
+      loop:
+        - ollama-proxy.service
+        - ollama.service

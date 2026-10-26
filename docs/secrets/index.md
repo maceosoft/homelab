@@ -87,7 +87,7 @@ Detalle: [Fase 4 — 4.7](../implementacion/fase-4-gitops.md#47-secretos-oauth-g
 
 Opcional ([Fase 4 — 4.13](../implementacion/fase-4-gitops.md#413-monitoreo-y-alertas-opcional)). Cómo crear las credenciales:
 [Discord y healthchecks.io](../maceosoft/discord-healthchecks.md). `playbook-platform-secrets.yml` crea,
-en el namespace `monitoring`, tres Secrets desde 1Password; sus valores nunca pasan por git porque el repo es público.
+en el namespace `monitoring`, tres Secrets desde 1Password; sus valores nunca pasan por git: `homelab` es público y `gitops`, aunque es privado, no guarda secretos.
 
 | Item de 1Password | Campos | Secret en el clúster |
 |---|---|---|
@@ -95,6 +95,21 @@ en el namespace `monitoring`, tres Secrets desde 1Password; sus valores nunca pa
 | `discord-webhooks` | `deployments` *(opcional)* | claves `discord-despliegues-url` y `discord-avisos-url` en `argocd/argocd-notifications-secret` (notificaciones de ArgoCD, [4.14](../implementacion/fase-4-gitops.md#414-notificaciones-de-argocd-a-discord-opcional)) |
 | `healthchecks-ping` | `url` | `monitoring/healthchecks-ping` |
 | `grafana-admin` | `password` (y `username`, opcional) | `monitoring/grafana-admin` |
+| `discord-webhooks` | `ai` *(opcional)* | clave `ai` en `monitoring/discord-webhooks` (canal `#ia` de los [reportes con IA](../operacion/logs.md#reportes-diario-y-semanal-en-ia)) |
+| `open-webui` *(asistente de IA, opcional)* | `WEBUI_SECRET_KEY` | `ai/open-webui-secret` ([cómo generarla](../operacion/ia-ollama.md#crear-la-clave-de-open-webui-una-sola-vez)) |
+| `ollama-router` *(asistente de IA, opcional)* | `registry_token`, `open-webui`, `k8sgpt`, `reports`, `alert-triage`, `translate` | `ai/ollama-router-secrets` (todos los campos) y un Secret `ollama-token-<cliente>` con la clave `token` en el namespace de cada cliente ([rotación](../operacion/rotar-credenciales.md#tokens-de-ollama-y-de-servicios-internos)) |
+| `open-terminal` *(opcional)* | `api_key` | `ai-sandbox/open-terminal-api-key` (montada como archivo en el pod) y `ai/open-terminal-api-key` ([guía](../operacion/ia-ollama.md#open-terminal-terminal-para-el-asistente)) |
+| `alert-triage-webhook` *(opcional)* | `token` | `monitoring/alert-triage-webhook` |
+| `mcp-api-key` *(opcional)* | `key` | `ai/mcp-api-key` |
+
+Los tokens se generan con `openssl rand -hex 32` (el script exige al menos 32 caracteres y sin espacios). El campo `translate` no
+crea ningún Secret en el clúster: es el valor del secreto `OLLAMA_TOKEN` de GitHub Actions. Si el cliente de Dex de Open WebUI
+resulta ser confidencial (porque no admita PKCE), su secreto se genera con `playbook-dex-oauth-secrets.yml`, como `VCLUSTER_CLIENT_SECRET`.
+
+El playbook aplica los Secrets con `--server-side` y funciona con Python 3.9 o posterior. Todos los items de IA son
+opcionales (Open Terminal, el canal `#ia`, los tokens): si falta uno, solo se omite lo que depende de él. Los namespaces
+`ai` y `ai-sandbox` se crean sin etiquetas de Pod Security Admission y con las anotaciones `Prune=false,Delete=false` de
+ArgoCD, para que ArgoCD no los borre al sincronizar.
 
 Alertmanager lee las URL como archivos montados (`webhook_url_file`), así que ni siquiera aparecen en su configuración. El script
 exige que las dos URL de Discord tengan el formato `https://discord.com/api/webhooks/<id>/<token>`. Para rotar un webhook, bórralo y

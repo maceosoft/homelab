@@ -1,0 +1,129 @@
+---
+# host_firewall — valores por defecto.
+#
+# Firewall de host con nftables en una tabla PROPIA (`inet homelab_filter`).
+# Nunca hace `flush ruleset` ni toca las tablas de kube-proxy, Calico o Incus.
+#
+# Diseño de la cadena `input` (hook input, prioridad -10, política ACCEPT):
+#   - Política accept con drops explícitos, no drop con allow completo: K3s,
+#     Calico (BGP, VXLAN/IPIP), Longhorn, MetalLB e Incus abren puertos y
+#     tráfico que cambian con las versiones; una política drop que olvide uno
+#     corta el clúster. Un `accept` aquí NO salta las cadenas de kube-proxy ni de
+#     Calico (siguen evaluándose después, prioridad 0): este firewall solo agrega
+#     denegaciones.
+#   - Tráfico entre nodos: se confía por completo (host_firewall_trust_nodes).
+#     Quien controla un nodo ya controla el clúster; así Longhorn, VXLAN, etcd y
+#     lo que venga nunca se cortan.
+#   - Para cada servicio de host_firewall_services: se aceptan los orígenes
+#     listados y el resto se descarta (en IPv4 y en IPv6).
+#   - host_firewall_blocked_ports: puertos que nadie debe alcanzar desde fuera
+#     (se descartan antes de confiar en los nodos).
+#   - host_firewall_strict: además descarta todo lo que venga de la LAN y no
+#     esté permitido (equivale a política drop para la LAN). Desactivado por
+#     defecto; activar solo tras observar los contadores `nft list ruleset`.
+
+# --- Orígenes -----------------------------------------------------------------
+# IP de los nodos: se toman del inventario (static_ip o ansible_host).
+host_firewall_node_ips: >-
+  {{ ((groups['incus_cluster'] | map('extract', hostvars, 'static_ip') | select('defined') | list)
+      + (groups['incus_cluster'] | map('extract', hostvars, 'ansible_host') | select('defined') | list))
+     | unique | list }}
+# IP adicionales de nodos (p. ej. la del WiFi de respaldo si el tráfico entre nodos puede salir por ahí).
+host_firewall_extra_node_ips: []
+
+# Estación(es) del operador (CIDR o IP). NO se fija ninguna aquí: se define en
+# group_vars/host_vars o con -e. Si está vacía, se usa solo la IP desde la que
+# Ansible se conectó por SSH (host_firewall_keep_ssh_client).
+host_firewall_operator_cidrs: []
+# Agrega automáticamente la IP del cliente SSH actual (variable SSH_CONNECTION) al
+# conjunto "operator": la sesión de Ansible nunca se queda fuera.
+host_firewall_keep_ssh_client: true
+# Se rellena en tiempo de ejecución (tasks/main.yml).
+host_firewall_ssh_client_ip: ""
+
+host_firewall_lan_cidr: "{{ lan_cidr | default('192.168.20.0/22') }}"
+host_firewall_pod_cidr: "{{ ((k3s_install | default({})).get('core', {})).get('cluster_cidr', '10.42.0.0/16') }}"
+host_firewall_service_cidr: "{{ ((k3s_install | default({})).get('core', {})).get('service_cidr', '10.43.0.0/16') }}"
+
+# Quién puede hablar con Ollama (11434) además de los nodos K3s: el Mac u otros
+# equipos que consuman el nodo directamente (CIDR o IP).
+host_firewall_ollama_extra_cidrs: []
+# Los pods del mismo nodo llegan con IP de pod (no se enmascaran contra su propio
+# host). Sin esto, el router de Ollama no alcanzaría el Ollama de su propio nodo.
+# El token del router y las NetworkPolicy protegen el acceso a nivel de aplicación.
+host_firewall_ollama_allow_pods: true
+
+# Pares BGP externos (p. ej. el router, si MetalLB/Calico hablan BGP con él).
+host_firewall_bgp_peer_cidrs: []
+
+# Conjuntos nombrados disponibles para el campo `from` de cada servicio.
+host_firewall_sets:
+  nodes: "{{ (host_firewall_node_ips + host_firewall_extra_node_ips) | unique | list }}"
+  operator: >-
+    {{ (host_firewall_operator_cidrs
+        + ([host_firewall_ssh_client_ip] if (host_firewall_keep_ssh_client and host_firewall_ssh_client_ip) else []))
+       | unique | list }}
+  lan: ["{{ host_firewall_lan_cidr }}"]
+  pods: ["{{ host_firewall_pod_cidr }}", "{{ host_firewall_service_cidr }}"]
+  ollama_clients: "{{ host_firewall_ollama_extra_cidrs }}"
+  bgp_peers: "{{ host_firewall_bgp_peer_cidrs }}"
+
+# --- Política -----------------------------------------------------------------
+host_firewall_trust_nodes: true
+host_firewall_strict: false
+
+# Interfaces cuyo tráfico hacia el host se acepta sin filtrar (nombres exactos o con "*",
+# p. ej. un puente gestionado por Incus cuyas instancias usan el DHCP/DNS del host).
+# Revisar con `incus network list` y `ip -br link` antes de activar el modo estricto.
+host_firewall_trusted_ifaces: []
+
+# --- Servicios con orígenes permitidos ------------------------------------------
+# name: etiqueta (va en el comentario de la regla); proto: [tcp, udp];
+# ports: lista; from: conjuntos de host_firewall_sets. Todo lo demás hacia esos
+# puertos se descarta.
+host_firewall_services:
+  - { name: ssh, proto: [tcp], ports: [22], from: [lan, operator] }
+  - { name: k3s-api, proto: [tcp], ports: [6443], from: [nodes, operator, pods] }
+  - { name: kubelet, proto: [tcp], ports: [10250], from: [nodes, pods] }
+  - { name: incus-api, proto: [tcp], ports: [8443], from: [nodes, operator, pods] }
+  - { name: exporters, proto: [tcp], ports: [9100, 9120, 9140, 9141], from: [nodes, pods] }
+  - { name: kong-healthcheck-nodeport, proto: [tcp], ports: [30980], from: [nodes] }
+  - { name: metallb-webhook, proto: [tcp], ports: [19443], from: [nodes] }
+  - { name: bgp, proto: [tcp], ports: [179], from: [nodes, bgp_peers] }
+  - { name: frr-mgmtd, proto: [tcp], ports: [2623], from: [nodes, pods] }
+  - { name: metallb-memberlist, proto: [tcp, udp], ports: [7946], from: [nodes, pods] }
+  - { name: calico-vxlan, proto: [udp], ports: [4789], from: [nodes, pods] }
+  - { name: ovn-geneve, proto: [udp], ports: [6081], from: [nodes, pods] }
+  - { name: calico-node-metrics, proto: [tcp], ports: [9091], from: [nodes, pods] }
+  - { name: etcd, proto: [tcp], ports: [2379, 2380], from: [nodes, pods] }
+  - { name: kube-proxy-health, proto: [tcp], ports: [10256], from: [nodes, pods] }
+  - { name: calico-typha, proto: [tcp], ports: [5473], from: [nodes, pods] }
+  - { name: dns-bind, proto: [tcp, udp], ports: [53], from: [lan, pods] }
+  - "{{ {'name': 'ollama', 'proto': ['tcp'], 'ports': [11434],
+        'from': ['nodes', 'ollama_clients'] + (['pods'] if host_firewall_ollama_allow_pods else [])} }}"
+
+# Puertos que nadie debe alcanzar desde fuera (excepto loopback). Se descartan antes de
+# confiar en los nodos. 5555 = adbd lanzado por usbdevice.service; 111 = rpcbind.
+host_firewall_blocked_ports:
+  - { name: adbd, proto: [tcp], ports: [5555] }
+  - { name: rpcbind, proto: [tcp, udp], ports: [111] }
+
+# --- Aplicación segura (auto-reversión) -----------------------------------------
+# Las reglas nuevas se cargan con un temporizador systemd transitorio que las revierte
+# (restaura la última versión confirmada o borra la tabla) si el operador no confirma.
+host_firewall_revert_seconds: 300
+# Segundos de espera antes de las comprobaciones posteriores a la carga.
+host_firewall_settle_seconds: 8
+# Palabra que el operador escribe para confirmar.
+host_firewall_confirm_word: "SI"
+# Comprobaciones posteriores con kubectl (solo lectura) desde la estación.
+host_firewall_verify_kubectl: true
+host_firewall_kubeconfig: "{{ lookup('ansible.builtin.env', 'KUBECONFIG') | default('~/.kube/homelab-k3s.yaml', true) }}"
+
+# --- Archivos en el nodo ------------------------------------------------------------
+host_firewall_dir: /etc/homelab-firewall
+host_firewall_rules_file: "{{ host_firewall_dir }}/homelab_filter.nft"
+host_firewall_candidate_file: "{{ host_firewall_dir }}/homelab_filter.nft.candidate"
+host_firewall_revert_script: /usr/local/sbin/homelab-firewall-revert
+host_firewall_lock_dir: /run/homelab-firewall.lock
+host_firewall_nft_bin: /usr/sbin/nft

@@ -7,3 +7,12 @@ ip_static: true
 k3s_node_labels:
   node.longhorn.io/create-default-disk: "true"
 ansible_python_interpreter: /usr/bin/python3
+
+# --- Ollama (rol ollama_ondemand) ---
+# i7-8700T, 15,5 GB (~6 GB libres, aloja el monitoreo): modelo de código.
+ollama_ondemand_models:
+  - qwen2.5-coder:7b
+  # - qwen2.5:7b-instruct   # réplica del modelo de deborah (ver «Disponibilidad» en el README del rol); cabe justo en 5500M
+ollama_ondemand_memory_max: 5500M
+ollama_node_priority: 60
+ollama_node_tags: [x86, code, always-on]

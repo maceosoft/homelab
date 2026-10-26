@@ -14,10 +14,44 @@ dns_domain: mco.local
 dns_search_domains:
   - homelab.local
   - mco.local
-k3s_control_plane_host: "192.168.20.5"
+
+# --- API de K3s ---
+# Los agents, el kubeconfig y los certificados usan el NOMBRE estable, no la IP del
+# control-plane: mudar el control-plane (playbook-k3s-move-controlplane.yml) solo
+# cambia k3s_api_ip y el registro DNS "k3s" de la zona homelab.local (y mco.local).
+k3s_api_endpoint: k3s.homelab.local
+# IP a la que apunta ese registro: la del nodo que hoy es k3s_server (deborah).
+# Tras la mudanza, cambiar a la IP de oliver (192.168.20.7) y re-aplicar bind_dns.
+k3s_api_ip: "192.168.20.5"
+# Compatibilidad: lo usa la zona mco.local (registro "k3s").
+k3s_control_plane_host: "{{ k3s_api_ip }}"
+# SANs del certificado del API. Además de estos, el rol k3s_server agrega la IP y el
+# nombre del propio nodo (ansible_host, inventory_hostname).
 k3s_server_tls_sans:
-  - "192.168.20.5"
+  - "{{ k3s_api_endpoint }}"
+  - "{{ k3s_api_ip }}"
   - "deborah"
+
+# --- Mudanza del control-plane (playbook-k3s-move-controlplane.yml) ---
+# Origen: el nodo que hoy es k3s_server. Destino: el nodo que pasa a control-plane.
+# El grupo [k3s_server] de inventory.ini NO se cambia solo: se edita a mano DESPUÉS
+# de la mudanza (deborah a [k3s_agent], oliver a [k3s_server]), junto con k3s_api_ip
+# y k3s_move_done.
+k3s_move_source: "{{ groups['k3s_server'][0] }}"
+k3s_move_target: oliver
+# Nodo que ejecuta BIND (playbook-bind-dns.yml); el playbook de mudanza re-aplica
+# la zona ahí para repuntar el registro "k3s".
+k3s_move_dns_host: deborah
+# Poner en true cuando la mudanza terminó: host_vars/deborah.yml y oliver.yml
+# reflejan entonces los roles nuevos (k3s_role, etiquetas).
+k3s_move_done: false
+# Backups de la mudanza en la estación (contienen CA y token del clúster: cifrados y en 0700).
+k3s_move_backup_dir: "{{ lookup('env', 'HOME') }}/k3s-move-backups"
+# Cifrado del backup ANTES de salir del nodo (obligatorio salvo -e k3s_move_backup_unencrypted=true):
+#   k3s_move_backup_age_recipient  clave pública age (age1...); descifrar exige la identidad privada
+#   k3s_move_backup_passphrase     alternativa: contraseña de gpg simétrico (pásala con -e desde 1Password)
+# El agent-token (distinto del token de server) se genera una vez y se guarda en
+# <k3s_move_backup_dir>/agent-token; o se importa con -e k3s_move_agent_token=...
 
 # --- Umbrales de playbook-discovery.yml (recomendaciones) ---
 # Configurables a proposito: estos valores reflejan la escala de ESTE

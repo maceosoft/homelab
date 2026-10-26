@@ -1,0 +1,26 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Proxy bajo demanda hacia Ollama
+Requires=ollama.service
+After=ollama.service
+
+[Service]
+ExecStart={{ ollama_ondemand_proxyd_path }} --exit-idle-time={{ ollama_ondemand_idle_time }} {{ ollama_ondemand_internal }}
+# Sandbox: usuario dinámico sin privilegios. IPAddressDeny no se usa a propósito: filtraría también las
+# conexiones entrantes del router que llegan por el socket heredado.
+DynamicUser=yes
+PrivateTmp=yes
+PrivateDevices=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictSUIDSGID=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+MemoryDenyWriteExecute=yes

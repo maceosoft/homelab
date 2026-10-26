@@ -1,0 +1,34 @@
+---
+# Comprobaciones de solo lectura desde la estación: nodos Ready, calico-node listo y
+# nodos de Longhorn Ready. Requiere kubectl y el kubeconfig del clúster.
+- name: Nodos del clúster
+  ansible.builtin.command: >-
+    kubectl --kubeconfig {{ host_firewall_kubeconfig }} get nodes
+    -o jsonpath='{range .items[*]}{.metadata.name}={.status.conditions[?(@.type=="Ready")].status}{"\n"}{end}'
+  register: host_firewall_k8s_nodes
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  failed_when: >-
+    host_firewall_k8s_nodes.rc != 0 or ('=True' not in host_firewall_k8s_nodes.stdout)
+    or ('=False' in host_firewall_k8s_nodes.stdout) or ('=Unknown' in host_firewall_k8s_nodes.stdout)
+
+- name: Pods calico-node listos
+  ansible.builtin.command: >-
+    kubectl --kubeconfig {{ host_firewall_kubeconfig }} get pods -A -l k8s-app=calico-node
+    -o jsonpath='{range .items[*]}{.metadata.name}={.status.containerStatuses[*].ready}{"\n"}{end}'
+  register: host_firewall_k8s_calico
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  failed_when: host_firewall_k8s_calico.rc != 0 or ('false' in host_firewall_k8s_calico.stdout)
+
+- name: Nodos de Longhorn
+  ansible.builtin.command: >-
+    kubectl --kubeconfig {{ host_firewall_kubeconfig }} -n longhorn-system get nodes.longhorn.io
+    -o jsonpath='{range .items[*]}{.metadata.name}={.status.conditions[?(@.type=="Ready")].status}{"\n"}{end}'
+  register: host_firewall_k8s_longhorn
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  failed_when: host_firewall_k8s_longhorn.rc != 0 or ('False' in host_firewall_k8s_longhorn.stdout)

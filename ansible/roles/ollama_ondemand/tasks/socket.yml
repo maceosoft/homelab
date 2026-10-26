@@ -1,0 +1,6 @@
+---
+- name: Habilitar y arrancar el socket
+  ansible.builtin.systemd:
+    name: ollama-proxy.socket
+    enabled: true
+    state: started

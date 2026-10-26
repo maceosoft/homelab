@@ -131,3 +131,37 @@ Fuera de la LAN, redes privadas que no se pueden solapar con ella ni entre sí:
 Tras `playbook-set-static-ip.yml`, actualizar `ansible_host` en
 [`inventory.ini`](https://github.com/maceosoft/homelab/blob/main/ansible/inventory.ini)
 al valor de `static_ip` si la IP de conexión cambió.
+
+### Ollama: router y nodos
+
+El asistente de IA tiene **una sola entrada**: el router `ollama-router` (namespace `ai`). Los clientes dentro del
+clúster usan el Service `http://ollama-router.ai.svc`; los de fuera, `https://ollama.homelab.local` (Kong, solo
+HTTPS; el nombre está en la zona `homelab.local` de BIND). El router exige un token Bearer.
+
+Cada nodo de Ollama (`deborah` `192.168.20.5`, `invincible` `192.168.20.6`, `oliver` `192.168.20.7` y, cuando está
+encendido, el Mac) tiene un **socket en el puerto `11434`** que despierta a Ollama; internamente Ollama escucha solo
+en `127.0.0.1:11435`. El socket escucha **únicamente en la IP del nodo** (variable `ollama_ondemand_listen`) y el
+firewall del nodo admite el puerto desde los nodos de K3s y desde los pods (el router puede estar en el mismo nodo). El Ollama del nodo no autentica: la protección de la inferencia es el token del router más las NetworkPolicy del namespace `ai` (que se activan por etapas). Detalle en
+[Asistente de IA local](../operacion/ia-ollama.md) y [Agregar un nodo al clúster de Ollama](../operacion/agregar-nodo-ollama.md).
+
+### Nombres de la API de K3s
+
+Los agentes, el kubeconfig y los certificados usan el nombre `k3s.homelab.local` para la API (puerto `6443`) en
+lugar de la IP de un nodo concreto. Así el control plane se puede mover sin tocar a los clientes
+([procedimiento](../operacion/mover-control-plane.md)).
+
+## Puertos expuestos y firewall de host
+
+Cada nodo tiene un firewall de host con `nftables` (rol `host_firewall`): una tabla propia, evaluada antes de
+kube-proxy y sin modificar las cadenas de Calico. La política es `accept` con denegaciones explícitas (para no cortar a K3s, Calico, Longhorn ni MetalLB si cambian sus puertos), y el tráfico entre nodos es de confianza. Se restringe lo siguiente:
+
+- SSH (`22`) desde la LAN (red local), con autenticación por Dex.
+- El API de K3s (`6443`), el kubelet (`10250`), el tráfico de BGP (`179`), de FRR (`2623`) y de MetalLB (`7946`), y Typha
+  (`5473`): solo entre los nodos y el rango de pods.
+- Las métricas (`9100`, `9120`, `9140`, `9141`): solo hacia el recolector y los nodos.
+- Incus (`8443`): nodos, pods y operador. Ollama (`11434`): nodos de K3s, pods y los equipos que se agreguen a `host_firewall_ollama_extra_cidrs` (el Mac).
+- DNS (`53`) desde la LAN.
+
+La lista de lo que queda sin autenticación propia, con el motivo y el control de red que la sustituye, está en
+[Modelo de autenticación](../security/modelo-de-autenticacion.md#excepciones-controladas-por-red). Las reglas se
+aplican con una auto-reversión por seguridad (ver [Hardening post-incidente](../security/hardening-post-incidente.md)).

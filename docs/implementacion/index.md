@@ -123,9 +123,9 @@ Vista arquitectónica complementaria: [Arquitectura C4](../architecture/overview
 
 | Decisión | Opción A (default HomeLab) | Opción B |
 |---|---|---|
-| API K3s estable | IP fija deborah (`192.168.20.5`) | [kube-vip](https://kube-vip.io/) (`kube_vip.enabled: true` en `k3s_install.yml`) |
+| API K3s estable | Nombre `k3s.homelab.local` hacia el control plane (hoy `deborah`, `192.168.20.5`; se mudará a `oliver`) | [kube-vip](https://kube-vip.io/) (`kube_vip.enabled: true` en `k3s_install.yml`) |
 | Instalar K3s | `playbook-k3s.yml` | curl manual ([referencia](../k3s/index.md)) |
-| **CNI** | [Flannel](https://github.com/flannel-io/flannel) embebido (`vxlan`) | [Canal](https://docs.tigera.io/calico/latest/getting-started/kubernetes/flannel/flannel), [Calico](https://docs.tigera.io/calico/latest/about/), [Cilium](https://docs.cilium.io/) |
+| **CNI** | [Calico](https://docs.tigera.io/calico/latest/about/) (`k3s_cni: calico`) | [Flannel](https://github.com/flannel-io/flannel) embebido (`vxlan`), [Canal](https://docs.tigera.io/calico/latest/getting-started/kubernetes/flannel/flannel), [Cilium](https://docs.cilium.io/) |
 | Secretos OAuth | [1Password SDK](https://github.com/1Password/onepassword-sdk-python) — cuenta personal, bóveda `HomeLab` | Cuenta empresa u otra bóveda vía env vars |
 | vCluster / CAPN | Comentadas en `homelab-root` | Descomentar en `root-appset.yaml` cuando estés listo |
 | Storage HA | [Longhorn](https://longhorn.io/docs/) en invincible+deborah | Solo [OpenEBS](https://openebs.io/docs) |
@@ -149,12 +149,12 @@ Vista arquitectónica complementaria: [Arquitectura C4](../architecture/overview
       <div class="text-muted">Manual solo para depuración puntual</div>
     </div>
     <div class="card-col">
-      <div class="card-title">Flannel <span class="tag tag-accent">elegida</span></div>
+      <div class="card-title">Flannel</div>
       <div class="text-muted">Embebido en K3s; bajo consumo</div>
       <div class="text-muted">Sin NetworkPolicy nativa</div>
     </div>
     <div class="card-col">
-      <div class="card-title">Canal / Calico / Cilium</div>
+      <div class="card-title">Calico <span class="tag tag-accent">elegida</span> · Canal / Cilium</div>
       <div class="text-muted">Políticas de red (Canal/Calico) o eBPF (Cilium)</div>
       <div class="text-muted"><code>--flannel-backend=none</code>; más RAM/CPU; elegir <strong>antes</strong> del bootstrap</div>
     </div>
@@ -191,6 +191,16 @@ Detalle CNI (Container Network Interface): [Fase 3 — K3s](fase-3-k3s.md#opcion
 Detalle de flags K3s (distribución ligera de Kubernetes): [Opciones del playbook](../k3s/playbook-options.md).
 
 Catálogo de roles Ansible: [Ansible — roles](../ansible/index.md).
+
+## Después de las fases
+
+Con la plataforma en marcha se agregan el **asistente de IA local** (Ollama en varios nodos detrás de un router, con
+Open WebUI y Open Terminal), los **logs centralizados** con reportes semanales con IA y las capas de **seguridad**
+(firewall de host, tokens por servicio, NetworkPolicy por etapas). Están en
+[Operación](../operacion/index.md): [Asistente de IA local](../operacion/ia-ollama.md),
+[Logs](../operacion/logs.md) y [Modelo de autenticación](../security/modelo-de-autenticacion.md). La mudanza del
+control plane de `deborah` a `oliver` está documentada en [Mover el control plane](../operacion/mover-control-plane.md)
+y todavía no se ha hecho.
 
 ## Empieza aquí
 

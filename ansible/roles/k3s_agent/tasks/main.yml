@@ -9,7 +9,8 @@
 
 - name: Resolver token del server
   ansible.builtin.set_fact:
-    k3s_agent_join_token: "{{ hostvars[groups['k3s_server'][0]]['k3s_token'] | default(k3s_token | default('')) }}"
+    k3s_agent_join_token: >-
+      {{ k3s_agent_token | default(hostvars[groups['k3s_server'][0]]['k3s_token'] | default(k3s_token | default(''))) }}
   no_log: true
 
 - name: Fallar si no hay token de union
@@ -20,19 +21,49 @@
     - k3s_agent_join_token | length == 0
     - k3s_agent_active.stdout != "active"
 
+# k3s_api_url usa el nombre estable (k3s_api_endpoint): el DNS tiene que resolverlo ya, o el
+# agent no podrá unirse. Se comprueba antes de instalar.
+- name: Comprobar que el endpoint del API resuelve
+  ansible.builtin.command: getent hosts {{ k3s_api_endpoint }}
+  register: k3s_agent_endpoint_dns
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when:
+    - k3s_agent_active.stdout != "active"
+    - not k3s_install.kube_vip.enabled
+
+- name: Fallar si el endpoint del API no resuelve
+  ansible.builtin.fail:
+    msg: >-
+      {{ k3s_api_endpoint }} no resuelve desde {{ inventory_hostname }}. Aplica antes
+      playbook-bind-dns.yml (registro "k3s" de la zona homelab.local) o revisa /etc/resolv.conf.
+  when:
+    - k3s_agent_active.stdout != "active"
+    - not k3s_install.kube_vip.enabled
+    - k3s_agent_endpoint_dns.rc != 0
+
+- name: Descargar el instalador de K3s verificado
+  ansible.builtin.include_role:
+    name: k3s_installer
+  when: k3s_agent_active.stdout != "active"
+
 - name: Instalar K3s agent (worker)
   ansible.builtin.shell: |
     set -o pipefail
-    curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="{{ k3s_version }}" \
-      K3S_URL="{{ k3s_api_url }}" \
-      K3S_TOKEN="{{ k3s_agent_join_token }}" \
+    INSTALL_K3S_VERSION="{{ k3s_version }}" \
       INSTALL_K3S_EXEC="agent --node-ip {{ ansible_host }} \
       {% for arg in k3s_agent_kubelet_args | default([]) %}--kubelet-arg={{ arg }} {% endfor %}\
       {% if k3s_install.node_labels.enabled and k3s_install.node_labels.at_join | default(false) %}\
       {% for key, val in (k3s_node_labels | default({})).items() %}--node-label {{ key }}={{ val }} {% endfor %}\
-      {% endif %}" sh -
+      {% endif %}" \
+      sh {{ k3s_installer_path }}
   args:
     executable: /bin/bash
     creates: /etc/systemd/system/k3s-agent.service
+  # URL y token por entorno (no por argv); el instalador los guarda en k3s-agent.service.env (0600).
+  environment:
+    K3S_URL: "{{ k3s_api_url }}"
+    K3S_TOKEN: "{{ k3s_agent_join_token }}"
   when: k3s_agent_active.stdout != "active"
   no_log: true

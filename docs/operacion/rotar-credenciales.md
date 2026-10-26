@@ -22,6 +22,11 @@ primero en 1Password (bóveda `HomeLab`) y después se lleva al clúster.
 | Credenciales FTP de un repo | `ftp-<repo>` | `playbook-platform-secrets.yml` + pipeline de `infra` |
 | Client secret de Dex (login con GitHub) | `maceosoft-dex` | `playbook-dex-oauth-secrets.yml` |
 | Webhooks de Discord, ping URL de healthchecks.io y contraseña de Grafana (monitoreo) | `discord-webhooks`, `healthchecks-ping`, `grafana-admin` | `playbook-platform-secrets.yml` ([ver abajo](#monitoreo-webhooks-de-discord-ping-de-healthchecksio-y-grafana)) |
+| Clave de sesión de Open WebUI (asistente de IA) | `open-webui` (campo `WEBUI_SECRET_KEY`) | `playbook-platform-secrets.yml` ([cómo generarla](ia-ollama.md#crear-la-clave-de-open-webui-una-sola-vez)) |
+| Tokens del router de Ollama (uno por cliente y el de registro de nodos) | `ollama-router` (campos `registry_token`, `open-webui`, `k8sgpt`, `reports`, `alert-triage`, `translate`) | `playbook-platform-secrets.yml` ([ver abajo](#tokens-de-ollama-y-de-servicios-internos)) |
+| Token del webhook de `alert-triage` y clave de API de `mcpo` | `alert-triage-webhook` (campo `token`), `mcp-api-key` (campo `key`) | `playbook-platform-secrets.yml` ([ver abajo](#tokens-de-ollama-y-de-servicios-internos)) |
+| Clave de API de Open Terminal | `open-terminal` (campo `api_key`) | `playbook-platform-secrets.yml` ([ver abajo](#tokens-de-ollama-y-de-servicios-internos)) |
+| Webhook del canal `#ia` (reportes con IA) | `discord-webhooks` (campo `ai`) | `playbook-platform-secrets.yml` ([crear el canal](logs.md#crear-el-canal-ia-y-su-webhook-una-sola-vez)) |
 | Contraseña de root de los nodos | `root@<nodo>` (la crea el playbook) | `playbook-rotate-root-passwords.yml` |
 | Llave de Sealed Secrets | `sealed-secrets` | `playbook-platform-secrets.yml` ([ojo: ver abajo](#llave-de-sealed-secrets)) |
 | Token de ArgoCD del pipeline de `gitops` (cuenta `ci`) | `argocd-ci` | `playbook-platform-secrets.yml` ([cómo generarlo](pipeline-gitops.md#activar-el-diff-contra-el-cluster-una-vez)) |
@@ -102,6 +107,46 @@ playbook los lleva al namespace `monitoring`; nunca se escriben en git.
     ```
 
 5. Prueba con la alerta de prueba del [paso 7 de 4.13](../implementacion/fase-4-gitops.md#413-monitoreo-y-alertas-opcional).
+
+## Tokens de Ollama y de servicios internos
+
+Los clientes del [router de Ollama](ia-ollama.md) se autentican con un token Bearer, uno por cliente, para poder
+rotar uno sin tocar el resto. Todos se generan igual: 32 bytes aleatorios en hexadecimal (64 caracteres).
+
+```bash
+openssl rand -hex 32
+```
+
+| Item de 1Password | Campos | Quién lo usa |
+|---|---|---|
+| `ollama-router` | `registry_token` | Los nodos de Ollama, para registrarse en el router |
+| `ollama-router` | `open-webui`, `k8sgpt`, `reports`, `alert-triage`, `translate` | Cada cliente del router. `translate` es además el secreto `OLLAMA_TOKEN` de GitHub Actions, que usa la traducción de esta documentación |
+| `alert-triage-webhook` | `token` | Alertmanager, al llamar a `alert-triage` |
+| `mcp-api-key` | `key` | Open WebUI, al llamar a las herramientas MCP (`mcpo`) |
+| `open-terminal` | `api_key` | Open WebUI, al llamar a Open Terminal ([guía](ia-ollama.md#open-terminal-terminal-para-el-asistente)). Tras aplicar, reinicia los pods de Open Terminal y de Open WebUI |
+
+Para rotar uno:
+
+1. Genera el valor nuevo y reemplaza **solo ese campo** en 1Password (mínimo 32 caracteres, sin espacios).
+2. Comprueba y aplica:
+
+    ```bash
+    cd ansible
+    ../.venv/bin/python scripts/apply_platform_secrets.py --check
+    ansible-playbook -i inventory.ini playbook-platform-secrets.yml
+    ```
+
+3. Reinicia el servicio que lo lee para que tome el valor nuevo (`kubectl -n <namespace> rollout restart deploy/<nombre>`):
+   el router y el cliente cuyo token cambió (el router también recarga los tokens cada 30 segundos). Para
+   `registry_token`, además actualiza el token en cada nodo (Linux: volver a aplicar `playbook-ollama.yml --tags register`;
+   Mac: reemplaza el archivo `token` de la carpeta del agente, o el del Keychain, y `ollama-node off` / `ollama-node on`).
+4. **Tokens de registro por nodo (opcional).** Si usas una clave `registry_token-<nombre-del-nodo>` en el Secret
+   `ai/ollama-router-secrets`, solo ese token registra ese nodo. Para rotarlo: cambia ese valor en el Secret, actualiza
+   el token en ese nodo y comprueba que sigue apareciendo en `/_registry/nodes`. El token compartido sigue valiendo para
+   los nodos que no tengan uno propio, así que para **retirar por completo** el compartido hay que dar uno propio a
+   cada nodo antes.
+5. Si rotaste `translate`, actualiza también el secreto `OLLAMA_TOKEN` en *maceosoft/homelab → Settings → Secrets and
+   variables → Actions*.
 
 ## Contraseña de root de los nodos
 

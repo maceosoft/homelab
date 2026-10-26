@@ -3,7 +3,8 @@
 ## Objetivo
 
 Management cluster **K3s (distribución ligera de Kubernetes)** en 3 nodos (CP en deborah, workers en invincible y
-oliver), con controller **Argo CD** listo para GitOps.
+oliver; el CP se puede mudar a oliver, ver
+[Mover el control plane](../operacion/mover-control-plane.md)), con controller **Argo CD** listo para GitOps.
 
 ## Qué aprendes
 
@@ -121,7 +122,7 @@ Profundización: [Opciones del playbook](../k3s/playbook-options.md) · [Catálo
 
 | Decisión | Opción A (default) | Opción B |
 |---|---|---|
-| API K3s | IP fija deborah `192.168.20.5` | kube-vip `192.168.20.4` |
+| API K3s | Nombre `k3s.homelab.local` (variable `k3s_api_endpoint`) hacia la IP del control plane, hoy deborah `192.168.20.5` | kube-vip `192.168.20.4` |
 | CNI | Calico (configurado en este repo) | Flannel `vxlan` (default de K3s), Canal o Cilium (`k3s_install.core.cni`) |
 
 ### CNI

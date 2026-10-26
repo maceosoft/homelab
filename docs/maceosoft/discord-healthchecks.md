@@ -15,6 +15,7 @@ las lleva al clúster.
 | Qué | Dónde se crea | Item de 1Password | Lo usa |
 |---|---|---|---|
 | Un **webhook** por canal de alertas: `critical` y `warnings` | Discord | `discord-webhooks` | Alertmanager publica las alertas |
+| Un tercer **webhook** opcional, `ai`, para el canal `#ia` (reportes diario y semanal con IA) | Discord | `discord-webhooks` | Los reportes publican ahí ([cómo crearlo](../operacion/logs.md#crear-el-canal-ia-y-su-webhook-una-sola-vez)) |
 | La **ping URL** de un check | healthchecks.io | `healthchecks-ping` | Alertmanager le manda un ping cada 5 minutos |
 | La contraseña del administrador de Grafana | 1Password | `grafana-admin` | Entrar a Grafana |
 

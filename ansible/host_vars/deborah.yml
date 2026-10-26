@@ -2,7 +2,8 @@
 incus_role: "Miembro (grupo arm64-nodes)"
 incus_cluster_role: member
 incus_cluster_groups: [arm64-nodes, default]
-k3s_role: server
+# Cambia a agent al terminar la mudanza del control-plane (k3s_move_done en group_vars/all.yml).
+k3s_role: "{{ 'agent' if k3s_move_done | bool else 'server' }}"
 ip_static: true
 k3s_node_labels:
   workload-tier: heavy
@@ -13,3 +14,12 @@ has_wifi: true
 wifi_iface: wlP2p33s0
 
 host_hardening_regenerate_ssh_host_keys: true
+
+# --- Ollama (rol ollama_ondemand) ---
+# RK3588, 31 GB (~26 GB libres): el nodo más grande del grupo.
+ollama_ondemand_models:
+  - qwen2.5:7b-instruct
+  # - qwen2.5:14b-instruct   # opcional: cabe en el tope de memoria, pero más lento en CPU
+ollama_ondemand_memory_max: 22G
+ollama_node_priority: 80
+ollama_node_tags: [arm64, general, always-on]
