@@ -10,7 +10,8 @@ lxc-secret.yaml
 opentofu/.terraform/
 opentofu/*.tfstate
 opentofu/*.tfstate.backup
-opentofu/.terraform.lock.hcl
+# .terraform.lock.hcl SÍ se versiona: fija la versión y los hashes del provider, y sin él OpenTofu no usa la caché
+# compartida de providers de los runners (TF_PLUGIN_CACHE_DIR) y lo descarga en cada corrida.
 
 # Llaves SOPS/age locales
 key.txt
