@@ -24,8 +24,11 @@ on:
         type: boolean
         default: false
 
+# El push de los .en.md a main va con la deploy key I18N_DEPLOY_KEY (con escritura), no con GITHUB_TOKEN: main está
+# protegida por un ruleset que exige PR, y la deploy key es la única excepción del ruleset (el token de Actions no se
+# puede agregar como excepción).
 permissions:
-  contents: write   # subir los .en.md a main
+  contents: read
   actions: write    # disparar deploy-docs.yml con las traducciones ya incluidas
 
 # Dos pushes seguidos no deben traducir en paralelo ni pisarse al subir los .en.md.
@@ -41,6 +44,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          # Deja configurado git por SSH con la deploy key: el pull --rebase y el push a main la usan.
+          ssh-key: ${{ secrets.I18N_DEPLOY_KEY }}
 
       - name: Setup Python
         uses: actions/setup-python@v7
