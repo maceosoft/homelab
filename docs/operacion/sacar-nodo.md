@@ -6,8 +6,7 @@ equipo, saca el viejo con este procedimiento y agrega el nuevo con
 [Agregar un nodo](agregar-nodo.md).
 
 !!! danger "Nodos que no se sacan con este procedimiento"
-    - **El nodo del control plane** de K3s (hoy `deborah`; `oliver` cuando se haga la
-      [mudanza](mover-control-plane.md)): sacarlo apaga el clúster. Primero hay que
+    - **El nodo del control plane** de K3s (`deborah`): sacarlo apaga el clúster. Primero hay que
       [mover el control plane](mover-control-plane.md) a otro nodo o reconstruirlo (ver el
       [runbook de bootstrap](https://github.com/maceosoft/homelab/blob/main/ansible/bootstrap/README.md)).
     - **`deborah`** además es el DNS (BIND) de la LAN: antes de sacarla hay que mover el DNS.
@@ -25,8 +24,27 @@ kubectl cordon nolan
 kubectl drain nolan --ignore-daemonsets --delete-emptydir-data
 ```
 
-Si el nodo aporta disco a Longhorn (`node.longhorn.io/create-default-disk: "true"`), en la UI de Longhorn: *Node → nolan → Edit* → desactiva
-*Scheduling* y marca *Eviction Requested*. Espera a que sus réplicas se
+Si el nodo aporta disco a Longhorn (`node.longhorn.io/create-default-disk: "true"`), desactiva su *Scheduling* y pide
+que se vacíe:
+
+=== "🖱️ Desde la interfaz"
+
+    En la UI de Longhorn: *Node → nolan → Edit* → desactiva
+    *Scheduling* y marca *Eviction Requested*.
+
+=== "⌨️ Desde la consola"
+
+    Lo mismo, sobre el recurso `nodes.longhorn.io` de ese nodo:
+
+    ```bash
+    kubectl -n longhorn-system patch nodes.longhorn.io nolan --type merge \
+      -p '{"spec":{"allowScheduling":false,"evictionRequested":true}}'
+    # réplicas que siguen en nolan (repite hasta que no salga ninguna)
+    kubectl -n longhorn-system get replicas.longhorn.io \
+      -o custom-columns=NOMBRE:.metadata.name,NODO:.spec.nodeID | grep nolan
+    ```
+
+Espera a que sus réplicas se
 muevan a otros nodos antes de seguir.
 
 ## 2. Vaciar el nodo en Incus

@@ -68,6 +68,43 @@ sequenceDiagram
 
 Profundización: [CAPN](../capn/index.md) · [Secretos](../secrets/index.md)
 
+**Esta decisión en otros entornos**
+
+=== "🏠 En casa"
+
+    Cluster API con [CAPN](https://github.com/lxc/cluster-api-provider-incus) crea clústeres kubeadm de prueba como
+    instancias de Incus, desde un manifiesto en Git, y los borra cuando terminas. Sirve para aprender el mismo modelo
+    que usan las plataformas grandes, sin pagar nube.
+
+=== "🏢 En la empresa"
+
+    - **Beneficios:** los clústeres se declaran como código: se crean iguales cada vez, quedan versionados y auditados
+      en Git, se actualizan nodo por nodo con un cambio de versión y se reemplazan en vez de repararse a mano. Con la
+      misma API se manejan clústeres en el datacenter y en varias nubes.
+    - **Escala de flota:** con decenas o cientos de clústeres hacen falta inventario, políticas y actualizaciones
+      centralizadas; se suele sumar una consola de flota como
+      [SUSE Rancher Prime](https://www.suse.com/products/rancher/) o
+      [Red Hat Advanced Cluster Management](https://www.redhat.com/en/technologies/management/advanced-cluster-management).
+    - **El management cluster es crítico:** si se pierde, los clústeres siguen corriendo pero nadie los puede
+      actualizar ni escalar; en producción se le da alta disponibilidad y backup, y se mueve con `clusterctl move`.
+    - **Soporte:** CAPN es un proyecto comunitario de [Linux Containers](https://linuxcontainers.org/); los proveedores
+      de las nubes grandes tienen más usuarios y respaldo del proveedor.
+    - **Cuándo conviene lo mismo que el HomeLab:** nube privada sobre Incus, sitios edge y entornos de prueba que se
+      crean y destruyen a menudo, donde un clúster administrado de nube no está disponible o no conviene.
+
+=== "☁️ En la nube"
+
+    | Nube | Servicio equivalente |
+    |---|---|
+    | GCP | Proveedor [CAPG](https://github.com/kubernetes-sigs/cluster-api-provider-gcp); flota con [GKE fleet management](https://cloud.google.com/kubernetes-engine/fleet-management/docs) |
+    | AWS | Proveedor [CAPA](https://github.com/kubernetes-sigs/cluster-api-provider-aws); fuera de AWS, [EKS Anywhere](https://anywhere.eks.amazonaws.com/) o [EKS Hybrid Nodes](https://docs.aws.amazon.com/eks/latest/userguide/hybrid-nodes-overview.html) |
+    | Azure | Proveedor [CAPZ](https://github.com/kubernetes-sigs/cluster-api-provider-azure); flota con [Azure Arc-enabled Kubernetes](https://learn.microsoft.com/en-us/azure/azure-arc/kubernetes/overview) |
+    | Oracle Cloud (OCI) | Proveedor [CAPOCI](https://github.com/oracle/cluster-api-provider-oci) |
+
+    Cambiar CAPN por el proveedor de una nube te da máquinas, redes y balanceadores administrados, con SLA y escala
+    casi sin límite. Pierdes control del hardware, pagas por cada nodo encendido y los manifiestos usan recursos
+    propios de esa nube, así que no se mueven tal cual a otra.
+
 ## Antes de empezar
 
 - [ ] [Fase 2 — Incus](fase-2-incus.md) con el clúster sano.
@@ -99,8 +136,20 @@ Ver comandos completos en [CAPN — profundización](../capn/index.md).
 
 ```bash
 kubectl apply -f gitops/argocd/apps/capn-demo.yaml
-# Sync manual en ArgoCD
 ```
+
+=== "🖱️ Desde la interfaz"
+
+    Sync manual en ArgoCD (Application `capn-demo`).
+
+=== "⌨️ Desde la consola"
+
+    Con la CLI de Argo CD:
+
+    ```bash
+    argocd login argocd.homelab.local --grpc-web
+    argocd app sync capn-demo
+    ```
 
 ## Opciones
 

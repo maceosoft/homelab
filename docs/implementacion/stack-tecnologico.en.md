@@ -84,9 +84,9 @@ flowchart TB
 
 - **[Incus](https://linuxcontainers.org/incus/docs/main/)** — LXC (Linux container) cluster/VM with quorum; Phase 2; substrate for CAPN and instances.
 - **[Incus UI](https://linuxcontainers.org/incus/docs/main/howto/server_expose/#web-ui)** — Web management of the Incus cluster; Phase 2 (cert) + Phase 4 (OIDC —OpenID Connect— with Dex).
-- **[Zabbly Incus stable](https://github.com/zabbly/incus-stable)** — Package repo; Phase 2.
+- **[Zabbly Incus stable](https://github.com/zabbly/incus)** — Package repo; Phase 2.
 
-## Layer 2 — Kubernetes management
+## Layer 2 — Kubernetes Management
 
 - **[K3s](https://docs.k3s.io/)** — Bare-metal management cluster; Phase 3.
 - **[kube-vip](https://kube-vip.io/)** — Optional API (Application Programming Interface) VIP (Virtual IP) `:6443`; Phase 3 (fork).
@@ -139,7 +139,7 @@ flowchart TB
 - **[OpenEBS](https://openebs.io/docs)** — Default LocalPV; Phase 4 wave 0.
 - **[Longhorn](https://longhorn.io/docs/)** — Cross-arch replicated storage; Phase 4 wave 1.
 - **[Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets)** — Encrypted secrets in Git; Phase 4 and 6.
-- **[SOPS (Secrets OPerationS)](https://github.com/getsops/sops)** — Pre-bootstrap encryption; dive deeper into [secrets](../secrets/index.md).
+- **[SOPS (Secrets OPerationS)](https://github.com/getsops/sops)** — Pre-bootstrap encryption; deeper dive [Secrets](../secrets/index.md).
 
 ## Layer 5 — Optional and operations
 
@@ -152,9 +152,9 @@ flowchart TB
 ## Layer 6 — Local AI, logs, and security
 
 - **[Ollama](https://ollama.com/)** — Language models (LLM, *Large Language Model*) on CPU (central processing unit), on-demand in
-  `deborah`, `invincible` and `oliver`, and on an optional Mac that is manually powered on (`ollama-node on|off`, socket of
-  `launchd`). [Guide](../operacion/ia-ollama.md) · [add a node](../operacion/agregar-nodo-ollama.md).
-- **Ollama Router** (`ollama-router`, custom) — Single entry point (`ollama.homelab.local`): automatic node registration, model selection, client token, and model and node metrics.
+  `deborah`, `invincible` and `oliver`, and on nodes that join as nodes. [Guide](../operacion/ia-ollama.md) · [add a node](../operacion/agregar-nodo-ollama.md).
+- **Ollama Router** (`ollama-router`, custom) — Single entry point (`ollama.homelab.local`): automatic node registration,
+  model selection, client tokens, and model and node metrics.
 - **[Open WebUI](https://docs.openwebui.com/)** — Chat with the assistant, with Dex login; **[Open Terminal](https://docs.openwebui.com/features/open-terminal)**
   as a sandbox terminal for the assistant to run code.
 - **K8sGPT** — Cluster analysis with Ollama; **staged** (its operator requests cluster-wide permissions).
@@ -163,3 +163,50 @@ flowchart TB
 - **[nftables](https://wiki.nftables.org/)** — Host firewall on each node (role `host_firewall`), with automatic rollback.
 - **NetworkPolicy** `default-deny` by namespace and **`oauth2-proxy`** — prepared and **to be activated** in stages
   ([Authentication Model](../security/modelo-de-autenticacion.md)).
+
+## Each layer in the enterprise and in the cloud
+
+The same stack, viewed through each lens. The details of each row (trade-offs, benefits, and official links) are in the
+"Decision in other environments" block of the linked page.
+
+=== "🏠 At home"
+
+    Everything runs on three machines with free software: the stack of the upper layers. No licenses and full control;
+    in exchange, the operation, updates, and backups are yours.
+
+=== "🏢 In a company"
+
+    | Layer | What changes in a company | Detail |
+    |---|---|---|
+    | Virtualization | Platform with support (vSphere, Proxmox VE, Nutanix, OpenStack) | [Phase 2](fase-2-incus.md) |
+    | Kubernetes | 3 control planes with etcd and a supported distribution (RKE2, OpenShift) | [Phase 3](fase-3-k3s.md) |
+    | GitOps | Argo CD with commercial support; every change audited in Git | [Phase 4](fase-4-gitops.md) |
+    | Networking and ingress | Dedicated load balancers or MetalLB in BGP; gateway with support | [Networking](../networking/index.md) |
+    | Storage | SAN/NAS or supported storage with backups outside the cluster | [Storage](../storage/index.md) |
+    | Secrets | Central vault with rotation and auditing (Vault, 1Password Business) | [Secrets](../secrets/index.md) |
+    | Identity | Corporate IdP with MFA (Entra ID, Okta, Google Workspace) | [Authentication](../security/modelo-de-autenticacion.md) |
+    | Monitoring | Guards, scaling, and long-term retention | [Monitoring](../operacion/monitoreo.md) |
+    | Logs | Compliance retention and SIEM | [Logs](../operacion/logs.md) |
+    | AI | Local inference with GPU when data cannot leave | [Local AI](../operacion/ia-ollama.md) |
+    | Multi-tenancy | A virtual cluster per team or customer | [Phase 5](fase-5-vcluster.md) |
+    | Cluster fleet | Cluster API or the provider's fleet console | [Phase 6](fase-6-capn.md) |
+    | Backups | 3-2-1 rule with tested RPO/RTO | [Backups](../operacion/backups-incus.md) |
+
+=== "☁️ In the cloud"
+
+    | Layer | GCP | AWS | Azure | Oracle Cloud (OCI) |
+    |---|---|---|---|---|
+    | Virtualization | Compute Engine | EC2 | Azure Virtual Machines | OCI Compute |
+    | Kubernetes | GKE | EKS | AKS | OKE |
+    | Networking and ingress | Cloud Load Balancing and GKE Gateway | ELB and AWS Load Balancer Controller | Application Gateway for Containers | OCI Load Balancer and Native Ingress (only Ingress) |
+    | GitOps | Config Sync | EKS Capability for Argo CD | GitOps extensions (Flux and Argo CD) | Argo CD installed on OKE |
+    | Storage | Persistent Disk, Hyperdisk, and Filestore | EBS and EFS | Azure Disk and Azure Files | Block Volume and File Storage |
+    | Secrets | Secret Manager | Secrets Manager | Key Vault | OCI Vault |
+    | Identity | Workforce Identity Federation | IAM Identity Center | Microsoft Entra ID | IAM Identity Domains |
+    | Metrics | Managed Service for Prometheus | Managed Prometheus and Managed Grafana | Azure Monitor and Managed Grafana | OCI Monitoring |
+    | Logs | Cloud Logging | CloudWatch Logs | Azure Monitor Logs | OCI Logging |
+    | AI | Gemini Enterprise Agent Platform | Bedrock | Microsoft Foundry | OCI Generative AI |
+    | Backups | Backup and DR and Backup for GKE | AWS Backup | Azure Backup | Block Volume Backups |
+
+    Generally, you gain managed operations, SLAs, and scale; you lose control, pay for usage, and become more tied to each
+    provider.

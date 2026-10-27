@@ -1,8 +1,11 @@
 # Glossary
 
-Acronyms and abbreviations used in this documentation. On any page, underlined
-acronyms show their meaning on hover, and the first time they appear on each
-page they include the meaning in parentheses.
+The technical words in this documentation, in two tables: [acronyms and
+abbreviations](#acronyms-and-abbreviations) and [concepts and tools](#concepts-and-tools).
+On any page, underlined acronyms show their meaning on hover, and the first time
+they appear on each page they include the meaning in parentheses.
+
+## Acronyms and Abbreviations
 
 | Abbreviation | Meaning | What It Is |
 |---|---|---|
@@ -59,8 +62,9 @@ page they include the meaning in parentheses.
 | **journald** | [journald](https://www.freedesktop.org/software/systemd/man/latest/systemd-journald.service.html) | systemd service that stores the logs of each node's services; Vector reads them from there. |
 | **JSON** | JavaScript Object Notation | Text format for structured data. |
 | **K3s** | [lightweight Kubernetes distribution](https://k3s.io/) | Kubernetes packaged into a single binary, designed for edge and homelabs. |
-| **K8s** | [Kubernetes](https://kubernetes.io/) | Container orchestration platform. |
+| **K8s** | [Kubernetes](https://kubernetes.io/) | Abbreviation of Kubernetes: the K, the 8 letters in the middle and the s. |
 | **KIC** | [Kong Ingress Controller](https://developer.konghq.com/kubernetes-ingress-controller/) | Kong controller for Kubernetes; here it implements Gateway API. |
+| **Kubernetes** | [Kubernetes](https://kubernetes.io/) (K8s) | Platform that orchestrates containers: it decides which node runs each pod, restarts it if it fails and gives it networking and storage. In this homelab it runs as K3s. |
 | **KVM** | [Kernel-based Virtual Machine](https://linux-kvm.org/) | Hardware-integrated virtualization in the Linux kernel; used by Incus VMs. |
 | **L2** | layer 2 of the OSI model | OSI model's data link layer: traffic within the same local network (MAC, ARP). |
 | **L3** | layer 3 of the OSI model | OSI model's network layer: IPs and routing. |
@@ -138,3 +142,103 @@ page they include the meaning in parentheses.
 | **VPN** | virtual private network | Virtual Private Network: encrypted access to the home network from outside. |
 | **VXLAN** | Virtual Extensible LAN | Layer 2 network encapsulated over UDP; with it, Flannel and Calico connect pods between nodes. |
 | **YAML** | YAML Ain't Markup Language | Text configuration format used by Kubernetes and Ansible. |
+
+## Concepts and Tools
+
+Terms the guide uses without explaining them every time: Kubernetes building blocks, homelab tools and operations
+jargon. If a word slows you down while reading, look it up here.
+
+| Term | What It Is |
+|---|---|
+| **[1Password](https://1password.com/)** | Password manager. Here it is the vault that holds the homelab's real secrets (keys, tokens, GitHub Apps); scripts read them with its SDK. |
+| **[age](https://github.com/FiloSottile/age)** | Simple key-based encryption tool; SOPS uses it to encrypt the repo's secret files. |
+| **Alert rule** | Condition on the metrics (e.g. "disk over 90 % for 10 min") that fires an alert when it holds. vmalert evaluates them. |
+| **[Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/)** | Receives alerts, groups them, avoids repeats and sends them to their destination; here, Discord channels. |
+| **[Ansible](https://docs.ansible.com/)** | Tool that configures servers over SSH from YAML files. Here it prepares the nodes and installs the network, Incus and K3s (Phases 0 to 3). |
+| **Application** / **ApplicationSet** | Argo CD resources. An Application says which Git folder to deploy and to which cluster; an ApplicationSet generates many Applications from a template (here `homelab-root` creates all the others). |
+| **apt** | Debian's package manager: installs and updates system software. |
+| **[Argo CD](https://argo-cd.readthedocs.io/)** | The homelab's GitOps tool: it watches the `gitops` repo and applies its changes to the K3s cluster. It has a web UI that shows the state of each application. |
+| **Bootstrap** | The initial startup: the first manual steps that leave a system ready to manage itself. Here Ansible installs the basics and then Argo CD takes over. |
+| **Bridge** | Virtual network interface that works like a switch. The `br0` bridge connects VMs and containers to the LAN as if they were one more machine. |
+| **[Calico](https://docs.tigera.io/calico/)** | The cluster's CNI: it connects pods across nodes and enforces NetworkPolicies. |
+| **[cert-manager](https://cert-manager.io/)** | Issues and renews TLS certificates inside Kubernetes on its own. Here the homelab's own CA signs them for the `*.homelab.local` domains. |
+| **[Cilium](https://cilium.io/)** | eBPF-based CNI. The guide mentions it as an alternative to Calico. |
+| **Cluster** | Group of machines that work together as if they were a single system. This homelab has two on the same 3 nodes: the Incus one and the K3s one. |
+| **Container** | Isolated process that brings everything it needs to run but shares the host's kernel, which makes it lighter than a VM. Incus runs system containers (LXC) and Kubernetes runs application containers inside pods. |
+| **Control plane** / **worker** | The control plane is the cluster's "brain": it stores the state and decides which node runs what (here it is on deborah). Workers only run the applications; K3s calls them *agents* and calls the control plane the *server*. |
+| **Controller** / **operator** | A controller is a program in the cluster that watches resources and acts until the real state matches the desired one. An operator is a controller that manages a specific application through its own CRDs (e.g. the VictoriaMetrics one). In the guide, "operator" sometimes also means the person who runs the homelab. |
+| **Cordon** / **drain** | `kubectl cordon` marks a node so it gets no new pods; `kubectl drain` also moves the pods it already has to other nodes. You do it before rebooting or patching a node, and `uncordon` enables it again. |
+| **[CoreDNS](https://coredns.io/)** | Kubernetes' internal DNS: it resolves the names of Services and pods inside the cluster. |
+| **CronJob** | Kubernetes task that runs by itself on a fixed schedule, like a Linux cron job. |
+| **DaemonSet** | Kubernetes resource that puts one copy of a pod on every node. Vector, which collects the logs, runs this way. |
+| **Dashboard** | Grafana panel with several charts about one topic, e.g. "HomeLab / Ollama". |
+| **[Debian](https://www.debian.org/)** | The Linux distribution installed on the three nodes. |
+| **Deployment** | Kubernetes resource that keeps N copies (replicas) of a pod running and replaces them if they fail. |
+| **[dqlite](https://dqlite.io/)** | Distributed SQLite database where Incus stores the cluster state, replicated across the 3 nodes. |
+| **Drift** / **self-heal** | Drift is the difference between what Git says and what is actually in the cluster. With self-heal, Argo CD fixes it on its own. |
+| **Exporter** | Small program that publishes metrics for vmagent to collect: node-exporter provides each node's system metrics and blackbox-exporter tests URLs and DNS from the outside. |
+| **Firewall** | Filter that decides which network traffic is allowed and which is blocked (on Linux, ufw or nftables). |
+| **[Flannel](https://github.com/flannel-io/flannel)** | The CNI that K3s ships by default. This homelab replaces it with Calico. |
+| **Fork** | Copy of a project that keeps being developed separately from the original; e.g. Incus is a fork of LXD and OpenTofu of Terraform. |
+| **[Gateway API](https://gateway-api.sigs.k8s.io/)** / **HTTPRoute** | The Kubernetes standard for publishing web services to the outside; it replaces Ingress. The Gateway is the entry point (implemented here by Kong) and each HTTPRoute says which domain or path goes to which Service. |
+| **[GitHub Actions](https://docs.github.com/actions)** / **workflow** / **runner** | GitHub Actions is GitHub's CI: it runs tasks when you push or open a PR. A workflow is the YAML file that describes those tasks and the runner is the machine that runs them; here the runners are pods in the cluster, created by ARC. |
+| **[GitHub App](https://docs.github.com/apps)** | Application identity on GitHub with scoped permissions, used to automate without a personal account (ARC, Argo CD and OpenTofu use them). |
+| **[GitOps](https://opengitops.dev/)** | Way of operating in which Git is the source of truth: you change a file in the repo and a tool (here Argo CD) makes the cluster match. It is also the name of the `maceosoft/gitops` repo. |
+| **[Grafana](https://grafana.com/docs/grafana/latest/)** | The web UI where you view metrics in dashboards and search logs (in "Explore"). |
+| **group_vars** / **host_vars** | Ansible folders with the variables for a group of machines or for one specific machine. |
+| **Hardening** | Tightening a system's security: closing ports, removing unneeded access and applying secure settings. |
+| **[healthchecks.io](https://healthchecks.io/)** | External service that expects a periodic "ping" and alerts if it stops arriving. It watches that the monitoring itself is still alive. |
+| **Heartbeat** | Short message a machine sends every so often to say "I'm still here". Each Ollama node sends one to the router every 60 seconds; if the router misses 3 heartbeats (180 s), it considers the node off. |
+| **[Helm](https://helm.sh/)** / **chart** / **values** | Helm is Kubernetes' package manager. A chart is a package of templated manifests and the values are the parameters that adjust it. Argo CD installs several homelab components as charts. |
+| **Idempotent** | You can run it several times and the result is the same: if something is already done, it doesn't repeat it or break it. Ansible playbooks are designed this way. |
+| **Image** | Read-only template from which a container or a VM is created (e.g. `bitnami/kubectl`). It is downloaded from a *registry*. |
+| **[Ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/)** | The classic way to expose HTTP services in Kubernetes. The homelab doesn't use it (it uses Gateway API), but it comes up for comparison. |
+| **Instance** | In Incus, each container or VM it creates. The Kubernetes nodes of CAPN and vCluster are instances. |
+| **Inventory** | List of the machines Ansible manages, with their groups and variables. |
+| **[K8sGPT](https://k8sgpt.ai/)** | Tool that analyzes cluster problems and explains them in natural language with an LLM (here, from Ollama). |
+| **Kernel** | The core of the operating system, the part that talks directly to the hardware. Containers share the host's kernel. |
+| **[Kong](https://developer.konghq.com/kubernetes-ingress-controller/)** | The cluster's HTTP/HTTPS entry point: it implements Gateway API (through KIC), receives the traffic and spreads it across the services. |
+| **[kube-vip](https://kube-vip.io/)** | Puts a virtual IP (VIP) in front of the Kubernetes API so it doesn't depend on a single node. Optional here; don't confuse it with MetalLB. |
+| **[kubeconfig](https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/)** | File with the cluster address and your credentials; kubectl uses it to know which cluster to connect to and as whom (here, `~/.kube/homelab-k3s.yaml`). |
+| **[kubectl](https://kubernetes.io/docs/reference/kubectl/)** | The CLI for talking to Kubernetes: list pods, read logs, apply manifests or restart things. |
+| **kubelet** | Kubernetes agent that runs on every node and starts the pods the control plane assigns to it. |
+| **[Kustomize](https://kustomize.io/)** | Tool that builds and adjusts YAML manifests by layering changes over a base, without templates. The `gitops` repo pipeline uses it to validate the repo. |
+| **[Longhorn](https://longhorn.io/)** | Distributed storage for Kubernetes: it keeps each volume with replicas on several nodes so no data is lost if one goes down (StorageClass `longhorn-mixto`). |
+| **Manifest** | YAML file that describes a Kubernetes resource the way you want it to exist. You say what you want, not how to do it; Argo CD applies them from Git. |
+| **Merge** / **branch** | A branch is a separate line of changes in Git. Merging joins it into `main`, usually when a PR is approved. |
+| **[MetalLB](https://metallb.io/)** | Gives LAN IPs (pool `192.168.23.200–.220`) to Services of type LoadBalancer, something the provider does in the cloud. |
+| **Metric** / **scrape** | A metric is a number measured over and over in time (e.g. CPU usage). A scrape is vmagent's periodic read of each service's metrics. |
+| **Namespace** | Named space inside the cluster that separates resources and permissions, like a folder (e.g. `ai`, `kong` or `arc-runners`). Almost every kubectl command takes `-n <namespace>`. |
+| **[Netplan](https://netplan.io/)** | Tool that configures the network from YAML files. Here it creates the `br0` bridge and each node's static IP (Phase 1). |
+| **[NetworkPolicy](https://kubernetes.io/docs/concepts/services-networking/network-policies/)** | Kubernetes rule that says which pods can talk to which, like a firewall inside the cluster. The CNI enforces it. |
+| **Node** | Each machine (physical or VM) that is part of a cluster and contributes CPU, memory and disk. Here they are deborah, oliver and invincible. |
+| **[Ollama](https://ollama.com/)** | Server that runs language models (LLMs) on your own machines, without sending data out. Open WebUI and K8sGPT use it. |
+| **[Open WebUI](https://openwebui.com/)** | Chat-style web interface for talking to Ollama's models. |
+| **[OpenEBS](https://openebs.io/)** | Storage for Kubernetes. Here LocalPV is used (StorageClass `openebs-hostpath`): volumes on the node's local disk, fast but without replicas. |
+| **[OpenTofu](https://opentofu.org/)** / **Terraform** | Infrastructure-as-code tools: you describe resources in files and they create them. OpenTofu is the open-source fork of Terraform; here it configures the GitHub organization. |
+| **Pipeline** | Automatic sequence of steps (validate, build, deploy) that runs when you change the code. |
+| **Playbook** | Ansible YAML file with the ordered list of tasks applied to a group of machines (e.g. `playbook-k3s.yml` installs K3s). |
+| **Pod** | The smallest unit Kubernetes runs: one or more containers that share network and storage. If a pod dies, Kubernetes creates another. |
+| **port-forward** | `kubectl port-forward` opens a temporary tunnel from your computer to a service inside the cluster; that's why some URLs are `http://127.0.0.1:<port>`. |
+| **Probe** | Automatic check that visits a URL every so often to see whether it responds (done by blackbox-exporter). |
+| **Profile** / **project** / **storage pool** | Incus concepts. A profile is a reusable configuration for instances (disk, network), a project groups and isolates instances and a storage pool is the place on disk where instances and their snapshots are stored. |
+| **Quorum** | Minimum majority of a cluster's members that must be alive and in agreement to keep making decisions. With 3 nodes, 2 must stay up; that's why Incus and K3s use three. |
+| **[Renovate](https://docs.renovatebot.com/)** | Bot that checks for new versions of the components and opens a PR to update them. |
+| **Replica** | Identical copy of a pod or a volume kept alongside the original to tolerate failures. |
+| **Retention** | How long data is kept before it is deleted (e.g. 30 days of logs in VictoriaLogs). |
+| **Role** (Ansible) | Reusable package of tasks, templates and variables with a single purpose, stored in `ansible/roles/` (e.g. `netplan_bridge`). Playbooks combine several roles. |
+| **Rollout** / **rollback** | A rollout deploys or restarts a version gradually (`kubectl rollout restart`); a rollback goes back to the previous version if something failed. |
+| **[Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets)** | Controller that decrypts encrypted secrets (`SealedSecret`) inside the cluster. That way you can keep them in Git: only the cluster has the key. |
+| **[Secret](https://kubernetes.io/docs/concepts/configuration/secret/)** | Kubernetes resource for sensitive data (passwords, tokens). Careful: by default it is only base64-encoded, not encrypted; that's why here it is encrypted before going into Git. |
+| **[Service](https://kubernetes.io/docs/concepts/services-networking/service/)** | Stable address for reaching a group of pods. `ClusterIP` is internal only, `NodePort` opens a port on every node and `LoadBalancer` requests a LAN IP (MetalLB provides it). |
+| **Snapshot** | Picture of the state of a disk or an instance at a given moment, which you can go back to if something goes wrong. It doesn't replace a backup on another machine. |
+| **[StorageClass](https://kubernetes.io/docs/concepts/storage/storage-classes/)** | "Kind" of disk a PVC can request. Here there are `openebs-hostpath` (local, default) and `longhorn-mixto` (replicated). |
+| **sudo** | Command to run something as administrator (root) on Linux. |
+| **Sync** / **Synced** / **OutOfSync** / **Healthy** | Argo CD states. Syncing is applying what Git says to the cluster; Synced means they already match, OutOfSync that there are pending differences and Healthy that the resources also work fine. |
+| **[systemd](https://systemd.io/)** / **timer** | systemd starts and watches Linux services (such as `k3s` or `incus`). A timer is its way of scheduling periodic tasks, similar to cron. |
+| **Token** | Secret key (a long string) that identifies a program or person to a service instead of a username and password. It is usually sent in the HTTP header `Authorization: Bearer …`. |
+| **[Traefik](https://doc.traefik.io/traefik/)** | Ingress proxy that K3s installs by default. Here it is disabled and kept as an alternative to Kong. |
+| **[vCluster](https://www.vcluster.com/docs)** | "Virtual" Kubernetes cluster that runs inside a namespace of another cluster: each team gets its own without new machines (Phase 5). |
+| **[VictoriaMetrics](https://docs.victoriametrics.com/)** / **vmagent** / **vmalert** | VictoriaMetrics is the homelab's metrics database, compatible with Prometheus. vmagent collects the metrics (scrape) and vmalert evaluates the alert rules and passes them to Alertmanager. |
+| **Volume** | Disk space mounted into a pod to keep data that must survive a restart. A PVC requests it and a StorageClass provides it. |
+| **Webhook** | URL that a system sends an automatic message to when something happens. Here alerts reach Discord through webhooks. |

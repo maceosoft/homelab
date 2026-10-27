@@ -70,7 +70,7 @@ Sync **auto** = synced by `homelab-root` (if uncommented in `root-appset.yaml`);
 | **`argocd-route`** | [Gateway API](https://gateway-api.sigs.k8s.io/) | `HTTPRoute`: UI at [`https://argocd.homelab.local`](https://argocd.homelab.local). |
 | **`argocd/config/`** (`argocd`) | [Dex](https://dexidp.io/docs/) | GitHub connector + staticClients for vCluster and Incus UI. |
 | **`victoria-metrics`** *(optional)* | [VictoriaMetrics](https://docs.victoriametrics.com/helm/victoria-metrics-k8s-stack/) | Monitoring: metrics, Alertmanager (alerts to Discord) and Grafana at [`https://grafana.homelab.local`](https://grafana.homelab.local). Requires `playbook-platform-secrets.yml` Secrets before enabling ([4.13](../implementacion/fase-4-gitops.md#413-monitoring-and-alerts-optional)). |
-| [`argocd/config/notifications/`](https://github.com/maceosoft/gitops/tree/main/argocd/config/notifications) | Argo CD Notifications | Services, triggers and templates for Discord notifications ([4.14](../implementacion/fase-4-gitops.md#414-notificaciones-de-argocd-a-discord-opcional)); `test.sh` tests them without sending. |
+| [`argocd/config/notifications/`](https://github.com/maceosoft/gitops/tree/main/argocd/config/notifications) | Argo CD Notifications | Services, triggers and templates for Discord notifications ([4.14](../implementacion/fase-4-gitops.md#414-argocd-notifications-to-discord-optional)); `test.sh` tests them without sending. |
 | [`argocd/secrets/`](https://github.com/maceosoft/gitops/tree/main/argocd/secrets) | [1Password SDK](https://github.com/1Password/onepassword-sdk-python) | OAuth from local app |
 
 **What it looks like.** The Argo CD UI at [`https://argocd.homelab.local`](https://argocd.homelab.local) prompts for GitHub login (Dex):

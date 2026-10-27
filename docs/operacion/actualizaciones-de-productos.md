@@ -92,50 +92,58 @@ Sin permisos de organización. Todos los demás quedan en *No access*. Son los q
 [la documentación de Renovate](https://docs.renovatebot.com/modules/platform/github/) pide para una App, sin los
 opcionales (*Dependabot alerts*, *Merge queues*, *Members*), que aquí no se usan.
 
-Después de *Create GitHub App*:
+Después de *Create GitHub App* (crear la App, generar su llave e instalarla se hace **solo desde la web**):
 
 1. En la página de la App, abajo en *Private keys* → **Generate a private key**. Se descarga un archivo `.pem`.
 2. Menú izquierdo → **Install App** → *Install* junto a `maceosoft` → **Only select repositories** → elige **`gitops`**
    → *Install*. Instálala **solo en `gitops`**.
 3. Guarda la App en 1Password (bóveda `HomeLab`, Nota segura `maceosoft-renovate`, como en
-   [Plataforma maceosoft — GitHub](../maceosoft/github.md#como-crear-un-item-con-campos-propios)):
+   [Plataforma maceosoft — GitHub](../maceosoft/github.md#como-crear-un-item-con-campos-propios)).
+   No hace falta el *Installation ID*: el workflow lo resuelve solo.
 
-    | Campo en 1Password | Tipo | Dato |
-    |---|---|---|
-    | `app_id` | Texto | **App ID**, en la pestaña *General* de la App |
-    | `private_key` | Contraseña | El contenido completo del `.pem`, con las líneas `BEGIN` y `END` |
+    === "🖱️ Desde la interfaz"
 
-    No hace falta el *Installation ID*: el workflow lo resuelve solo.
+        | Campo en 1Password | Tipo | Dato |
+        |---|---|---|
+        | `app_id` | Texto | **App ID**, en la pestaña *General* de la App |
+        | `private_key` | Contraseña | El contenido completo del `.pem`, con las líneas `BEGIN` y `END` |
 
-4. Crea los **secretos de GitHub Actions** en el repo `gitops`: *Settings → Secrets and variables → Actions → New
-   repository secret*, uno por cada fila:
+    === "⌨️ Desde la consola"
+
+        Con 1Password desbloqueado (si tienes más de una cuenta de 1Password, exporta `OP_ACCOUNT` antes; `gh` necesita
+        `gh auth refresh -s admin:read:org` una vez). El `.pem` se lee del archivo:
+
+        ```bash
+        APP=maceosoft-renovate
+        APP_ID=$(gh api orgs/maceosoft/installations --jq ".installations[] | select(.app_slug==\"$APP\") | .app_id")
+        op item create --category "Secure Note" --vault HomeLab --title "$APP" \
+          "app_id[text]=$APP_ID" "private_key[password]=$(cat ~/Downloads/$APP.*.private-key.pem)"
+        ```
+
+4. Crea los **secretos de GitHub Actions** en el repo `gitops`, uno por cada fila:
 
     | Secret | Valor |
     |---|---|
     | `RENOVATE_APP_ID` | El `app_id` |
     | `RENOVATE_APP_PRIVATE_KEY` | El contenido completo del `.pem` (varias líneas: GitHub lo acepta tal cual) |
 
-5. **Borra el `.pem`** de Descargas.
+    === "🖱️ Desde la interfaz"
 
-??? tip "Con la CLI (`gh` y `op`)"
-    **Crear la App, generar su llave e instalarla se hace solo desde la web.** Lo demás se hace con comandos (1Password
-    desbloqueado; si tienes más de una cuenta de 1Password, exporta `OP_ACCOUNT` antes; `gh` necesita
-    `gh auth refresh -s admin:read:org` una vez):
+        *Settings → Secrets and variables → Actions → New repository secret*, uno por cada fila de la tabla.
 
-    ```bash
-    APP=maceosoft-renovate
-    APP_ID=$(gh api orgs/maceosoft/installations --jq ".installations[] | select(.app_slug==\"$APP\") | .app_id")
-    # guardar la App en 1Password (el .pem se lee del archivo)
-    op item create --category "Secure Note" --vault HomeLab --title "$APP" \
-      "app_id[text]=$APP_ID" "private_key[password]=$(cat ~/Downloads/$APP.*.private-key.pem)"
-    # secretos de Actions de gitops, leídos del item por tubería
-    op read "op://HomeLab/$APP/app_id" | gh secret set RENOVATE_APP_ID --repo maceosoft/gitops
-    op read "op://HomeLab/$APP/private_key" | gh secret set RENOVATE_APP_PRIVATE_KEY --repo maceosoft/gitops
-    gh secret list --repo maceosoft/gitops
-    shred -u ~/Downloads/$APP.*.private-key.pem
-    ```
+    === "⌨️ Desde la consola"
 
-    En macOS usa `rm -P` en lugar de `shred -u`.
+        Leídos del item de 1Password por tubería:
+
+        ```bash
+        APP=maceosoft-renovate
+        op read "op://HomeLab/$APP/app_id" | gh secret set RENOVATE_APP_ID --repo maceosoft/gitops
+        op read "op://HomeLab/$APP/private_key" | gh secret set RENOVATE_APP_PRIVATE_KEY --repo maceosoft/gitops
+        gh secret list --repo maceosoft/gitops
+        ```
+
+5. **Borra el `.pem`** de Descargas. Con la consola: `shred -u ~/Downloads/maceosoft-renovate.*.private-key.pem`
+   (en macOS usa `rm -P` en lugar de `shred -u`).
 
 Esto no pasa por `playbook-platform-secrets.yml`: no es un Secret del clúster, lo lee GitHub Actions. Para rotar la
 llave: genera otra en la App, actualiza `private_key` en 1Password y el secreto `RENOVATE_APP_PRIVATE_KEY`, y borra la
@@ -165,24 +173,47 @@ tener el permiso **Manage Webhooks**).
 2. Ábrelo y cambia el **Name** a `GitHub gitops` y comprueba que **Channel** es `actualizaciones`.
 3. Pulsa **Copy Webhook URL** y **Save Changes**.
 
-La URL es `https://discord.com/api/webhooks/<id numérico>/<token>`. **Guárdala en 1Password** (Nota segura
-`discord-webhooks`, campo `updates`, tipo Contraseña; si el item ya existe por el monitoreo, solo añade el campo). Es
-un secreto: no la pegues en Git, en el chat ni en un ticket.
+La URL es `https://discord.com/api/webhooks/<id numérico>/<token>`. **Guárdala en 1Password**:
+
+=== "🖱️ Desde la interfaz"
+
+    Nota segura
+    `discord-webhooks`, campo `updates`, tipo Contraseña; si el item ya existe por el monitoreo, solo añade el campo.
+
+=== "⌨️ Desde la consola"
+
+    La URL se lee sin eco, así que no queda en el historial. Si el item ya existe por el monitoreo, `op item edit`
+    le añade el campo:
+
+    ```bash
+    # pega la URL del webhook y Enter
+    read -rs DC_UPD; op item edit discord-webhooks --vault HomeLab "updates[password]=$DC_UPD"; unset DC_UPD
+    ```
+
+    Si el item todavía no existe, créalo con el campo:
+    `op item create --category "Secure Note" --vault HomeLab --title discord-webhooks "updates[password]=$DC_UPD"`
+    (antes del `unset`).
+
+Es un secreto: no la pegues en Git, en el chat ni en un ticket.
 
 ### 3. Guardarlo como secreto de Actions
 
 El workflow lee la URL de un secreto del repo, así que no aparece en Git ni en el log:
 
-1. En GitHub, repo **`maceosoft/gitops`** → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**.
-2. **Name:** `DISCORD_WEBHOOK_UPDATES`. **Secret:** la URL del webhook, tal cual la copiaste (**sin** `/github` al final).
-3. **Add secret**.
+=== "🖱️ Desde la interfaz"
 
-Con la CLI de GitHub, leyendo la URL sin eco:
+    1. En GitHub, repo **`maceosoft/gitops`** → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**.
+    2. **Name:** `DISCORD_WEBHOOK_UPDATES`. **Secret:** la URL del webhook, tal cual la copiaste (**sin** `/github` al final).
+    3. **Add secret**.
 
-```bash
-# pega la URL del webhook y Enter
-read -rs DC_UPD; printf '%s' "$DC_UPD" | gh secret set DISCORD_WEBHOOK_UPDATES --repo maceosoft/gitops; unset DC_UPD
-```
+=== "⌨️ Desde la consola"
+
+    Con la CLI de GitHub, leyendo la URL sin eco:
+
+    ```bash
+    # pega la URL del webhook y Enter
+    read -rs DC_UPD; printf '%s' "$DC_UPD" | gh secret set DISCORD_WEBHOOK_UPDATES --repo maceosoft/gitops; unset DC_UPD
+    ```
 
 Sin este secreto el workflow funciona igual, pero no avisa en Discord (el paso lo dice en su log y sigue).
 
@@ -210,12 +241,41 @@ Sin este secreto el workflow funciona igual, pero no avisa en Discord (el paso l
 2. **Mira el pipeline.** Debe estar en verde, y en el resumen del job `argocd-diff` revisa qué recursos cambian
    ([Pipeline de gitops](pipeline-gitops.md)).
 3. **Decide cuándo.** Una actualización de storage o de red no se hace con carga encima ni un viernes por la tarde.
-4. **Mergea** (si es borrador, pulsa antes **Ready for review**). Argo CD sincroniza; las Applications de Calico no, esas
+4. **Mergea**. Argo CD sincroniza; las Applications de Calico no, esas
    se sincronizan a mano.
+
+    === "🖱️ Desde la interfaz"
+
+        Si es borrador, pulsa antes **Ready for review**; después, el botón de merge del PR.
+
+    === "⌨️ Desde la consola"
+
+        Con el número del PR (`gh pr list --repo maceosoft/gitops --search "head:renovate/"` los lista):
+
+        ```bash
+        # solo si es borrador
+        gh pr ready <número> --repo maceosoft/gitops
+        gh pr merge <número> --repo maceosoft/gitops --squash
+        ```
+
 5. **Verifica** en Argo CD que la Application quede `Synced` y `Healthy`, y que las alertas del monitoreo no se
    disparen. Para revertir, revierte el PR.
+
+    === "🖱️ Desde la interfaz"
+
+        En la UI de Argo CD, la tarjeta de la Application muestra los dos estados.
+
+    === "⌨️ Desde la consola"
+
+        ```bash
+        kubectl -n argocd get applications
+        ```
+
+        Las columnas `SYNC STATUS` y `HEALTH STATUS` deben decir `Synced` y `Healthy`.
+
 6. **Si no la quieres:** cierra el PR sin mergear. Renovate no vuelve a abrir esa versión (sí la siguiente). Si lo
-   cierras por error, márcalo en el *Dependency Dashboard*.
+   cierras por error, márcalo en el *Dependency Dashboard*. Con la consola:
+   `gh pr close <número> --repo maceosoft/gitops`.
 
 !!! tip "Rangos"
     Muchas Applications fijan un rango (`0.95.x`). Un PR de Renovate lo reescribe al rango nuevo (`0.96.x`) solo cuando
@@ -223,9 +283,24 @@ Sin este secreto el workflow funciona igual, pero no avisa en Discord (el paso l
 
 ## Probar sin crear PRs
 
-*Actions → renovate → Run workflow*, con **Simulación (dry run)** marcado: Renovate recorre todo y solo escribe en el
-log lo que haría. Con la CLI de GitHub: `gh workflow run renovate.yml --repo maceosoft/gitops --ref main` (mira
-`gh workflow view renovate.yml --repo maceosoft/gitops` para ver sus inputs) y `gh run watch --repo maceosoft/gitops`. Con `debug` en el nivel de log se ve cada dependencia detectada.
+Una simulación (*dry run*): Renovate recorre todo y solo escribe en el log lo que haría.
+
+=== "🖱️ Desde la interfaz"
+
+    *Actions → renovate → Run workflow*, con **Simulación (dry run)** marcado.
+
+=== "⌨️ Desde la consola"
+
+    Con la CLI de GitHub (`gh workflow view renovate.yml --repo maceosoft/gitops` muestra sus inputs):
+
+    ```bash
+    gh workflow run renovate.yml --repo maceosoft/gitops --ref main -f dry_run=true
+    gh run watch --repo maceosoft/gitops
+    ```
+
+    Para el nivel de log, agrega `-f log_level=debug`.
+
+Con `debug` en el nivel de log se ve cada dependencia detectada.
 
 Si el workflow falla en el paso *Token de la GitHub App*, falta o está mal alguno de los dos secretos, o la App no está
 instalada en `gitops`.

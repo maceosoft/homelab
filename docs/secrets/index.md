@@ -244,4 +244,43 @@ cuenta de 1Password, exporta `OP_ACCOUNT` antes.
 - **1Password + ESO (External Secrets Operator) en clúster** — requiere plan Business; usamos **SDK (Software Development Kit) Python local** (DesktopAuth) desde la estación.
 - **RustyVault** — proyecto joven, sin ARM64 (arquitectura ARM de 64 bits) confirmado.
 
+**Esta decisión en otros entornos**
+
+=== "🏠 En casa"
+
+    Los secretos viven en 1Password y llegan al clúster con un playbook; lo que va a Git va cifrado con Sealed Secrets
+    o SOPS + age, nunca en claro. No hay que mantener un servidor de secretos, y para una sola persona basta.
+
+=== "🏢 En la empresa"
+
+    - **Beneficios:** el mismo patrón (un gestor central, nada en claro en Git, un secreto por cliente) da un solo lugar
+      donde ver quién tiene qué, y revocar o rotar una credencial sin tocar el código.
+    - **Gestor central con auditoría:** se usa [HashiCorp Vault](https://developer.hashicorp.com/vault),
+      [1Password Business](https://1password.com/business-security) o
+      [CyberArk](https://www.paloaltonetworks.com/idira/machine/secrets-management) (hoy parte de Palo Alto Networks),
+      con registro de cada lectura y permisos por equipo.
+    - **Sincronización automática:** en vez de correr un playbook desde una estación, el clúster lee los secretos con
+      [External Secrets Operator](https://external-secrets.io/) y los mantiene al día solo.
+    - **Rotación y auditoría:** las credenciales caducan y se rotan por política, y el cumplimiento (SOC 2, ISO 27001)
+      pide demostrar quién leyó qué y cuándo.
+    - **Cuándo sí conviene lo del HomeLab:** en equipos chicos o sitios aislados, Sealed Secrets o SOPS + age
+      funcionan sin un servidor más que mantener disponible.
+
+=== "☁️ En la nube"
+
+    | Nube | Servicio equivalente |
+    |---|---|
+    | GCP | [Secret Manager](https://cloud.google.com/security/products/secret-manager) |
+    | AWS | [AWS Secrets Manager](https://aws.amazon.com/secrets-manager/) |
+    | Azure | [Azure Key Vault](https://azure.microsoft.com/en-us/products/key-vault) |
+    | Oracle Cloud (OCI) | [OCI Vault](https://www.oracle.com/security/cloud-security/key-management/) |
+
+    Además, el KMS de cada nube puede cifrar los Secrets dentro de etcd:
+    [GKE](https://cloud.google.com/kubernetes-engine/docs/how-to/encrypting-secrets),
+    [EKS](https://docs.aws.amazon.com/eks/latest/userguide/envelope-encryption.html),
+    [AKS](https://learn.microsoft.com/en-us/azure/aks/use-kms-etcd-encryption) y
+    [OKE](https://docs.oracle.com/en-us/iaas/Content/ContEng/Tasks/contengencryptingdata.htm).
+    Ganas un servicio administrado, con rotación, auditoría y permisos de IAM incluidos. Pierdes portabilidad: cada
+    nube tiene su propia API, y pagas por secreto y por lectura.
+
 Stack completo: **[Stack tecnológico](../implementacion/stack-tecnologico.md)**.

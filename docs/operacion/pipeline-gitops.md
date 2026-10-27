@@ -40,11 +40,16 @@ exista, el job se salta con un aviso y los demás jobs corren igual.
     argocd account generate-token --account ci
     ```
 
-2. En 1Password, bóveda `HomeLab`, crea el item **`argocd-ci`** (Nota segura)
-   con un campo **`token`** (Contraseña) y pega el token
-   ([cómo crear un item](../maceosoft/github.md#como-crear-un-item-con-campos-propios)).
+2. Guarda el token en 1Password, bóveda `HomeLab`, item **`argocd-ci`**:
 
-    ??? tip "Con la CLI de 1Password (`op`)"
+    === "🖱️ Desde la interfaz"
+
+        En 1Password, bóveda `HomeLab`, crea el item **`argocd-ci`** (Nota segura)
+        con un campo **`token`** (Contraseña) y pega el token
+        ([cómo crear un item](../maceosoft/github.md#como-crear-un-item-con-campos-propios)).
+
+    === "⌨️ Desde la consola"
+
         Un solo comando genera el token y lo guarda, sin que se vea en pantalla (necesitas el login de `argocd` del paso 1
         y 1Password desbloqueado; si tienes más de una cuenta de 1Password, exporta `OP_ACCOUNT` antes):
 
@@ -54,6 +59,7 @@ exista, el job se salta con un aviso y los demás jobs corren igual.
         ```
 
         Para rotarlo: `op item edit argocd-ci "token[password]=$(argocd account generate-token --account ci)"`.
+
 3. Llévalo al clúster (crea el Secret `arc-runners/argocd-ci`), desde
    `ansible/` en `homelab`:
 
@@ -72,10 +78,15 @@ campo y re-corre el playbook.
 ## Exigir el pipeline antes de mergear (opcional)
 
 `gitops` no lo gestiona OpenTofu, así que la protección de `main` se configura
-a mano: *gitops → Settings → Branches → main → Require status checks* y elige
-los checks `validate / render`, `validate / schemas` y `validate / security`.
+a mano:
 
-??? tip "Con la CLI de GitHub (`gh`)"
+=== "🖱️ Desde la interfaz"
+
+    *gitops → Settings → Branches → main → Require status checks* y elige
+    los checks `validate / render`, `validate / schemas` y `validate / security`.
+
+=== "⌨️ Desde la consola"
+
     Con `gh auth login` hecho como owner de la org:
 
     ```bash

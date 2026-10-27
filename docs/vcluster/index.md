@@ -72,7 +72,18 @@ ansible-playbook -i inventory.ini playbook-dex-oauth-secrets.yml \
 kubectl apply -f gitops/argocd/apps/vcluster-platform.yaml
 ```
 
-Argo CD UI → `vcluster-platform` → **Sync**.
+=== "🖱️ Desde la interfaz"
+
+    Argo CD UI → `vcluster-platform` → **Sync**.
+
+=== "⌨️ Desde la consola"
+
+    Con la CLI de Argo CD:
+
+    ```bash
+    argocd login argocd.homelab.local --grpc-web
+    argocd app sync vcluster-platform
+    ```
 
 ### 3. Validar SSO GitHub
 

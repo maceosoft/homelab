@@ -8,6 +8,44 @@ ve a [4.13 — Monitoreo y alertas](../implementacion/fase-4-gitops.md#413-monit
     llega un mensaje a Discord: **🔴 críticas** en `alertas-criticas` (te llegan al móvil) y **🟡 avisos** en `alertas-avisos`.
     Cuando se resuelve, llega un **✅**.
 
+**Esta decisión en otros entornos**
+
+=== "🏠 En casa"
+
+    VictoriaMetrics guarda las métricas, vmagent las recoge, vmalert evalúa las reglas, Alertmanager avisa a Discord y
+    Grafana las muestra. Es **liviano a propósito**: lee cada 60 segundos y cabe en la poca memoria de tres nodos.
+
+=== "🏢 En la empresa"
+
+    - **Beneficios:** te enteras de un problema **antes que el usuario** y puedes medir si cumples lo prometido con
+      [SLO](https://sre.google/sre-book/service-level-objectives/) (objetivos de nivel de servicio), en vez de
+      discutir con sensaciones.
+    - **Guardias (*on-call*):** las alertas no van a un canal de chat, sino a una herramienta que llama o escribe a
+      quien está de turno y escala si nadie responde, como [PagerDuty](https://www.pagerduty.com/),
+      [Grafana Cloud IRM](https://grafana.com/products/cloud/irm/) o
+      [Jira Service Management](https://www.atlassian.com/software/jira/service-management) (Atlassian está
+      migrando ahí a los clientes de Opsgenie).
+    - **Retención y escala:** se guardan meses o años de métricas para comparar y planificar capacidad, con alta
+      disponibilidad del propio monitoreo.
+    - **Soporte comercial:** es común pagar [Grafana Cloud](https://grafana.com/products/cloud/) o
+      [Grafana Enterprise](https://grafana.com/products/grafana-enterprise/), o una plataforma completa como
+      [Datadog](https://www.datadoghq.com/), a cambio de no operar el monitoreo tú mismo.
+    - **Cuándo lo del HomeLab sí conviene:** cuando quieres los datos en tu infraestructura, un costo predecible o
+      monitorear sitios con poca conexión; el mismo stack open source escala bastante antes de necesitar otra cosa.
+
+=== "☁️ En la nube"
+
+    | Nube | Servicio equivalente |
+    |---|---|
+    | GCP | [Google Cloud Managed Service for Prometheus](https://docs.cloud.google.com/stackdriver/docs/managed-prometheus) |
+    | AWS | [Amazon Managed Service for Prometheus](https://aws.amazon.com/prometheus/) + [Amazon Managed Grafana](https://aws.amazon.com/grafana/) |
+    | Azure | [Azure Monitor managed service for Prometheus](https://learn.microsoft.com/en-us/azure/azure-monitor/metrics/prometheus-metrics-overview) + [Azure Managed Grafana](https://learn.microsoft.com/en-us/azure/managed-grafana/overview) |
+    | Oracle Cloud (OCI) | [OCI Monitoring](https://docs.oracle.com/en-us/iaas/Content/Monitoring/home.htm) |
+
+    Ganas almacenamiento y consultas administrados, con alta disponibilidad, escala y SLA, sin cuidar la base de
+    métricas. Pierdes control sobre la configuración, pagas por métrica guardada y consultada, y quedas más atado a
+    ese proveedor.
+
 ## Estado general: qué mirar primero
 
 Si solo vas a mirar un dashboard, que sea **HomeLab / Estado general**: resume en una pantalla si el HomeLab está bien. Está pensado para
@@ -165,13 +203,33 @@ Esto es un **registro de lo que pasó**, no algo que atender: no hace falta resp
 
 Para que una alerta deje de avisar un rato (por ejemplo durante un mantenimiento), crea un silencio en Alertmanager:
 
-```bash
-kubectl -n monitoring port-forward svc/vmalertmanager-vm-victoria-metrics-k8s-stack 9093:9093
-```
+=== "🖱️ Desde la interfaz"
 
-Abre [`http://localhost:9093`](http://localhost:9093), pulsa **Silences → New Silence**, escribe `alertname` y el nombre de la
-alerta (más `nodename` si es de un solo nodo) y elige la duración. Si el Service no se llama así, busca su nombre con
-`kubectl -n monitoring get svc | grep alertmanager`. Un silencio nunca debe quedar sin fecha de fin.
+    ```bash
+    kubectl -n monitoring port-forward svc/vmalertmanager-vm-victoria-metrics-k8s-stack 9093:9093
+    ```
+
+    Abre [`http://localhost:9093`](http://localhost:9093), pulsa **Silences → New Silence**, escribe `alertname` y el nombre de la
+    alerta (más `nodename` si es de un solo nodo) y elige la duración. Si el Service no se llama así, busca su nombre con
+    `kubectl -n monitoring get svc | grep alertmanager`.
+
+=== "⌨️ Desde la consola"
+
+    La imagen de Alertmanager trae [`amtool`](https://github.com/prometheus/alertmanager#amtool), así que puedes crear el
+    silencio desde dentro del pod, sin port-forward. Cambia el nombre de la alerta, el nodo y la duración:
+
+    ```bash
+    kubectl -n monitoring exec statefulset/vmalertmanager-vm-victoria-metrics-k8s-stack -c alertmanager -- \
+      amtool silence add alertname=TemperaturaAlta nodename=oliver \
+      --duration=2h --author=devops --comment="mantenimiento" \
+      --alertmanager.url=http://localhost:9093
+    ```
+
+    Quita `nodename=…` si la alerta no es de un solo nodo. Con `amtool silence query` (mismos flags de conexión) ves los
+    silencios activos y con `amtool silence expire <id>` terminas uno antes de tiempo. Si el StatefulSet no se llama así,
+    búscalo con `kubectl -n monitoring get statefulset | grep alertmanager`.
+
+Un silencio nunca debe quedar sin fecha de fin.
 
 ## Si dejan de llegar alertas
 

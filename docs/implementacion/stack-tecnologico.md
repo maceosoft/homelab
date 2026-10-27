@@ -84,7 +84,7 @@ flowchart TB
 
 - **[Incus](https://linuxcontainers.org/incus/docs/main/)** — Clúster LXC (contenedores de sistema de Linux)/VM con quórum; Fase 2; sustrato para CAPN e instancias.
 - **[Incus UI](https://linuxcontainers.org/incus/docs/main/howto/server_expose/#web-ui)** — Administración web del clúster Incus; Fase 2 (cert) + Fase 4 (OIDC —OpenID Connect— con Dex).
-- **[Zabbly Incus stable](https://github.com/zabbly/incus-stable)** — Repo de paquetes; Fase 2.
+- **[Zabbly Incus stable](https://github.com/zabbly/incus)** — Repo de paquetes; Fase 2.
 
 ## Capa 2 — Kubernetes management
 
@@ -152,8 +152,7 @@ flowchart TB
 ## Capa 6 — IA local, logs y seguridad
 
 - **[Ollama](https://ollama.com/)** — Modelos de lenguaje (LLM, *Large Language Model*) en CPU (unidad central de procesamiento), bajo demanda en
-  `deborah`, `invincible` y `oliver`, y en un Mac opcional que se enciende a mano (`ollama-node on|off`, socket de
-  `launchd`). [Guía](../operacion/ia-ollama.md) · [agregar un nodo](../operacion/agregar-nodo-ollama.md).
+  `deborah`, `invincible` y `oliver`, y en los equipos que se sumen como nodos. [Guía](../operacion/ia-ollama.md) · [agregar un nodo](../operacion/agregar-nodo-ollama.md).
 - **Router de Ollama** (`ollama-router`, propio) — Única entrada (`ollama.homelab.local`): registro automático de
   nodos, elección por modelo, token por cliente y métricas por modelo y nodo.
 - **[Open WebUI](https://docs.openwebui.com/)** — Chat con el asistente, con login por Dex; **[Open Terminal](https://docs.openwebui.com/features/open-terminal)**
@@ -164,3 +163,50 @@ flowchart TB
 - **[nftables](https://wiki.nftables.org/)** — Firewall de host en cada nodo (rol `host_firewall`), con reversión automática.
 - **NetworkPolicy** `default-deny` por namespace y **`oauth2-proxy`** — preparados y **por activar** por etapas
   ([Modelo de autenticación](../security/modelo-de-autenticacion.md)).
+
+## Cada capa en la empresa y en la nube
+
+El mismo stack, visto con cada lente. El detalle de cada fila (trade-offs, beneficios y enlaces oficiales) está en el
+bloque «Esta decisión en otros entornos» de la página enlazada.
+
+=== "🏠 En casa"
+
+    Todo corre en tres equipos con software libre: el stack de las capas de arriba. Sin licencias y con control total;
+    a cambio, la operación, las actualizaciones y los respaldos son tuyos.
+
+=== "🏢 En la empresa"
+
+    | Capa | Qué cambia en una empresa | Detalle |
+    |---|---|---|
+    | Virtualización | Plataforma con soporte (vSphere, Proxmox VE, Nutanix, OpenStack) | [Fase 2](fase-2-incus.md) |
+    | Kubernetes | 3 control planes con etcd y una distribución con soporte (RKE2, OpenShift) | [Fase 3](fase-3-k3s.md) |
+    | GitOps | Argo CD con soporte comercial; cada cambio auditado en Git | [Fase 4](fase-4-gitops.md) |
+    | Red y entrada | Balanceadores dedicados o MetalLB en BGP; gateway con soporte | [Red](../networking/index.md) |
+    | Almacenamiento | SAN/NAS o almacenamiento con soporte y respaldos fuera del clúster | [Storage](../storage/index.md) |
+    | Secretos | Bóveda central con rotación y auditoría (Vault, 1Password Business) | [Secretos](../secrets/index.md) |
+    | Identidad | IdP corporativo con MFA (Entra ID, Okta, Google Workspace) | [Autenticación](../security/modelo-de-autenticacion.md) |
+    | Monitoreo | Guardias, escalamiento y retención larga | [Monitoreo](../operacion/monitoreo.md) |
+    | Logs | Retención por cumplimiento y SIEM | [Logs](../operacion/logs.md) |
+    | IA | Inferencia local con GPU cuando los datos no pueden salir | [IA local](../operacion/ia-ollama.md) |
+    | Multi-tenancy | Un clúster virtual por equipo o cliente | [Fase 5](fase-5-vcluster.md) |
+    | Flota de clústeres | Cluster API o la consola de flota del proveedor | [Fase 6](fase-6-capn.md) |
+    | Respaldos | Regla 3-2-1 con RPO/RTO probados | [Backups](../operacion/backups-incus.md) |
+
+=== "☁️ En la nube"
+
+    | Capa | GCP | AWS | Azure | Oracle Cloud (OCI) |
+    |---|---|---|---|---|
+    | Virtualización | Compute Engine | EC2 | Azure Virtual Machines | OCI Compute |
+    | Kubernetes | GKE | EKS | AKS | OKE |
+    | Red y entrada | Cloud Load Balancing y GKE Gateway | ELB y AWS Load Balancer Controller | Application Gateway for Containers | OCI Load Balancer y Native Ingress (solo Ingress) |
+    | GitOps | Config Sync | EKS Capability for Argo CD | Extensiones GitOps (Flux y Argo CD) | Argo CD instalado en OKE |
+    | Almacenamiento | Persistent Disk, Hyperdisk y Filestore | EBS y EFS | Azure Disk y Azure Files | Block Volume y File Storage |
+    | Secretos | Secret Manager | Secrets Manager | Key Vault | OCI Vault |
+    | Identidad | Workforce Identity Federation | IAM Identity Center | Microsoft Entra ID | IAM Identity Domains |
+    | Métricas | Managed Service for Prometheus | Managed Prometheus y Managed Grafana | Azure Monitor y Managed Grafana | OCI Monitoring |
+    | Logs | Cloud Logging | CloudWatch Logs | Azure Monitor Logs | OCI Logging |
+    | IA | Gemini Enterprise Agent Platform | Bedrock | Microsoft Foundry | OCI Generative AI |
+    | Respaldos | Backup and DR y Backup for GKE | AWS Backup | Azure Backup | Block Volume Backups |
+
+    En general ganas operación administrada, SLA y escala; pierdes control, pagas por uso y quedas más atado a cada
+    proveedor.

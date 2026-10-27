@@ -14,9 +14,9 @@ Clúster K3s (distribución ligera de Kubernetes) híbrido sobre los 3 nodos del
 
 | Nodo | IP | Rol K3s |
 |---|---|---|
-| deborah | 192.168.20.5 | server (control plane; pasa a worker tras [mover el control plane](../operacion/mover-control-plane.md)) |
+| deborah | 192.168.20.5 | server (control plane) |
 | invincible | 192.168.20.6 | agent (worker) |
-| oliver | 192.168.20.7 | agent (worker; futuro control plane) |
+| oliver | 192.168.20.7 | agent (worker) |
 
 Verificación desde un nodo con acceso al API (Application Programming Interface) server:
 

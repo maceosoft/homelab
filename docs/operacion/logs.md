@@ -31,6 +31,42 @@ flowchart LR
     nodo. Por eso lo importante es que Vector lo exporte a VictoriaLogs mientras el nodo está encendido; lo que
     llegó a VictoriaLogs se conserva los 30 días de retención aunque `deborah` se reinicie.
 
+**Esta decisión en otros entornos**
+
+=== "🏠 En casa"
+
+    Vector junta los logs, VictoriaLogs los guarda 30 días y Grafana los muestra; encima, un reporte diario y otro
+    semanal con IA te resumen lo que pasó. Gasta poco y basta para investigar un fallo de las últimas semanas.
+
+=== "🏢 En la empresa"
+
+    - **Beneficios:** con los logs de todo en un solo lugar investigas un incidente en minutos, sin entrar servidor
+      por servidor, y tienes la evidencia de **quién hizo qué y cuándo** que piden las auditorías.
+    - **Retención por cumplimiento:** normas y contratos pueden exigir guardar ciertos logs meses o años, sin que
+      nadie los pueda borrar ni cambiar. Se suele separar lo caliente (consultable) de lo archivado (barato).
+    - **SIEM:** los logs de seguridad van a un SIEM (sistema que correlaciona eventos para detectar ataques), como
+      [Splunk Enterprise Security](https://www.splunk.com/en_us/products/enterprise-security.html),
+      [Elastic Security](https://www.elastic.co/security) o
+      [Microsoft Sentinel](https://learn.microsoft.com/en-us/azure/sentinel/overview), vigilado por un equipo de
+      seguridad.
+    - **Acceso y privacidad:** quién puede leer qué logs se controla con la identidad corporativa, y los datos
+      personales se enmascaran antes de guardarlos.
+    - **Cuándo lo del HomeLab sí conviene:** cuando el volumen de logs hace caro un servicio que cobra por GB, o los
+      datos no pueden salir de tu infraestructura.
+
+=== "☁️ En la nube"
+
+    | Nube | Servicio equivalente |
+    |---|---|
+    | GCP | [Cloud Logging](https://cloud.google.com/logging) |
+    | AWS | [Amazon CloudWatch Logs](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/WhatIsCloudWatchLogs.html) |
+    | Azure | [Azure Monitor Logs (Log Analytics)](https://learn.microsoft.com/en-us/azure/azure-monitor/logs/data-platform-logs) |
+    | Oracle Cloud (OCI) | [OCI Logging](https://docs.oracle.com/en-us/iaas/Content/Logging/home.htm) |
+
+    Ganas recolección integrada con los servicios de esa nube, retención configurable y escala sin cuidar discos.
+    Pierdes control sobre el formato y las consultas, pagas por GB ingerido y guardado, y quedas más atado a ese
+    proveedor.
+
 ## Qué se recoge
 
 | Fuente | Contenido | Etiquetas principales |
@@ -122,8 +158,22 @@ que en [Discord y healthchecks.io](../maceosoft/discord-healthchecks.md):
 
 1. En la categoría privada `🖥️ Infraestructura`, crea el canal de texto **`ia`**.
 2. *Server Settings → Integrations → Webhooks → New Webhook*; ponle el nombre `Reportes IA` y elige el canal `ia`.
-3. **Copy Webhook URL** y pégala en el item `discord-webhooks` de 1Password, en un campo nuevo llamado **`ai`**
-   (junto a `critical` y `warnings`).
+3. **Copy Webhook URL** y guárdala en 1Password:
+
+    === "🖱️ Desde la interfaz"
+
+        Pégala en el item `discord-webhooks` de 1Password, en un campo nuevo llamado **`ai`**
+        (junto a `critical` y `warnings`).
+
+    === "⌨️ Desde la consola"
+
+        La URL se lee sin eco, así que no queda en el historial (si no existe, `op item edit` crea el campo):
+
+        ```bash
+        # pega la URL del webhook y Enter
+        read -rs DC_AI; op item edit discord-webhooks --vault HomeLab "ai[password]=$DC_AI"; unset DC_AI
+        ```
+
 4. Valida y aplica:
 
     ```bash

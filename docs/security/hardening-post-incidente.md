@@ -109,9 +109,8 @@ ansible-playbook -i inventory.ini playbook-hardening.yml --limit deborah
 
 ## Orden de reconstrucción de `deborah`
 
-`deborah` es hoy el control plane K3s (`k3s_api_ip` en
-`group_vars/all.yml`; se muda a `oliver` con
-[Mover el control plane](../operacion/mover-control-plane.md)) — hay que rearmarla en orden antes
+`deborah` es el control plane K3s (`k3s_api_ip` en
+`group_vars/all.yml`) — hay que rearmarla en orden antes
 de que vuelva a ser útil. El orden completo, paso a paso con los comandos
 exactos, vive en un solo lugar para no duplicarlo (y que no se desactualice
 en dos partes distintas):
@@ -159,6 +158,8 @@ ansible-playbook -i inventory.ini playbook-rotate-root-passwords.yml \
 - Si el router lo soporta, este es también el momento de evaluar VLANs (redes locales virtuales)
   (ver [Siguiente nivel de endurecimiento](#siguiente-nivel-de-endurecimiento)) en vez de una LAN plana única.
 
+Estos cambios se hacen **solo desde la interfaz web del router**; los menús dependen del modelo.
+
 ## Siguiente nivel de endurecimiento
 
 - **Segmentación con VLANs** — separar la VLAN (red local virtual) del clúster HomeLab de
@@ -172,7 +173,7 @@ ansible-playbook -i inventory.ini playbook-rotate-root-passwords.yml \
   [guía oficial de K3s](https://docs.k3s.io/security/hardening-guide) y
   [`kube-bench`](https://github.com/aquasecurity/kube-bench).
 - **Cifrado de secrets en reposo** en K3s (`--secrets-encryption`): ya está en `k3s_install`; el server lo toma al
-  [mover el control plane](../operacion/mover-control-plane.md).
+  reinstalarse (o al [mover el control plane](../operacion/mover-control-plane.md), si algún día se hace).
 - **NetworkPolicies** `default-deny` entre namespaces (`ai`, `monitoring`, `longhorn-system`,
   `kong`, `gateway`, `arc-*`): los manifiestos están listos pero se activan por etapas,
   namespace por namespace. Ver [Qué está activo](modelo-de-autenticacion.md#que-esta-activo-y-que-esta-por-activar).

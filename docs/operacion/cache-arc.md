@@ -54,6 +54,21 @@ cache, pip, npm) no se puede verificar así.
     externos**. Si no necesitas que `homelab` sea público, hacerlo privado elimina el
     riesgo.
 
+    === "🖱️ Desde la interfaz"
+
+        En la org `maceosoft`: *Settings → Actions → General → Fork pull request workflows*, opción de aprobación
+        para **todos los colaboradores externos**.
+
+    === "⌨️ Desde la consola"
+
+        Con `gh` como owner de la org (el permiso `admin:org` se pide una vez con `gh auth refresh -s admin:org`):
+
+        ```bash
+        gh api -X PUT orgs/maceosoft/actions/permissions/fork-pr-contributor-approval \
+          -f approval_policy=all_external_contributors
+        gh api orgs/maceosoft/actions/permissions/fork-pr-contributor-approval
+        ```
+
 ## Verificar que funciona
 
 1. El volumen está enlazado y los runners lo montan:

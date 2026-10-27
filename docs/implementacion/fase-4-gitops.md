@@ -47,6 +47,43 @@ Ansible bootstrap vs GitOps continuo.
 
     ¿Dudas? Usa el botón **Aprende con IA** junto a cada título, o la página [Aprende](../aprende.md).
 
+**Esta decisión en otros entornos**
+
+=== "🏠 En casa"
+
+    Un solo [Argo CD](https://argo-cd.readthedocs.io/) dentro del propio clúster sincroniza todo desde el repo
+    `gitops`, a partir de un ApplicationSet, y los secretos viven en 1Password. Es gratis, lo administras tú y te
+    enseña GitOps tal como se usa en producción.
+
+=== "🏢 En la empresa"
+
+    - **Beneficios:** cada cambio pasa por un PR revisado y queda auditado en Git (quién, qué y cuándo); volver atrás
+      es un `git revert`; las personas ya no necesitan `kubectl` con permisos de escritura en producción, y el
+      *drift* (cambios a mano) se detecta y se corrige solo.
+    - **Varios clústeres y entornos:** una instancia central (o una por entorno) con ApplicationSets por clúster, y la
+      promoción de dev a prod también por PR.
+    - **Identidad corporativa:** SSO con el proveedor de la empresa (Entra ID, Okta…) y RBAC por equipo y proyecto,
+      en vez de un solo team de GitHub. Los secretos salen de un gestor corporativo en lugar de un playbook.
+    - **Soporte comercial:** [Akuity](https://akuity.io/) (Argo CD administrado, de los creadores del proyecto),
+      [Codefresh](https://octopus.com/codefresh) (hoy parte de Octopus Deploy) o
+      [Red Hat OpenShift GitOps](https://www.redhat.com/en/technologies/cloud-computing/openshift/gitops).
+    - **Cuándo sí conviene lo mismo:** con pocos clústeres, en sitios desconectados o en el edge (Argo CD *jala* de
+      Git, así que no hay que abrir puertos de entrada al clúster) y donde no quieres depender de un SaaS.
+
+=== "☁️ En la nube"
+
+    | Nube | Servicio equivalente |
+    |---|---|
+    | GCP | [Config Sync](https://docs.cloud.google.com/kubernetes-engine/config-sync/docs/overview) (GitOps administrado de GKE) |
+    | AWS | [EKS Capability for Argo CD](https://docs.aws.amazon.com/eks/latest/userguide/argocd.html) (Argo CD administrado por AWS) |
+    | Azure | Extensiones GitOps de AKS y Azure Arc: [Flux](https://learn.microsoft.com/en-us/azure/azure-arc/kubernetes/conceptual-gitops-flux2) y [Argo CD](https://learn.microsoft.com/en-us/azure/azure-arc/kubernetes/conceptual-gitops-argocd) |
+    | Oracle Cloud (OCI) | Sin servicio GitOps administrado: Oracle documenta [instalar Argo CD en OKE](https://docs.oracle.com/en/solutions/deploy-gitops-argocd-oke/index.html) |
+
+    Argo CD (o [Flux](https://fluxcd.io/)) de código abierto corre igual sobre cualquiera de estas nubes. Con la
+    versión administrada ganas que el proveedor lo instale, lo actualice y lo conecte con su identidad; pierdes
+    control sobre versiones y ajustes, y quedas atado a sus reglas (por ejemplo, la de EKS solo despliega en
+    clústeres EKS).
+
 ## Stack de esta fase
 
 ```mermaid
@@ -586,6 +623,24 @@ El certificado lo firma la CA del HomeLab: para que el navegador confíe,
 importa su certificado raíz (`kubectl -n cert-manager get secret homelab-ca -o jsonpath='{.data.ca\.crt}' | base64 -d > homelab-ca.crt`)
 o usa `curl -k` mientras tanto.
 
+=== "🖱️ Desde la interfaz"
+
+    - **macOS:** abre `homelab-ca.crt` con doble clic (se agrega a *Acceso a Llaveros*), ábrelo en la lista y en
+      **Confiar** elige *Confiar siempre*.
+    - **Firefox** (tiene su propio almacén; si no confía en la CA del sistema): *Ajustes → Privacidad y seguridad →
+      Certificados → Ver certificados → Autoridades → Importar*, y marca que confíe en ella para identificar sitios web.
+
+=== "⌨️ Desde la consola"
+
+    ```bash
+    # macOS (llavero del sistema)
+    sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain homelab-ca.crt
+    # Debian/Ubuntu
+    sudo cp homelab-ca.crt /usr/local/share/ca-certificates/ && sudo update-ca-certificates
+    ```
+
+    Si Firefox sigue sin confiar (en Linux no lee el almacén del sistema), impórtalo desde su interfaz.
+
 ```bash
 curl -kI https://argocd.homelab.local
 curl -kI https://incus.homelab.local:8443
@@ -636,7 +691,17 @@ kubectl get applications -n argocd | grep -E 'arc|terraform'
 kubectl get pods -n arc-systems
 ```
 
-El runner aparece en *maceosoft → Settings → Actions → Runners* (con la CLI: `gh api orgs/maceosoft/actions/runners --jq '.runners[] | [.name, .status] | @tsv'`).
+Comprueba que el runner aparece en GitHub:
+
+=== "🖱️ Desde la interfaz"
+
+    El runner aparece en *maceosoft → Settings → Actions → Runners*.
+
+=== "⌨️ Desde la consola"
+
+    ```bash
+    gh api orgs/maceosoft/actions/runners --jq '.runners[] | [.name, .status] | @tsv'
+    ```
 
 **Primer pipeline.** En `maceosoft/infra`, lanza *Actions → tofu → Run
 workflow* sobre `main`, o haz un push a `main`. El workflow reusable
@@ -913,6 +978,21 @@ Haz los pasos 1 a 5 **antes** de activar la app en GitOps (paso 6): Argo CD nece
     30 minutos para `alertname=Watchdog` en la interfaz de Alertmanager (*Silences*): el ping se corta y healthchecks.io avisa
     a los ~15 minutos; al expirar el silencio, se recupera.
 
+    === "🖱️ Desde la interfaz"
+
+        En la interfaz de Alertmanager, *Silences → New Silence*: matcher `alertname=Watchdog` y duración de 30 minutos.
+
+    === "⌨️ Desde la consola"
+
+        Con el mismo `port-forward` al puerto `9093`, por la API v2 de Alertmanager:
+
+        ```bash
+        INICIO=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+        FIN=$(date -u -v+30M +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d '+30 min' +%Y-%m-%dT%H:%M:%SZ)
+        curl -s -XPOST localhost:9093/api/v2/silences -H 'Content-Type: application/json' -d \
+          "{\"matchers\":[{\"name\":\"alertname\",\"value\":\"Watchdog\",\"isRegex\":false}],\"startsAt\":\"$INICIO\",\"endsAt\":\"$FIN\",\"createdBy\":\"yo\",\"comment\":\"prueba del ping\"}"
+        ```
+
 ### Qué vigila
 
 | Alerta | Cuándo | Severidad |
@@ -985,6 +1065,19 @@ El certificado lo emite **cert-manager**, igual que los de los Gateway, así que
 
 3. **Comprueba** en Grafana, *Explore*: `count by (nodename) (incus_procs_total)` debe devolver un valor por cada nodo con instancias. Después abre el
    panel **Incus**.
+
+    === "🖱️ Desde la interfaz"
+
+        En Grafana, *Explore*, corre `count by (nodename) (incus_procs_total)`.
+
+    === "⌨️ Desde la consola"
+
+        La misma consulta directo contra VictoriaMetrics:
+
+        ```bash
+        kubectl -n monitoring port-forward svc/vmsingle-vm-victoria-metrics-k8s-stack 8428:8428 &
+        curl -s http://127.0.0.1:8428/api/v1/query --data-urlencode 'query=count by (nodename) (incus_procs_total)'
+        ```
 
 !!! warning "Que Incus confíe en el certificado, no en la CA"
     No actives `core.trust_ca_certificates` en Incus: haría que cualquier certificado firmado por `homelab-ca` (incluidos los de los Gateway)

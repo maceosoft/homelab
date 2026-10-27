@@ -2,7 +2,10 @@
 
 Procedure to transfer the **control plane** (the K3s server that stores the cluster state and serves the API) from `deborah` to `oliver`, and leave `deborah` as a **worker**. This is done during a **maintenance window**, with one person at the keyboard: the playbook pauses at several **checkpoint points** for you to confirm each stage.
 
-## Why Move It
+!!! note "Not planned"
+    The control plane stays on `deborah`. This procedure is documented in case it ever needs to change nodes.
+
+## Why It Could Be Moved
 
 `deborah` is the machine with the most memory (31 GB), but it also runs Ollama, serves as the LAN (local network) DNS, and has a slow eMMC (onboard flash memory). A loaded model competes with the control plane for memory. `oliver` is a lightweight node (label `workload-tier=light`) with a stable load, and `deborah` is freed up for models and heavy loads.
 

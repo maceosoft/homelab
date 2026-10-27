@@ -2,45 +2,45 @@
 
 ## Objective
 
-3-node **Incus** cluster with quorum, cluster groups by architecture, and
+**Incus** cluster of 3 nodes with quorum, cluster groups by architecture, and
 `oliver` in manual scheduler.
 
-## What You Learn
+## What you learn
 
-Incus as a **shared hypervisor**: quorum dqlite in 3 members, cluster
-groups to direct loads x86 vs ARM64 (64-bit ARM architecture), and manual scheduler to protect RAM.
+Incus as a **shared hypervisor**: dqlite quorum across 3 members, cluster
+groups to steer x86 vs ARM64 (64-bit ARM architecture) workloads, and manual scheduler to protect RAM.
 
 !!! abstract "Learn this phase"
-    **In simple terms:** Incus is a building of apartments. Each apartment is an **instance**:
-    a container (a light room that shares the building's facilities) or a virtual machine
-    (a complete apartment, with its own kitchen). With three coordinated buildings, if one closes the other two keep working.
+    **In short:** Incus is an apartment building. Each apartment is an **instance**:
+    a container (a lightweight room sharing the building's utilities) or a virtual machine
+    (a full apartment with its own kitchen). With three coordinated buildings, if one closes the other two keep running.
 
     **Key concepts**
 
     - **Container and virtual machine:** the container is lighter; the VM (Virtual Machine) isolates more.
-    - **Cluster and quorum:** with 3 members, the cluster decides by majority and tolerates the failure of one.
-    - **Cluster group:** a label to direct loads to a type of node (e.g., only ARM64).
-    - **x86_64 and ARM64:** two different processor architectures; do not mix in the same instance.
-    - **Manual scheduler:** the node `oliver` does not receive instances automatically; protects its memory.
+    - **Cluster and quorum:** with 3 members, the cluster decides by majority and tolerates the loss of one.
+    - **Cluster group:** a label to direct workloads to a node type (for example, ARM64 only).
+    - **x86_64 and ARM64:** two distinct processor architectures; they don't mix in the same instance.
+    - **Manual scheduler:** the `oliver` node does not receive instances automatically; protects its memory.
 
-    **Practical challenge (read-only):** look at the cluster members and their instances.
+    **Practical challenge (read-only):** view cluster members and their instances.
 
     ```bash
     incus cluster list
     incus list -c ns4
     ```
 
-    ??? question "Why a cluster of three members and not two?"
-        With two, if one fails there is no majority and the cluster locks up. With three, the majority is two and
-        it can continue functioning.
+    ??? question "Why a three-member cluster and not two?"
+        With two, if one falls there is no majority and the cluster blocks. With three, the majority is two and
+        it can keep running.
 
     ??? question "When do you prefer a container and when a VM?"
-        Container for light and fast Linux loads; VM when you need another kernel or more isolation.
+        Container for light, fast Linux workloads; VM when you need another kernel or more isolation.
 
     ??? question "What are cluster groups for?"
-        To decide on which nodes an instance runs, for example keeping ARM64 loads on `deborah`.
+        To decide on which nodes an instance runs, for example keeping ARM64 workloads on `deborah`.
 
-    Questions? Use the **Learn with AI** button next to each title, or the page [Learn](../aprende.md).
+    Questions? Use the **Learn with AI** button next to each heading, or the [Learn](../aprende.md) page.
 
 ## Stack for this phase
 
@@ -57,26 +57,62 @@ flowchart TB
 ```
 
 - **[Incus](https://linuxcontainers.org/incus/docs/main/)** — LXC virtualization (Linux system containers)/VM; Phase 2.
-- **[Zabbly Incus stable](https://github.com/zabbly/incus-stable)** — Debian packages; Phase 2.
+- **[Zabbly Incus stable](https://github.com/zabbly/incus)** — Debian packages; Phase 2.
 - **[Ansible](https://docs.ansible.com/)** — Installs package, bootstrap, join, groups, UI (user interface).
 - Roles: [`incus_install`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/incus_install/README.md),
   [`incus_cluster`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/incus_cluster/README.md),
   [`incus_ui`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/incus_ui/README.md)
 
-Further reading: [Incus Cluster](../incus/cluster-setup.md)
+Deep dive: [Incus Cluster](../incus/cluster-setup.md)
 
-## Before You Start
+**This decision in other environments**
 
-- [ ] [Phase 1 — Network](fase-1-red.md) completed (fixed IPs in `br0`).
-- [ ] `br0` operational on the 3 nodes.
-- [ ] ≥ **20 GB free** on each node (see storage requirements).
+=== "🏠 At home"
 
-## Storage Requirements
+    An Incus cluster with 3 members (dqlite quorum) on hardware you already had, free and with containers and VMs
+    in the same tool. If a member falls, the other two keep deciding; `oliver` only votes and receives no workloads.
 
-Default HomeLab: driver **`dir`** (directory in the OS filesystem, no dedicated disk).
-Variables in [`group_vars/incus_cluster/vars.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/group_vars/incus_cluster/vars.yml).
+=== "🏢 In a company"
 
-| Aspect | Value / Requirement |
+    - **Benefits:** a virtualization cluster pools several servers into a single resource: move VMs between nodes
+      for maintenance without cutting service, restart workloads on another node if one fails, and manage everything
+      from a single API or console, with permissions and audit trail of who did what.
+    - **Commercial products:** the most common is [VMware vSphere](https://www.vmware.com/products/cloud-infrastructure/vsphere)
+      (now Broadcom, with licensing changes driving many companies to seek alternatives),
+      [Nutanix AHV](https://www.nutanix.com/products/ahv) or
+      [Proxmox VE](https://www.proxmox.com/en/products/proxmox-virtual-environment/overview) with support subscription.
+      For large private clouds, [OpenStack](https://www.openstack.org/).
+    - **Shared storage:** instead of the local `dir` driver, shared or distributed storage
+      (Ceph, SAN) is used, so a VM can move or start on another node without copying its disk.
+    - **Incus support:** Incus also has commercial support ([Zabbly](https://zabbly.com/),
+      [FuturFusion](https://futurfusion.io/)); the real cost is in the people who know how to operate it.
+    - **When Incus makes sense:** escaping expensive VMware licenses, edge or branch sites with few servers,
+      and labs or CI that need to create and destroy many instances quickly.
+
+=== "☁️ In the cloud"
+
+    | Cloud | Equivalent service |
+    |---|---|
+    | GCP | [Compute Engine](https://cloud.google.com/products/compute) |
+    | AWS | [Amazon EC2](https://aws.amazon.com/ec2/) |
+    | Azure | [Azure Virtual Machines](https://azure.microsoft.com/en-us/products/virtual-machines) |
+    | Oracle Cloud (OCI) | [OCI Compute](https://www.oracle.com/cloud/compute/) |
+
+    You get VMs instantly, without buying or maintaining hardware, with SLA and in many regions. You lose control over the
+    hypervisor, pay for every hour the VM is running, and are locked into that provider's network and images.
+
+## Before you start
+
+- [X] [Phase 1 — Network](fase-1-red.md) completed (static IPs in `br0`).
+- [X] `br0` operational on all 3 nodes.
+- [X] ≥ **20 GB free** on each node (see storage requirements).
+
+## Storage requirements
+
+Default HomeLab: driver **`dir`** (directory on the OS filesystem, no
+dedicated disk). Variables in [`group_vars/incus_cluster/vars.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/group_vars/incus_cluster/vars.yml).
+
+| Aspect | Value / requirement |
 |---|---|
 | Driver | `dir` — no dedicated partition or loop |
 | Pool per node | `local` (each member has its local pool) |
@@ -85,26 +121,26 @@ Variables in [`group_vars/incus_cluster/vars.yml`](https://github.com/maceosoft/
 | Minimum free space | **20 GB** per node; **50 GB+** if you will create VMs or many instances |
 | Metadata | dqlite and daemon config share disk with the pool |
 
-### Per Node
+### Per node
 
 | Node | Disk | Implication |
 |---|---|---|
-| `invincible` | Kingston 224 GB SSD | Leader + UI; the largest pool of the x86 nodes |
-| `oliver` | TECLAST 120 GB SSD | Quorum; local pool required even if it does not receive instances; avoid filling the disk with CAPN images |
-| `deborah` | eMMC 233 GB (250 GB NVMe not detected today) | If eMMC is tight: `incus_storage_path: /srv/incus/storage-pools/local` in host_vars |
+| `invincible` | Kingston 224 GB SSD | Leader + UI; largest pool of the x86 nodes |
+| `oliver` | TECLAST 120 GB SSD | Quorum; local pool mandatory even if it receives no instances; avoid filling disk with CAPN images |
+| `deborah` | eMMC 233 GB (NVMe 250 GB not detected today) | If eMMC tight: `incus_storage_path: /srv/incus/storage-pools/local` in host_vars |
 
 ### Limitations of `dir`
 
-- No copy-on-write at pool level (instance snapshots and export tarball are fine).
+- No pool-level copy-on-write (instance snapshots and export tarball do work).
 - VMs (virtual machines) slower than with `zfs`/`btrfs`/`lvm`.
 - No thin provisioning or native compression.
-- Each member maintains its own pool `local`; no distributed storage like Ceph.
+- Each member maintains its own `local` pool; no distributed storage like Ceph.
 
-Further reading: [Incus Cluster — Storage](../incus/cluster-setup.md#storage)
+Deep dive: [Incus Cluster — Storage](../incus/cluster-setup.md#storage)
 
 ## Run
 
-### Step 1 — Install Incus package on the 3 nodes
+### Step 1 — Install Incus package on all 3 nodes
 
 === "Recommended (Ansible)"
 
@@ -113,7 +149,7 @@ Further reading: [Incus Cluster — Storage](../incus/cluster-setup.md#storage)
     ansible-playbook -i inventory.ini playbook-bootstrap.yml
     ```
 
-=== "Alternative manual"
+=== "Manual alternative"
 
     On each node:
 
@@ -125,7 +161,7 @@ Further reading: [Incus Cluster — Storage](../incus/cluster-setup.md#storage)
 
 === "Recommended (Ansible)"
 
-    Single playbook: bootstrap on **invincible**, join on **oliver** and **deborah**,
+    A single playbook: bootstrap on **invincible**, join on **oliver** and **deborah**,
     cluster groups, manual scheduler, and UI.
 
     ```bash
@@ -135,7 +171,7 @@ Further reading: [Incus Cluster — Storage](../incus/cluster-setup.md#storage)
 
     Optional tags: `--tags bootstrap`, `--tags join`, `--tags groups`, `--tags ui`.
 
-=== "Alternative manual"
+=== "Manual alternative"
 
     On **invincible** (bootstrap):
 
@@ -151,7 +187,7 @@ Further reading: [Incus Cluster — Storage](../incus/cluster-setup.md#storage)
     incus cluster add deborah
     ```
 
-    On **oliver** and **deborah**: `incus admin init` → join with the token.
+    On **oliver** and **deborah**: `incus admin init` → join with token.
 
     Cluster groups and scheduler:
 
@@ -171,14 +207,14 @@ Further reading: [Incus Cluster — Storage](../incus/cluster-setup.md#storage)
     sudo incus config set core.https_address=:8443
     ```
 
-## Network Profile (instances on LAN)
+## Network profile (instances on LAN)
 
 **Mandatory manual step** — neither the Ansible playbook nor `incus admin init`
-does it alone, in either of the two paths above. Without this, the
-Incus instances remain on the default NAT (Network Address Translation) private network, not on your LAN (local network).
+do this automatically, in neither of the two paths above. Without this, Incus
+instances remain on the default private NAT (Network Address Translation) network, not on your LAN (local network).
 
-On **invincible** (the profiles are shared across the entire cluster, no
-need to repeat them on oliver/deborah):
+On **invincible** (profiles are shared across the whole cluster, no
+need to repeat on oliver/deborah):
 
 ```bash
 incus profile device add default eth0 nic nictype=bridged parent=br0
@@ -198,33 +234,34 @@ Ansible installs `incus-ui-canonical` and `core.https_address` on **invincible**
 (Dex) in [Phase 4](fase-4-gitops.md#incus-ui-oidc).
 
 1. Add `incus.homelab.local` in `/etc/hosts` (full block in
-   [Homelab Summary](resumen-homelab.md#dns-on-your-workstation)).
+   [HomeLab Summary](resumen-homelab.md#dns-en-tu-estacion-de-trabajo)).
 2. Open [`https://incus.homelab.local:8443`](https://incus.homelab.local:8443)
 3. Accept the self-signed certificate
 4. Generate/import a **client certificate**
 
 !!! note "OIDC with Dex"
-    The SSO login (GitHub via Dex) is configured in
+    SSO login (GitHub via Dex) is configured in
     **[Phase 4 — Incus UI OIDC (OpenID Connect)](fase-4-gitops.md#incus-ui-oidc)**.
-    Only the team `devops` of `maceosoft` (Dex filter) can log in, and with the default
-    Incus configuration, those OIDC users have full access.
+    Only the `devops` team from `maceosoft` enters (Dex filter) and, with Incus default
+    configuration, those OIDC users have full access.
 
-Further reading: [Incus Cluster — UI](../incus/cluster-setup.md#admin-ui)
+Deep dive: [Incus Cluster — UI](../incus/cluster-setup.md#ui-de-administracion)
 
 ## Backup and snapshots (optional)
 
-Not configured during bootstrap. Procedure is in [Incus Backups](../operacion/backups-incus.md); alternatives in [Backup and snapshots](../incus/cluster-setup.md#backup-and-snapshots-optional).
+Not configured in bootstrap. The procedure is in [Incus Backups](../operacion/backups-incus.md); the
+alternatives, in [Backup and snapshots](../incus/cluster-setup.md#backup-and-snapshots-optional).
 
 ## Options
 
-| Decision | Default Homelab | Alternative |
+| Decision | Default HomeLab | Alternative |
 |---|---|---|
 | Storage backend | `dir` (Ansible) | `btrfs`, `zfs`, `lvm` via `incus_storage_driver` in host_vars |
 | oliver | `scheduler.instance manual` | — |
 | Pool on deborah | Default path on eMMC | `incus_storage_path` on NVMe (`/srv/incus/...`) |
 
-!!! warning "Changing driver in existing cluster"
-    A cluster that has already been initialized **cannot** be reinitialized with a preseed without manual migration.
+!!! warning "Change driver in existing cluster"
+    An already initialized cluster **cannot** be re-initialized with a preseed without manual migration.
     Choose the driver before the first `playbook-incus-cluster.yml`.
 
 <div class="card">
@@ -232,18 +269,18 @@ Not configured during bootstrap. Procedure is in [Incus Backups](../operacion/ba
   <div class="option-grid">
     <div class="card-col">
       <div class="card-title">Ansible (<code>playbook-incus-cluster.yml</code>)</div>
-      <div class="text-muted">Idempotent preseed, tokens and UI in one step</div>
-      <div class="text-muted">Requires Ansible and SSH to the 3 nodes</div>
+      <div class="text-muted">Idempotent preseed, tokens, and UI in one step</div>
+      <div class="text-muted">Requires Ansible and SSH to all 3 nodes</div>
     </div>
     <div class="card-col">
       <div class="card-title">Manual (<code>incus admin init</code>)</div>
       <div class="text-muted">No playbook; useful for debugging a node</div>
-      <div class="text-muted">One-time tokens; easy to misalign versions</div>
+      <div class="text-muted">Single-use tokens; easy to drift versions</div>
     </div>
     <div class="card-col">
       <div class="card-title">Storage <code>dir</code></div>
       <div class="text-muted">Zero friction, 20 GB free is enough</div>
-      <div class="text-muted">Slow VMs; no CoW pool</div>
+      <div class="text-muted">Slow VMs; no pool CoW</div>
     </div>
     <div class="card-col">
       <div class="card-title"><code>zfs</code> / <code>btrfs</code></div>
@@ -252,7 +289,7 @@ Not configured during bootstrap. Procedure is in [Incus Backups](../operacion/ba
     </div>
     <div class="card-col">
       <div class="card-title">Pool on eMMC (deborah)</div>
-      <div class="text-muted">No need to mount NVMe</div>
+      <div class="text-muted">No NVMe mount needed</div>
       <div class="text-muted">Risk of filling eMMC with images</div>
     </div>
     <div class="card-col">
@@ -279,13 +316,13 @@ curl -kI https://incus.homelab.local:8443
 
 | Symptom | Check |
 |---|---|
-| Join rejected | One-time token; stable IP in `br0` |
-| Quorum broken | Incus versions aligned on the 3 nodes |
+| Join rejected | Single-use token; stable IP in `br0` |
+| Broken quorum | Incus versions aligned on all 3 nodes |
 | Insufficient space | `df -h`; minimum 20 GB (`incus_storage_min_free_gb`) |
-| Non-idempotent playbook | Node already clustered; check `incus cluster list` |
+| Playbook not idempotent | Node already clustered; check `incus cluster list` |
 
 ## Next
 
 **[→ Phase 3 — K3s](fase-3-k3s.md)**
 
-URLs and `/etc/hosts` globally: [Homelab Summary](resumen-homelab.md) (after Phase 4).
+URLs and global `/etc/hosts`: [HomeLab Summary](resumen-homelab.md) (after Phase 4).

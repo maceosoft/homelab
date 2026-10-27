@@ -64,11 +64,11 @@ curl -kI https://incus.homelab.local:8443
 | Hostname | IP `br0` | Incus | K3s | Notes |
 |---|---|---|---|---|
 | invincible | 192.168.20.6 | Leader + UI | agent | 15.5 GB; Longhorn disk; Ollama node |
-| oliver | 192.168.20.7 | Quorum, manual scheduler | agent (future **server**) | 7.7 GB: RAM adjusted; no automatic instances; Ollama node |
+| oliver | 192.168.20.7 | Quorum, manual scheduler | agent | 7.7 GB: RAM adjusted; no automatic instances; Ollama node |
 | deborah | 192.168.20.5 | arm64-nodes | **server** (CP) | 31 GB RAM; DNS (BIND); Ollama node |
 
-The control plane is currently on `deborah`; the procedure to move it to `oliver` (and leave `deborah` as a worker) is
-in [Moving the Control Plane](../operacion/mover-control-plane.md) and has not yet been executed.
+The control plane is on `deborah`. If it ever needed to move to another node, the procedure is in
+[Moving the Control Plane](../operacion/mover-control-plane.md).
 
 Incus storage: pool `local`, driver `dir`, profile `default` → NIC (network card) `br0`.
 

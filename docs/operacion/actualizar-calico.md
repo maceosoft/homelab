@@ -72,10 +72,35 @@ operador escribe, para que Argo CD y el operador no se pisen.
 
 1. Activa las dos Applications: ya están en `bootstrap/root-appset.yaml`; aplica el ApplicationSet
    (`kubectl apply -f gitops/bootstrap/root-appset.yaml`).
-2. En Argo CD, **Sync** de `calico-operator` (con *Server-Side Apply*, ya activo). El operador se
+2. **Sync** de `calico-operator` (con *Server-Side Apply*, ya activo). El operador se
    actualiza y reinicia los `calico-node` **nodo a nodo** (`maxUnavailable: 1`).
+
+    === "🖱️ Desde la interfaz"
+
+        En Argo CD, **Sync** de `calico-operator`.
+
+    === "⌨️ Desde la consola"
+
+        Con la CLI de Argo CD (la Application ya trae `ServerSideApply=true`, así que no hace falta pasarlo):
+
+        ```bash
+        argocd login argocd.homelab.local --grpc-web
+        argocd app sync calico-operator
+        ```
+
 3. Vigila: `kubectl -n calico-system get pods -w` y `kubectl get tigerastatus`.
 4. Cuando todo esté `Available`, **Sync** de `calico-config`.
+
+    === "🖱️ Desde la interfaz"
+
+        En Argo CD, **Sync** de `calico-config`.
+
+    === "⌨️ Desde la consola"
+
+        ```bash
+        argocd app sync calico-config
+        ```
+
 5. Verifica la etapa 1 (siguiente bloque) y **repite los pasos 2–4 para la etapa 2**, tras cambiar las URLs a `v3.33.0`
    y hacer push.
 

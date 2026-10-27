@@ -85,30 +85,38 @@ El playbook busca cada valor por su ruta `op://HomeLab/<item>/<campo>`, así
 que **el título del item y el nombre de cada campo tienen que ser exactos**
 (minúsculas, con guion bajo).
 
-1. En 1Password abre la bóveda **`HomeLab`** → **Nuevo elemento** → **Nota
-   segura** (*Secure Note*).
-2. En **Título** escribe el nombre del item, por ejemplo `maceosoft-terraform`.
-3. Por cada campo: **+ Añadir más** → elige el tipo (**Texto** o
-   **Contraseña**) → en la etiqueta del campo escribe el nombre exacto
-   (por ejemplo `app_id`) → pega el valor.
-4. Agrega los campos directamente en el item. **No crees una sección** para
-   agruparlos: con sección la ruta cambia y el playbook no los encuentra.
-5. Guarda.
+=== "🖱️ Desde la interfaz"
 
-Usa **Contraseña** para los valores secretos (se ocultan) y **Texto** para
-el resto. Cada tabla de abajo dice qué tipo lleva cada campo.
+    1. En 1Password abre la bóveda **`HomeLab`** → **Nuevo elemento** → **Nota
+       segura** (*Secure Note*).
+    2. En **Título** escribe el nombre del item, por ejemplo `maceosoft-terraform`.
+    3. Por cada campo: **+ Añadir más** → elige el tipo (**Texto** o
+       **Contraseña**) → en la etiqueta del campo escribe el nombre exacto
+       (por ejemplo `app_id`) → pega el valor.
+    4. Agrega los campos directamente en el item. **No crees una sección** para
+       agruparlos: con sección la ruta cambia y el playbook no los encuentra.
+    5. Guarda.
 
-También puedes crear el item con la CLI de 1Password (`op`), con 1Password desbloqueado. Cada campo se escribe como
-`nombre[tipo]=valor`, donde el tipo es `password` (valor secreto) o `text`; `op` crea los campos sueltos, sin sección:
+    Usa **Contraseña** para los valores secretos (se ocultan) y **Texto** para
+    el resto. Cada tabla de abajo dice qué tipo lleva cada campo.
 
-```bash
-op item create --category "Secure Note" --vault HomeLab --title ftp-mi-repo \
-  "dev_host[text]=ftp.ejemplo.com" "dev_user[text]=usuario" "dev_password[password]=<valor>"
-```
+=== "⌨️ Desde la consola"
 
-Si tienes más de una cuenta de 1Password, exporta antes `OP_ACCOUNT` con la tuya. Para un valor aleatorio usa
-`$(openssl rand -hex 32)`. Los items de la IA local (tokens del router, Open Terminal…) ya tienen sus comandos en
-[Gestión de secretos](../secrets/index.md#ia-local-crear-los-tokens-con-op).
+    También puedes crear el item con la CLI de 1Password (`op`), con 1Password desbloqueado. Cada campo se escribe como
+    `nombre[tipo]=valor`, donde el tipo es `password` (valor secreto) o `text`; `op` crea los campos sueltos, sin sección.
+    Los valores secretos no se escriben en el comando: se pegan sin eco con `read -rs`:
+
+    ```bash
+    # pega la contraseña y Enter (no se ve)
+    read -rs FTP_DEV_PASS
+    op item create --category "Secure Note" --vault HomeLab --title ftp-mi-repo \
+      "dev_host[text]=ftp.ejemplo.com" "dev_user[text]=usuario" "dev_password[password]=$FTP_DEV_PASS"
+    unset FTP_DEV_PASS
+    ```
+
+    Si tienes más de una cuenta de 1Password, exporta antes `OP_ACCOUNT` con la tuya. Para un valor aleatorio usa
+    `$(openssl rand -hex 32)`. Los items de la IA local (tokens del router, Open Terminal…) ya tienen sus comandos en
+    [Gestión de secretos](../secrets/index.md#ia-local-crear-los-tokens-con-op).
 
 ## Paso 1 — GitHub Apps y OAuth App (manual)
 
@@ -164,14 +172,19 @@ maceosoft-terraform        (Nota segura · bóveda HomeLab)
 └── private_key           ••••••••   (el .pem completo)
 ```
 
-Al pegar el `.pem` en un campo Contraseña se pierden los saltos de línea. No
-importa: el playbook reconstruye la llave. Cuando el item esté guardado,
-**borra el `.pem`** de Descargas.
+**Se hacen solo desde la web:** crear la App, generar su llave privada (*Generate a private key*) y instalarla. GitHub no
+ofrece CLI ni API para eso (la creación de Apps por manifiesto también exige confirmar en el navegador). Guardar los datos
+en 1Password lo puedes hacer de las dos formas:
 
-??? tip "Con la CLI (`gh` y `op`)"
-    **Se hacen solo desde la web:** crear la App, generar su llave privada (*Generate a private key*) y instalarla. GitHub no
-    ofrece CLI ni API para eso (la creación de Apps por manifiesto también exige confirmar en el navegador). Lo que sí se
-    automatiza es leer los dos números y guardar el item.
+=== "🖱️ Desde la interfaz"
+
+    Al pegar el `.pem` en un campo Contraseña se pierden los saltos de línea. No
+    importa: el playbook reconstruye la llave. Cuando el item esté guardado,
+    **borra el `.pem`** de Descargas.
+
+=== "⌨️ Desde la consola"
+
+    Lo que sí se automatiza es leer los dos números y guardar el item.
 
     1. Lista las Apps instaladas en la org y saca `App ID` e `Installation ID` (necesita el permiso de organización:
        `gh auth refresh -s admin:read:org` una sola vez):
@@ -252,12 +265,30 @@ maceosoft-arc-runners      (Nota segura · bóveda HomeLab)
 └── private_key           ••••••••   (el .pem completo)
 ```
 
-Los tres valores son **distintos** de los de `maceosoft-terraform`: cada App
-tiene su App ID, su llave y su instalación. No copies los de la otra. Cuando
-el item esté guardado, **borra el `.pem`** de Descargas.
+Crear la App, su llave e instalarla es **solo desde la web**; guardar el item lo puedes hacer de las dos formas:
 
-Con la CLI: crear la App y su llave es **solo web**; guardar el item es el mismo comando de
-[`maceosoft-terraform`](#maceosoft-terraform) con `APP=maceosoft-arc-runners`.
+=== "🖱️ Desde la interfaz"
+
+    Los tres valores son **distintos** de los de `maceosoft-terraform`: cada App
+    tiene su App ID, su llave y su instalación. No copies los de la otra. Cuando
+    el item esté guardado, **borra el `.pem`** de Descargas.
+
+=== "⌨️ Desde la consola"
+
+    El mismo comando de [`maceosoft-terraform`](#maceosoft-terraform) con `APP=maceosoft-arc-runners`: `gh api` saca los
+    números de esta App, así que no se mezclan con los de la otra.
+
+    ```bash
+    APP=maceosoft-arc-runners
+    read -r APP_ID INST_ID < <(gh api orgs/maceosoft/installations \
+      --jq ".installations[] | select(.app_slug==\"$APP\") | \"\(.app_id) \(.id)\"")
+    op item create --category "Secure Note" --vault HomeLab --title "$APP" \
+      "app_id[text]=$APP_ID" "installation_id[text]=$INST_ID" \
+      "private_key[password]=$(cat ~/Downloads/$APP.*.private-key.pem)"
+    python3 ansible/scripts/apply_platform_secrets.py --check
+    # en macOS: rm -P
+    shred -u ~/Downloads/$APP.*.private-key.pem
+    ```
 
 ### OAuth App `Maceosoft Dex`
 
@@ -289,10 +320,18 @@ maceosoft-dex              (Nota segura · bóveda HomeLab)
 └── VCLUSTER_CLIENT_SECRET ••••••••  (lo genera el playbook)
 ```
 
-??? tip "Con la CLI (`op` y `gh`)"
-    **Crear la OAuth App y generar su client secret se hace solo desde la web**: GitHub no tiene API para OAuth Apps. Una vez
-    que tienes los dos valores, guárdalos sin que se vean en pantalla (si tienes más de una cuenta de 1Password, exporta
-    `OP_ACCOUNT` antes):
+**Crear la OAuth App y generar su client secret se hace solo desde la web**: GitHub no tiene API para OAuth Apps. Guardar
+los dos valores en 1Password lo puedes hacer de las dos formas:
+
+=== "🖱️ Desde la interfaz"
+
+    Crea la Nota segura `maceosoft-dex` y pega cada valor de la tabla en su campo
+    ([cómo crearlo](#como-crear-un-item-con-campos-propios)).
+
+=== "⌨️ Desde la consola"
+
+    Una vez que tienes los dos valores, guárdalos sin que se vean en pantalla (si tienes más de una cuenta de 1Password,
+    exporta `OP_ACCOUNT` antes):
 
     ```bash
     # pega el Client ID y Enter
@@ -304,9 +343,9 @@ maceosoft-dex              (Nota segura · bóveda HomeLab)
     unset GH_CID GH_CSEC
     ```
 
-    Para comprobar que alguien está en el team `devops` (o agregarlo): 
-    `gh api orgs/maceosoft/teams/devops/memberships/<usuario>` (devuelve `"state": "active"`) y, para sumarlo como miembro,
-    `gh api -X PUT orgs/maceosoft/teams/devops/memberships/<usuario> -f role=member`.
+Para comprobar que alguien está en el team `devops` (o agregarlo) desde la consola:
+`gh api orgs/maceosoft/teams/devops/memberships/<usuario>` (devuelve `"state": "active"`) y, para sumarlo como miembro,
+`gh api -X PUT orgs/maceosoft/teams/devops/memberships/<usuario> -f role=member`.
 
 Solo puede entrar el team **`devops`** de `maceosoft`, y sus miembros quedan
 como admin de Argo CD. Se aplica en el
@@ -314,23 +353,30 @@ como admin de Argo CD. Se aplica en el
 
 ## Paso 2 — Repos, App de Argo CD y FTP (manual) {#paso-2-repos-app-de-argocd-y-ftp-manual}
 
-1. **Repos** (privados), creados en `maceosoft` y con su contenido subido con git. Con la CLI de GitHub, desde la carpeta de
-   cada proyecto:
-
-    ```bash
-    gh repo create maceosoft/gitops --private --source . --remote origin --push
-    # igual para core-pipelines e infra
-    gh repo list maceosoft --json name,visibility --jq '.[] | [.name, .visibility] | @tsv'
-    ```
-
-   Detalle de cada repo:
+1. **Repos** (privados), creados en `maceosoft` y con su contenido subido con git:
     - `gitops`.
-    - `core-pipelines`: después, en *Settings → Actions → General → Access*,
-      elige "Accessible from repositories in the 'maceosoft' organization".
+    - `core-pipelines`: después hay que dejarlo accesible para los demás repos de la org (abajo).
       Mientras pruebas, los demás repos lo usan con `@main`; el tag `v1` se
-      crea cuando todo funcione (ver el README de `core-pipelines`). Con la
-      CLI: `gh api -X PUT repos/maceosoft/core-pipelines/actions/permissions/access -f access_level=organization`.
+      crea cuando todo funcione (ver el README de `core-pipelines`).
     - `infra`.
+
+    === "🖱️ Desde la interfaz"
+
+        Crea cada repo en la org con **New repository** (privado) y sube su contenido con git. Después, en
+        `core-pipelines`: *Settings → Actions → General → Access*,
+        elige "Accessible from repositories in the 'maceosoft' organization".
+
+    === "⌨️ Desde la consola"
+
+        Con la CLI de GitHub, desde la carpeta de cada proyecto:
+
+        ```bash
+        gh repo create maceosoft/gitops --private --source . --remote origin --push
+        # igual para core-pipelines e infra
+        gh repo list maceosoft --json name,visibility --jq '.[] | [.name, .visibility] | @tsv'
+        # core-pipelines accesible desde los demás repos de la org
+        gh api -X PUT repos/maceosoft/core-pipelines/actions/permissions/access -f access_level=organization
+        ```
 2. **GitHub App `maceosoft-argocd`**, con la que Argo CD lee el repo privado
    `gitops`. Va después de los repos porque se instala **solo** en `gitops`.
    (Las deploy keys están deshabilitadas en la organización, por eso se usa
@@ -367,24 +413,61 @@ como admin de Argo CD. Se aplica en el
     Instálala **solo en `gitops`**: con esa llave se puede leer el código de
     todos los repos donde esté instalada. Borra el `.pem` al terminar.
 
+    Crear la App, su llave e instalarla es **solo desde la web**; guardar el item lo puedes hacer de las dos formas:
+
+    === "🖱️ Desde la interfaz"
+
+        Crea la Nota segura `maceosoft-argocd` y pega cada dato de la tabla en su campo
+        ([cómo crearlo](#como-crear-un-item-con-campos-propios)).
+
+    === "⌨️ Desde la consola"
+
+        El mismo comando de [`maceosoft-terraform`](#maceosoft-terraform), con `APP=maceosoft-argocd`:
+
+        ```bash
+        APP=maceosoft-argocd
+        read -r APP_ID INST_ID < <(gh api orgs/maceosoft/installations \
+          --jq ".installations[] | select(.app_slug==\"$APP\") | \"\(.app_id) \(.id)\"")
+        op item create --category "Secure Note" --vault HomeLab --title "$APP" \
+          "app_id[text]=$APP_ID" "installation_id[text]=$INST_ID" \
+          "private_key[password]=$(cat ~/Downloads/$APP.*.private-key.pem)"
+        # en macOS: rm -P
+        shred -u ~/Downloads/$APP.*.private-key.pem
+        ```
+
 3. **Credenciales FTP (File Transfer Protocol) del repo `api`**, el primer
    proyecto del mapa con `deploy = true`: título **`ftp-api`**, tipo Nota
    segura. Para cada repo que agregues después, sigue el
    [procedimiento — Agregar un repo](../operacion/agregar-repo.md). Campos, [creado igual que los otros](#como-crear-un-item-con-campos-propios):
 
-    | Campo | Tipo | Ejemplo |
-    |---|---|---|
-    | `dev_host` | Texto | `dev.tu-cpanel.example.com` |
-    | `dev_user` | Texto | `usuario_dev` |
-    | `dev_password` | Contraseña | |
-    | `dev_remote_dir` | Texto | `/home/usuario/dev.maceosoft.example.com` |
-    | `prod_host` | Texto | `tu-cpanel.example.com` |
-    | `prod_user` | Texto | `usuario_prod` |
-    | `prod_password` | Contraseña | |
-    | `prod_remote_dir` | Texto | `/home/usuario/public_html` |
+    === "🖱️ Desde la interfaz"
 
-    Con la CLI de 1Password, el comando completo (contraseñas sin eco) está en
-    [Agregar un repo](../operacion/agregar-repo.md#2-solo-si-despliega-credenciales-ftp-en-1password).
+        | Campo | Tipo | Ejemplo |
+        |---|---|---|
+        | `dev_host` | Texto | `dev.tu-cpanel.example.com` |
+        | `dev_user` | Texto | `usuario_dev` |
+        | `dev_password` | Contraseña | |
+        | `dev_remote_dir` | Texto | `/home/usuario/dev.maceosoft.example.com` |
+        | `prod_host` | Texto | `tu-cpanel.example.com` |
+        | `prod_user` | Texto | `usuario_prod` |
+        | `prod_password` | Contraseña | |
+        | `prod_remote_dir` | Texto | `/home/usuario/public_html` |
+
+    === "⌨️ Desde la consola"
+
+        Cambia los hosts, usuarios y carpetas por los tuyos; las dos contraseñas se pegan sin eco (si tienes más de
+        una cuenta de 1Password, exporta `OP_ACCOUNT` antes):
+
+        ```bash
+        # pega cada contraseña y Enter
+        read -rs FTP_DEV_PASS;  read -rs FTP_PROD_PASS
+        op item create --category "Secure Note" --vault HomeLab --title ftp-api \
+          "dev_host[text]=dev.tu-cpanel.example.com" "dev_user[text]=usuario_dev" \
+          "dev_password[password]=$FTP_DEV_PASS" "dev_remote_dir[text]=/home/usuario/dev.maceosoft.example.com" \
+          "prod_host[text]=tu-cpanel.example.com" "prod_user[text]=usuario_prod" \
+          "prod_password[password]=$FTP_PROD_PASS" "prod_remote_dir[text]=/home/usuario/public_html"
+        unset FTP_DEV_PASS FTP_PROD_PASS
+        ```
 
 4. **Llave de Sealed Secrets** *(opcional: hace falta cuando empieces a
    guardar `SealedSecret` en Git, p. ej. en la Fase 6)*. Sealed Secrets
@@ -405,20 +488,26 @@ como admin de Argo CD. Se aplica en el
     Crea en 1Password el item **`sealed-secrets`** (Nota segura,
     [creado igual que los otros](#como-crear-un-item-con-campos-propios)):
 
-    | Campo | Tipo | Valor |
-    |---|---|---|
-    | `certificate` | Texto | El contenido completo de `tls.crt` (la llave **pública**), con las líneas `-----BEGIN CERTIFICATE-----` y `-----END CERTIFICATE-----` |
-    | `private_key` | Contraseña | El contenido completo de `tls.key` (la llave **privada**), con sus líneas `BEGIN`/`END` |
+    === "🖱️ Desde la interfaz"
 
-    Para copiar un archivo: `pbcopy < tls.crt` (macOS) o ábrelo con un editor
-    y copia todo. Con la CLI de 1Password los archivos se leen directamente (si tienes más de una cuenta de 1Password, exporta
-    `OP_ACCOUNT` antes):
+        | Campo | Tipo | Valor |
+        |---|---|---|
+        | `certificate` | Texto | El contenido completo de `tls.crt` (la llave **pública**), con las líneas `-----BEGIN CERTIFICATE-----` y `-----END CERTIFICATE-----` |
+        | `private_key` | Contraseña | El contenido completo de `tls.key` (la llave **privada**), con sus líneas `BEGIN`/`END` |
 
-    ```bash
-    op item create --category "Secure Note" --vault HomeLab --title sealed-secrets \
-      "certificate[text]=$(cat tls.crt)" "private_key[password]=$(cat tls.key)"
-    python3 ansible/scripts/apply_platform_secrets.py --check
-    ```
+        Para copiar un archivo: `pbcopy < tls.crt` (macOS) o ábrelo con un editor
+        y copia todo.
+
+    === "⌨️ Desde la consola"
+
+        Con la CLI de 1Password los archivos se leen directamente (si tienes más de una cuenta de 1Password, exporta
+        `OP_ACCOUNT` antes):
+
+        ```bash
+        op item create --category "Secure Note" --vault HomeLab --title sealed-secrets \
+          "certificate[text]=$(cat tls.crt)" "private_key[password]=$(cat tls.key)"
+        python3 ansible/scripts/apply_platform_secrets.py --check
+        ```
 
     Cuando el item esté guardado, **borra los archivos**:
 

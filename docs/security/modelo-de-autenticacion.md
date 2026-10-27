@@ -12,6 +12,48 @@ y documentada cuando la autenticación no es posible.**
 - **Lo que no puede autenticar** (protocolos entre nodos, exporters) se limita por red y se lista como
   [excepción](#excepciones-controladas-por-red).
 
+**Esta decisión en otros entornos**
+
+=== "🏠 En casa"
+
+    Las personas entran con SSO a través de Dex usando su cuenta de GitHub (team `devops`), y las máquinas con un
+    token propio más una restricción de red. Es gratis, no hay contraseñas locales que cuidar y alcanza para un
+    equipo de una o dos personas.
+
+=== "🏢 En la empresa"
+
+    - **Beneficios:** un solo inicio de sesión para todo, y al dar de baja a alguien en un lugar pierde el acceso a
+      todos los servicios a la vez; con un token por máquina, revocas un cliente sin tocar el resto.
+    - **IdP corporativo en vez de GitHub:** la identidad sale de
+      [Microsoft Entra ID](https://learn.microsoft.com/en-us/entra/fundamentals/what-is-entra),
+      [Okta](https://www.okta.com/products/workforce-identity/) o
+      [Google Workspace](https://workspace.google.com/), conectados a Recursos Humanos para las altas y bajas. Dex
+      puede seguir en medio como puente OIDC.
+    - **MFA obligatorio** y políticas de acceso condicional (dispositivo administrado, ubicación).
+    - **RBAC por grupos:** los permisos se dan a grupos del IdP, no a personas, y se revisan en auditorías periódicas.
+    - **Máquinas:** en vez de tokens estáticos se prefieren identidades de corta duración que el propio clúster
+      emite, sin secreto que guardar.
+    - **Cuándo sí conviene lo del HomeLab:** en un equipo chico o una comunidad que ya vive en GitHub, Dex + GitHub
+      da SSO sin pagar un IdP.
+
+=== "☁️ En la nube"
+
+    | Nube | Servicio equivalente |
+    |---|---|
+    | GCP | [Workforce Identity Federation](https://cloud.google.com/iam/docs/workforce-identity-federation) |
+    | AWS | [AWS IAM Identity Center](https://aws.amazon.com/iam/identity-center/) |
+    | Azure | [Microsoft Entra ID](https://learn.microsoft.com/en-us/entra/fundamentals/what-is-entra) |
+    | Oracle Cloud (OCI) | [OCI IAM Identity Domains](https://docs.oracle.com/en-us/iaas/Content/Identity/home.htm) |
+
+    Para las máquinas, cada nube da a los pods una identidad sin secretos guardados:
+    [Workload Identity Federation for GKE](https://cloud.google.com/kubernetes-engine/docs/concepts/workload-identity),
+    [EKS Pod Identity](https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html) o
+    [IRSA](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html),
+    [Microsoft Entra Workload ID en AKS](https://learn.microsoft.com/en-us/azure/aks/workload-identity-overview) y
+    [workload identity de OKE](https://docs.oracle.com/en-us/iaas/Content/ContEng/Tasks/contenggrantingworkloadaccesstoresources.htm).
+    Ganas MFA, auditoría y revocación integradas con los permisos de la nube. Pierdes portabilidad: esas identidades
+    solo sirven dentro de ese proveedor.
+
 ## Quién autentica a quién
 
 | Servicio | Quién lo usa | Cómo se autentica |

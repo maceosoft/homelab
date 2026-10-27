@@ -2,7 +2,7 @@
 
 K3s (lightweight Kubernetes distribution) upgrades **itself**: the SUC (System Upgrade Controller) watches the K3s
 `stable` channel and, when a new version comes out, upgrades one node at a time
-(first the control plane, the node with the `node-role.kubernetes.io/control-plane` label: `deborah` today, and `oliver` after the [move](mover-control-plane.md), when `deborah` becomes a worker; then the workers), draining it first
+(first the control plane, the node with the `node-role.kubernetes.io/control-plane` label: `deborah`; then the workers), draining it first
 (*cordon* and *drain*). This procedure is for checking that this works,
 pinning a version when needed and keeping Ansible aligned.
 

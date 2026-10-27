@@ -3,8 +3,7 @@
 ## Objetivo
 
 Management cluster **K3s (distribución ligera de Kubernetes)** en 3 nodos (control plane en deborah, workers en invincible y
-oliver; el control plane se puede mudar a oliver, ver
-[Mover el control plane](../operacion/mover-control-plane.md)), con controller **Argo CD** listo para GitOps.
+oliver), con controller **Argo CD** listo para GitOps.
 
 ## Qué aprendes
 
@@ -78,6 +77,42 @@ flowchart TB
 - **[Ansible](https://docs.ansible.com/)** — `playbook-k3s.yml`.
 
 Profundización: [Opciones del playbook](../k3s/playbook-options.md) · [Catálogo roles Ansible](../ansible/index.md) · [K3s manual (legacy)](../k3s/index.md)
+
+**Esta decisión en otros entornos**
+
+=== "🏠 En casa"
+
+    Un solo control plane en deborah, con el datastore por defecto de K3s (SQLite), y dos workers. Es simple, gasta
+    poca memoria y basta para aprender; si deborah se apaga, los pods siguen corriendo pero no puedes cambiar nada
+    hasta que vuelva. Si más adelante quieres alta disponibilidad, K3s puede pasar a
+    [etcd embebido](https://docs.k3s.io/datastore/ha-embedded).
+
+=== "🏢 En la empresa"
+
+    - **Beneficios:** Kubernetes da una forma única de desplegar, escalar y recuperar las aplicaciones en cualquier
+      servidor; un equipo pequeño opera muchos servicios con los mismos manifiestos, y K3s lo logra con un binario
+      liviano que se instala y actualiza en minutos.
+    - **Alta disponibilidad:** se usan **3 control planes** (número impar para que etcd mantenga quórum), con etcd
+      embebido o [externo](https://docs.k3s.io/datastore), detrás de una IP virtual o un balanceador.
+      SQLite no sirve con varios servers.
+    - **Actualizaciones sin corte:** con varios control planes se actualiza uno a la vez y el API nunca se cae.
+    - **Soporte comercial:** es común pagar una distribución con soporte y parches de seguridad, como
+      [RKE2](https://docs.rke2.io/) dentro de [SUSE Rancher Prime](https://www.suse.com/products/rancher/) o
+      [Red Hat OpenShift](https://www.redhat.com/en/technologies/cloud-computing/openshift).
+    - **Cuándo K3s sí conviene:** en el edge (tiendas, sucursales, fábricas, IoT), donde hay poco hardware, poca
+      gente técnica en sitio o conexión intermitente. Ahí un clúster pequeño y fácil de reponer vale más que uno grande.
+
+=== "☁️ En la nube"
+
+    | Nube | Servicio equivalente |
+    |---|---|
+    | GCP | [Google Kubernetes Engine (GKE)](https://cloud.google.com/kubernetes-engine) |
+    | AWS | [Amazon Elastic Kubernetes Service (EKS)](https://aws.amazon.com/eks/) |
+    | Azure | [Azure Kubernetes Service (AKS)](https://azure.microsoft.com/en-us/products/kubernetes-service) |
+    | Oracle Cloud (OCI) | [OCI Kubernetes Engine (OKE)](https://www.oracle.com/cloud/cloud-native/kubernetes-engine/) |
+
+    Ganas un control plane administrado por el proveedor: alta disponibilidad, parches y SLA sin que tú cuides etcd.
+    Pierdes control sobre ese control plane, pagas por el servicio y quedas más atado a las integraciones de esa nube.
 
 ## Antes de empezar
 

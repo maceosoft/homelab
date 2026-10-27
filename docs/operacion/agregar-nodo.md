@@ -119,7 +119,7 @@ ansible-playbook -i inventory.ini playbook-incus-cluster.yml --limit invincible,
 
 ## 7. Unir el nodo a K3s
 
-Incluye el nodo del control plane (hoy `deborah`; `oliver` tras la [mudanza](mover-control-plane.md)) en el `--limit`: de ahí sale el token
+Incluye el nodo del control plane (`deborah`) en el `--limit`: de ahí sale el token
 con el que el agent se une. Con solo `--limit nolan` falla con *Falta
 k3s_token*.
 
@@ -178,5 +178,5 @@ dig +short nolan.mco.local @192.168.20.5
 | `setup_sudo.yml` no conecta | IP actual en `bootstrap/inventory.ini`; que Debian permita todavía root por SSH con contraseña |
 | Pierdes SSH tras la IP fija | Conéctate por la IP nueva; revisa `bridge_iface` con `ip -br link` en la consola del equipo |
 | El *join* a Incus falla | `--limit` sin `invincible`; espacio libre (≥ 20 GB) en el nodo |
-| K3s: *Falta k3s_token* | `--limit` sin el nodo del control plane (`deborah` hoy, `oliver` tras la mudanza) |
+| K3s: *Falta k3s_token* | `--limit` sin el nodo del control plane (`deborah`) |
 | El nodo entra con otra versión de K3s | `k3s_install.core.version` desactualizada (ver el aviso del paso 7) |

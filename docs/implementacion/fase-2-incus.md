@@ -57,7 +57,7 @@ flowchart TB
 ```
 
 - **[Incus](https://linuxcontainers.org/incus/docs/main/)** — Virtualización LXC (contenedores de sistema de Linux)/VM; Fase 2.
-- **[Zabbly Incus stable](https://github.com/zabbly/incus-stable)** — Paquetes Debian; Fase 2.
+- **[Zabbly Incus stable](https://github.com/zabbly/incus)** — Paquetes Debian; Fase 2.
 - **[Ansible](https://docs.ansible.com/)** — Instala paquete, bootstrap, join, groups, UI (interfaz de usuario).
 - Roles: [`incus_install`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/incus_install/README.md),
   [`incus_cluster`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/incus_cluster/README.md),
@@ -65,11 +65,47 @@ flowchart TB
 
 Profundización: [Clúster Incus](../incus/cluster-setup.md)
 
+**Esta decisión en otros entornos**
+
+=== "🏠 En casa"
+
+    Un clúster de Incus con 3 miembros (quórum con dqlite) sobre equipos que ya tenías, gratis y con contenedores y VMs
+    en la misma herramienta. Si un miembro cae, los otros dos siguen decidiendo; `oliver` solo vota y no recibe cargas.
+
+=== "🏢 En la empresa"
+
+    - **Beneficios:** un clúster de virtualización junta varios servidores en un solo recurso: mueves VMs entre nodos
+      para hacer mantenimiento sin cortar el servicio, reinicias cargas en otro nodo si uno falla y administras todo
+      desde una sola API o consola, con permisos y registro de quién hizo qué.
+    - **Productos comerciales:** lo más común es [VMware vSphere](https://www.vmware.com/products/cloud-infrastructure/vsphere)
+      (hoy de Broadcom, con cambios de licencias que llevan a muchas empresas a buscar alternativas),
+      [Nutanix AHV](https://www.nutanix.com/products/ahv) o
+      [Proxmox VE](https://www.proxmox.com/en/products/proxmox-virtual-environment/overview) con suscripción de soporte.
+      Para nubes privadas grandes, [OpenStack](https://www.openstack.org/).
+    - **Almacenamiento compartido:** en vez del driver `dir` local se usa almacenamiento compartido o distribuido
+      (Ceph, SAN), para que una VM pueda moverse o arrancar en otro nodo sin copiar su disco.
+    - **Soporte de Incus:** Incus también tiene soporte comercial ([Zabbly](https://zabbly.com/),
+      [FuturFusion](https://futurfusion.io/)); el costo real está en el personal que sabe operarlo.
+    - **Cuándo Incus sí conviene:** salir de licencias caras de VMware, sitios edge o sucursales con pocos servidores,
+      y laboratorios o CI que necesitan crear y borrar muchas instancias rápido.
+
+=== "☁️ En la nube"
+
+    | Nube | Servicio equivalente |
+    |---|---|
+    | GCP | [Compute Engine](https://cloud.google.com/products/compute) |
+    | AWS | [Amazon EC2](https://aws.amazon.com/ec2/) |
+    | Azure | [Azure Virtual Machines](https://azure.microsoft.com/en-us/products/virtual-machines) |
+    | Oracle Cloud (OCI) | [OCI Compute](https://www.oracle.com/cloud/compute/) |
+
+    Ganas VMs al instante, sin comprar ni cuidar hardware, con SLA y en muchas regiones. Pierdes control sobre el
+    hipervisor, pagas cada hora que la VM está encendida y quedas atado a la red y las imágenes de ese proveedor.
+
 ## Antes de empezar
 
-- [ ] [Fase 1 — Red](fase-1-red.md) completada (IPs fijas en `br0`).
-- [ ] `br0` operativo en los 3 nodos.
-- [ ] ≥ **20 GB libres** en cada nodo (ver requisitos de almacenamiento).
+- [X] [Fase 1 — Red](fase-1-red.md) completada (IPs fijas en `br0`).
+- [X] `br0` operativo en los 3 nodos.
+- [X] ≥ **20 GB libres** en cada nodo (ver requisitos de almacenamiento).
 
 ## Requisitos de almacenamiento
 

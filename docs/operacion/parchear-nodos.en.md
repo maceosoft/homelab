@@ -28,8 +28,8 @@ sudo apt-get update && apt list --upgradable
 
 ## Recommended order
 
-One node at a time, with `deborah` **last**: it is the LAN DNS server (BIND) and, until the control plane move, also
-the K3s one, so rebooting it cuts the DNS and the cluster API for a few minutes.
+One node at a time, with `deborah` **last**: it is the LAN DNS server (BIND) and also
+the K3s control plane, so rebooting it cuts the DNS and the cluster API for a few minutes.
 
 1. `oliver`
 2. `invincible`

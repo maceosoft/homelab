@@ -112,7 +112,7 @@ ansible-playbook -i inventory.ini playbook-incus-cluster.yml --limit invincible,
 
 ## Join the Node to K3s
 
-Include the control plane node (today `deborah`; `oliver` after the [move](mover-control-plane.md)) in the `--limit`: from there comes the token
+Include the control plane node (`deborah`) in the `--limit`: from there comes the token
 with which the agent joins. With only `--limit nolan` fails with *Missing k3s_token*.
 
 !!! warning "K3s Version"
@@ -169,5 +169,5 @@ dig +short nolan.mco.local @192.168.20.5
 | `setup_sudo.yml` doesn't connect | Current IP in `bootstrap/inventory.ini`; that Debian still allows root login via SSH with password |
 | Lose SSH after fixed IP | Connect with the new IP; check `bridge_iface` with `ip -br link` on the machine console |
 | Join to Incus fails | `--limit` without `invincible`; free space (≥ 20 GB) on the node |
-| K3s: *Missing k3s_token* | `--limit` without the control plane node (`deborah` today, `oliver` after the move) |
+| K3s: *Missing k3s_token* | `--limit` without the control plane node (`deborah`) |
 | The node joins with a different K3s version | `k3s_install.core.version` outdated (see the warning in step 7) |

@@ -51,6 +51,40 @@ flowchart TB
 
 Profundización: [vCluster Platform](../vcluster/index.md)
 
+**Esta decisión en otros entornos**
+
+=== "🏠 En casa"
+
+    vCluster Platform corre dentro del mismo K3s de management: creas clústeres virtuales para probar cosas sin
+    levantar VMs nuevas ni gastar la poca RAM que hay. Es opcional y su Sync es manual.
+
+=== "🏢 En la empresa"
+
+    - **Beneficios:** cada equipo o cliente recibe su propio clúster (su API, sus CRD, sus permisos de admin) sin que
+      la empresa mantenga un clúster real por cada uno; los entornos efímeros de cada PR se crean en segundos y se
+      borran al cerrarlo, y el acceso queda centralizado en el SSO corporativo.
+    - **Aislamiento:** los vClusters comparten nodos y kernel con el clúster anfitrión. Para clientes que no se
+      confían entre sí se suman cuotas, NetworkPolicies y nodos dedicados, o se mantienen clústeres separados.
+    - **Soporte comercial:** vCluster es open source y vCluster Platform tiene un
+      [plan Enterprise](https://www.vcluster.com/pricing) con soporte, SLA y funciones de seguridad y cumplimiento.
+    - **Permisos:** en vez de asignar Cluster Access a mano, se mapean los grupos del IdP corporativo a proyectos
+      y roles, y se revisan en las auditorías de acceso.
+    - **Cuándo conviene lo mismo que el HomeLab:** plataformas internas con muchos equipos pequeños, entornos de
+      prueba por PR y laboratorios de formación, donde un clúster real por equipo costaría demasiado.
+
+=== "☁️ En la nube"
+
+    | Nube | Servicio equivalente |
+    |---|---|
+    | GCP | [GKE](https://cloud.google.com/kubernetes-engine) con [equipos de flota](https://cloud.google.com/kubernetes-engine/fleet-management/docs/team-management) |
+    | AWS | [Amazon EKS](https://aws.amazon.com/eks/) ([aislamiento de inquilinos](https://docs.aws.amazon.com/eks/latest/best-practices/tenant-isolation.html)) |
+    | Azure | [AKS](https://azure.microsoft.com/en-us/products/kubernetes-service) ([aislamiento de clústeres](https://learn.microsoft.com/en-us/azure/aks/operator-best-practices-cluster-isolation)) |
+    | Oracle Cloud (OCI) | [OCI Kubernetes Engine (OKE)](https://www.oracle.com/cloud/cloud-native/kubernetes-engine/) |
+
+    En la nube la opción simple es un clúster administrado por equipo: aislamiento fuerte y SLA, pero pagas cada
+    control plane y multiplicas lo que hay que actualizar. vCluster corre igual sobre cualquiera de ellos y reduce
+    el número de clústeres reales, a cambio de un aislamiento más débil y otra pieza que operar.
+
 ## Antes de empezar
 
 - [ ] [Fase 4 — GitOps](fase-4-gitops.md) completada (Gateway, Dex y los secretos OAuth —Open Authorization— en 1Password).
@@ -62,7 +96,18 @@ Profundización: [vCluster Platform](../vcluster/index.md)
 kubectl apply -f gitops/argocd/apps/vcluster-platform.yaml
 ```
 
-Argo CD UI → Application `vcluster-platform` → **Sync**.
+=== "🖱️ Desde la interfaz"
+
+    Argo CD UI → Application `vcluster-platform` → **Sync**.
+
+=== "⌨️ Desde la consola"
+
+    Con la CLI de Argo CD:
+
+    ```bash
+    argocd login argocd.homelab.local --grpc-web
+    argocd app sync vcluster-platform
+    ```
 
 Secretos OAuth (si no en 4.7): [`argocd/secrets/1password.md`](https://github.com/maceosoft/gitops/blob/main/argocd/secrets/1password.md).
 
