@@ -3,8 +3,32 @@
 <span class="tag tag-status">En construcción activa</span>
 
 Un laboratorio para **aprender y operar infraestructura moderna** con equipos que cualquiera puede tener en casa:
-tres computadores pequeños que se convierten en una «mini nube» con Kubernetes. La documentación explica cada paso,
-por qué se hace y cómo comprobar que funcionó, y **te acompaña con inteligencia artificial (IA) mientras estudias**.
+tres computadores pequeños que se convierten en una «mini nube» con Kubernetes. Lo que aprendes aquí son **los mismos
+patrones que usan las empresas y las nubes grandes** (GitOps, almacenamiento replicado, inicio de sesión único,
+monitoreo, IA privada); lo que cambia es la escala. La documentación explica cada paso, por qué se hace y cómo comprobar
+que funcionó, y **te acompaña con inteligencia artificial (IA) mientras estudias**.
+
+## Elige cómo leer la guía
+
+En las decisiones importantes vas a encontrar tres pestañas. Elige una aquí y la guía la recuerda en todas las páginas:
+
+=== "🏠 En casa"
+
+    La guía tal como está armada: tres equipos, software libre y sin licencias que pagar. Ideal para aprender haciendo
+    y equivocarte sin miedo.
+
+=== "🏢 En la empresa"
+
+    Además de cómo se hace aquí, ves qué gana una empresa con cada patrón y qué cambiaría: alta disponibilidad,
+    soporte comercial, cumplimiento y respaldos.
+
+=== "☁️ En la nube"
+
+    Ves el servicio equivalente en Google Cloud, AWS, Azure y Oracle Cloud, y qué ganas y qué pierdes al usarlo en vez
+    de montarlo tú.
+
+Lo mismo pasa en los pasos que se pueden hacer de dos formas: elige **🖱️ Desde la interfaz** o **⌨️ Desde la consola**
+una vez y la guía te muestra siempre esa.
 
 ## ¿Qué es esto?
 
@@ -18,8 +42,8 @@ por qué se hace y cómo comprobar que funcionó, y **te acompaña con inteligen
     se puede repetir igual las veces que quieras.
 
     El edificio también tiene su propio **asistente de inteligencia artificial**, que vive en la casa y no cuesta nada:
-    varios computadores pueden ejecutar los modelos (incluso un Mac, que se enciende a mano solo cuando lo quieres
-    prestar) y una única «recepción» reparte cada pregunta al que tiene el modelo pedido. Un **archivo central** junta
+    varios computadores ejecutan los modelos, se pueden sumar más cuando quieras, y una única «recepción» reparte
+    cada pregunta al que tiene el modelo pedido. Un **archivo central** junta
     los registros (logs) de todos los pisos, y cada viernes el asistente escribe un resumen de la semana. Para entrar a
     cualquier cosa, las personas se identifican con su cuenta de GitHub y los programas, con una llave propia.
 
@@ -33,9 +57,9 @@ por qué se hace y cómo comprobar que funcionó, y **te acompaña con inteligen
     OpenTofu gestiona los repositorios de GitHub y ARC (Actions Runner Controller) ejecuta los pipelines en el propio clúster. Cluster API (con CAPN, Cluster API Provider for Incus)
     crea clústeres efímeros sobre Incus.
 
-    IA local con Ollama en varios nodos detrás de un router propio (`ollama-router`): los nodos se registran solos
-    (latido cada 60 s) y el router elige el nodo por modelo; el Mac es un nodo opcional activado por socket de `launchd`
-    con `ollama-node on|off`. Open WebUI con Dex y Open Terminal como sandbox de ejecución de código. Logs con
+    IA local con Ollama en varios nodos detrás de un router propio (`ollama-router`): cada nodo se anuncia solo al
+    router y le avisa cada minuto que sigue disponible y qué modelos tiene; el router manda cada pregunta a un nodo que
+    tenga el modelo pedido. Se pueden sumar más equipos como nodos. Open WebUI con Dex y Open Terminal como sandbox de ejecución de código. Logs con
     Vector → VictoriaLogs → Grafana y reportes diario y semanal con IA en Discord (`#ia`). Seguridad: personas → Dex,
     máquinas → token + restricción de red, firewall de host con `nftables`; las NetworkPolicy `default-deny` se activan
     por etapas. La documentación se traduce sola al inglés con el mismo Ollama.
@@ -46,7 +70,7 @@ por qué se hace y cómo comprobar que funcionó, y **te acompaña con inteligen
 |---|---|---|
 | Nodos | Los tres «pisos» del edificio | Lenovo M920q, M700 y Orange Pi 5 Plus (x86_64 y ARM64) |
 | **Incus** | El que divide cada piso en departamentos | Gestiona contenedores y VM en un clúster de tres miembros |
-| **K3s** | El gerente que reparte el trabajo | Kubernetes ligero: control plane hoy en `deborah` (se mudará a `oliver`), workers en los otros dos |
+| **K3s** | El gerente que reparte el trabajo | Kubernetes ligero: control plane en `deborah`, workers en los otros dos |
 | **Calico** | Los pasillos entre departamentos | CNI: da red y direcciones a los pods |
 | **MetalLB** | El número de teléfono fijo del edificio | Asigna IP de la LAN a los Services `LoadBalancer` |
 | **Gateway (Kong)** | La puerta principal con portero | Recibe el tráfico HTTPS y lo envía a cada aplicación |
@@ -99,12 +123,12 @@ audio. Elige tu nivel, pulsa el botón y pega la pregunta en el chat.
 | Nodo | Modelo | CPU | RAM (medida) | IP (`br0`) | Rol |
 |---|---|---|---|---|---|
 | `invincible` | Lenovo M920q | i7-8700T x86_64 | 15.5 GB | 192.168.20.6 | Incus leader · K3s worker · Ollama |
-| `oliver` | Lenovo M700 | i3-6100T x86_64 | 7.7 GB | 192.168.20.7 | Incus quórum · K3s worker (futuro control plane) · Ollama |
-| `deborah` | Orange Pi 5 Plus | RK3588 ARM64 | 31 GB | 192.168.20.5 | K3s control plane (pasará a worker) · Incus ARM64 · DNS · Ollama |
+| `oliver` | Lenovo M700 | i3-6100T x86_64 | 7.7 GB | 192.168.20.7 | Incus quórum · K3s worker · Ollama |
+| `deborah` | Orange Pi 5 Plus | RK3588 ARM64 | 31 GB | 192.168.20.5 | K3s control plane · Incus ARM64 · DNS · Ollama |
 
-Detalle medido y presupuesto RAM: [Inventario de hardware](hardware/inventory.md). El control plane se muda de
-`deborah` a `oliver` con un procedimiento guiado que todavía no se ha ejecutado:
-[Mover el control plane](operacion/mover-control-plane.md). Un Mac puede sumarse como nodo de Ollama opcional
+Detalle medido y presupuesto RAM: [Inventario de hardware](hardware/inventory.md). Si algún día hiciera falta
+cambiar el nodo del control plane, el procedimiento está documentado en
+[Mover el control plane](operacion/mover-control-plane.md). Se pueden sumar más equipos como nodos de Ollama
 ([guía](operacion/agregar-nodo-ollama.md)).
 
 > Hostnames de la serie *Invincible* — ver

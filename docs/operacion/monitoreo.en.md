@@ -146,7 +146,7 @@ Messages include the node name and a summary, **no IP addresses**, because the c
 
 ## What reaches the deployments channel
 
-Besides alerts, ArgoCD writes to your `despliegues` channel every time an app finishes a successful sync ([4.14](../implementacion/fase-4-gitops.md#414-notificaciones-de-argocd-a-discord-opcional)):
+Besides alerts, ArgoCD writes to your `despliegues` channel every time an app finishes a successful sync ([4.14](../implementacion/fase-4-gitops.md#414-argocd-notifications-to-discord-optional)):
 
 - **🚀 `<app>` deployed**: with the revision, status, and images the app uses. If ArgoCD, Longhorn, or another product updated itself, the new version appears in those images (for example `quay.io/argoproj/argocd:v3.5.6`).
 - **🟡 `<app>`: sync failed**: arrives at `alertas-avisos` with the error message. Check `kubectl describe application -n argocd <app>`.

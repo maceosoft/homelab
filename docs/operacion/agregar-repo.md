@@ -27,19 +27,22 @@ Crea el item **`ftp-<repo>`** (por ejemplo `ftp-web-clientes`) en la bóveda
 `HomeLab`, tipo Nota segura, con estos 8 campos
 ([cómo crear un item](../maceosoft/github.md#como-crear-un-item-con-campos-propios)):
 
-| Campo | Tipo | Ejemplo |
-|---|---|---|
-| `dev_host` | Texto | `dev.tu-cpanel.example.com` |
-| `dev_user` | Texto | `usuario_dev` |
-| `dev_password` | Contraseña | |
-| `dev_remote_dir` | Texto | `/home/usuario/dev.maceosoft.example.com` |
-| `prod_host` | Texto | `tu-cpanel.example.com` |
-| `prod_user` | Texto | `usuario_prod` |
-| `prod_password` | Contraseña | |
-| `prod_remote_dir` | Texto | `/home/usuario/public_html` |
+=== "🖱️ Desde la interfaz"
 
-??? tip "Con la CLI de 1Password (`op`)"
-    Las contraseñas se leen sin eco (`read -s`) para que no queden en pantalla ni en el historial. Cambia `web-clientes` por tu repo
+    | Campo | Tipo | Ejemplo |
+    |---|---|---|
+    | `dev_host` | Texto | `dev.tu-cpanel.example.com` |
+    | `dev_user` | Texto | `usuario_dev` |
+    | `dev_password` | Contraseña | |
+    | `dev_remote_dir` | Texto | `/home/usuario/dev.maceosoft.example.com` |
+    | `prod_host` | Texto | `tu-cpanel.example.com` |
+    | `prod_user` | Texto | `usuario_prod` |
+    | `prod_password` | Contraseña | |
+    | `prod_remote_dir` | Texto | `/home/usuario/public_html` |
+
+=== "⌨️ Desde la consola"
+
+    Las contraseñas se leen sin eco (`read -rs`) para que no queden en pantalla ni en el historial. Cambia `web-clientes` por tu repo
     y los valores de ejemplo por los de tu cPanel. Si tienes más de una cuenta de 1Password, exporta `OP_ACCOUNT` antes.
 
     ```bash
@@ -172,15 +175,20 @@ check que exige la protección de `main` si pusiste
 
 ## 6. Verifica
 
-En GitHub, en el repo nuevo (o con `gh`, más abajo):
+=== "🖱️ Desde la interfaz"
 
-- *Settings → Environments*: existen `dev` y `prod` (solo si despliega).
-- En cada environment, los secrets `FTP_HOST`, `FTP_USER`, `FTP_PASSWORD` y
-  `FTP_REMOTE_DIR`, y las variables `PROJECT_STACK` y `FTP_PROTOCOL`.
-- *Settings → Branches*: `main` protegida.
-- *Actions*: el primer push corre el workflow en el runner `arc-runners`.
+    En GitHub, en el repo nuevo:
 
-??? tip "Con la CLI de GitHub (`gh`)"
+    - *Settings → Environments*: existen `dev` y `prod` (solo si despliega).
+    - En cada environment, los secrets `FTP_HOST`, `FTP_USER`, `FTP_PASSWORD` y
+      `FTP_REMOTE_DIR`, y las variables `PROJECT_STACK` y `FTP_PROTOCOL`.
+    - *Settings → Branches*: `main` protegida.
+    - *Actions*: el primer push corre el workflow en el runner `arc-runners`.
+
+=== "⌨️ Desde la consola"
+
+    Lo mismo con `gh` (cambia `web-clientes` por tu repo):
+
     ```bash
     # dev, prod
     gh api repos/maceosoft/web-clientes/environments --jq '.environments[].name'

@@ -70,10 +70,41 @@ Profundización: [Discovery de hardware](../hardware/discovery.md) · [Inventari
       **`devops`** (sus miembros son quienes pueden entrar a Argo CD) y una
       cuenta que sea **owner** de la organización para crear las Apps.
       Detalle en [Plataforma maceosoft — GitHub](../maceosoft/github.md).
+      Crear la organización es **solo desde la web**; el team lo puedes crear de las dos formas:
+
+    === "🖱️ Desde la interfaz"
+
+        En la org: **Teams** → **New team** → nombre `devops`, visibilidad *Visible* → **Create team**, y después
+        **Add a member** por cada persona que deba entrar a Argo CD.
+
+    === "⌨️ Desde la consola"
+
+        Necesita el permiso de administración de la org (`gh auth refresh -s admin:org`, una sola vez). Quien crea el
+        team queda como su *maintainer*; los demás se suman con el segundo comando:
+
+        ```bash
+        gh api orgs/maceosoft/teams -f name=devops -f privacy=closed
+        gh api -X PUT orgs/maceosoft/teams/devops/memberships/<usuario> -f role=member
+        ```
+
 - [x] **1Password:** la app de escritorio instalada, con una bóveda llamada
       **`HomeLab`** y *Settings → Developer → Integrate with other apps*
       activado. Ahí se guardan las credenciales que usan los playbooks
       ([qué items y campos](../maceosoft/github.md#items-en-1password)).
+      La integración con la app se activa **solo desde la app**; la bóveda la puedes crear de las dos formas:
+
+    === "🖱️ Desde la interfaz"
+
+        En la app de 1Password: barra lateral → **+** junto a las bóvedas (*New Vault*) → nombre `HomeLab` → **Create**.
+
+    === "⌨️ Desde la consola"
+
+        Con la app desbloqueada y la integración ya activada (si tienes más de una cuenta, exporta `OP_ACCOUNT` antes):
+
+        ```bash
+        op vault create HomeLab
+        op vault list
+        ```
 
 ## Ejecutar
 
@@ -170,38 +201,167 @@ campo tienen que ser **exactos**, porque el playbook los busca por nombre:
 
 Con una cuenta **owner de la organización** `maceosoft`:
 
-1. **GitHub App `maceosoft-terraform`** → item `maceosoft-terraform` (Nota
-   segura) con los campos `app_id` (Texto), `installation_id` (Texto) y
-   `private_key` (Contraseña, el `.pem` completo).
+1. **GitHub App `maceosoft-terraform`** → item `maceosoft-terraform`.
    [Permisos y dónde está cada dato](../maceosoft/github.md#maceosoft-terraform).
-2. **GitHub App `maceosoft-arc-runners`** → item `maceosoft-arc-runners`, con
-   los mismos tres campos pero con los datos de esta App.
+   Crear la App, generar su llave privada (`.pem`) e instalarla se hace **solo desde la web**; guardar sus datos en
+   1Password lo puedes hacer de las dos formas:
+
+    === "🖱️ Desde la interfaz"
+
+        Nota segura en la bóveda `HomeLab` con los campos `app_id` (Texto), `installation_id` (Texto) y
+        `private_key` (Contraseña, el `.pem` completo).
+
+    === "⌨️ Desde la consola"
+
+        `gh api` te da el `app_id` y el `installation_id` de la App instalada (una sola vez antes:
+        `gh auth refresh -s admin:read:org`), y el `.pem` se lee del archivo, así que ningún valor queda escrito en
+        el comando:
+
+        ```bash
+        APP=maceosoft-terraform
+        read -r APP_ID INST_ID < <(gh api orgs/maceosoft/installations \
+          --jq ".installations[] | select(.app_slug==\"$APP\") | \"\(.app_id) \(.id)\"")
+        op item create --category "Secure Note" --vault HomeLab --title "$APP" \
+          "app_id[text]=$APP_ID" "installation_id[text]=$INST_ID" \
+          "private_key[password]=$(cat ~/Downloads/$APP.*.private-key.pem)"
+        ```
+
+2. **GitHub App `maceosoft-arc-runners`** → item `maceosoft-arc-runners`.
    [Permisos y pasos](../maceosoft/github.md#maceosoft-arc-runners).
-3. **OAuth (Open Authorization) App `Maceosoft Dex`** → campos `GITHUB_CLIENT_ID` (Texto) y
-   `GITHUB_CLIENT_SECRET` (Contraseña) en el item `maceosoft-dex` (Nota segura).
+   Igual que la anterior: la App se crea e instala **solo desde la web**.
+
+    === "🖱️ Desde la interfaz"
+
+        Los mismos tres campos pero con los datos de esta App: `app_id` (Texto), `installation_id` (Texto) y
+        `private_key` (Contraseña), en una Nota segura de la bóveda `HomeLab`.
+
+    === "⌨️ Desde la consola"
+
+        ```bash
+        APP=maceosoft-arc-runners
+        read -r APP_ID INST_ID < <(gh api orgs/maceosoft/installations \
+          --jq ".installations[] | select(.app_slug==\"$APP\") | \"\(.app_id) \(.id)\"")
+        op item create --category "Secure Note" --vault HomeLab --title "$APP" \
+          "app_id[text]=$APP_ID" "installation_id[text]=$INST_ID" \
+          "private_key[password]=$(cat ~/Downloads/$APP.*.private-key.pem)"
+        ```
+
+3. **OAuth (Open Authorization) App `Maceosoft Dex`** → item `maceosoft-dex`.
    [Pasos](../maceosoft/github.md#oauth-app-maceosoft-dex).
+   Crear la OAuth App y generar su *client secret* es **solo desde la web** (GitHub no tiene API para OAuth Apps).
+
+    === "🖱️ Desde la interfaz"
+
+        Campos `GITHUB_CLIENT_ID` (Texto) y `GITHUB_CLIENT_SECRET` (Contraseña) en el item `maceosoft-dex` (Nota
+        segura, bóveda `HomeLab`).
+
+    === "⌨️ Desde la consola"
+
+        Pega cada valor cuando te lo pida; el secreto no se ve en pantalla ni queda en el historial:
+
+        ```bash
+        # pega el Client ID y Enter
+        read -r  GH_CID
+        # pega el Client secret y Enter
+        read -rs GH_CSEC
+        op item create --category "Secure Note" --vault HomeLab --title maceosoft-dex \
+          "GITHUB_CLIENT_ID[text]=$GH_CID" "GITHUB_CLIENT_SECRET[password]=$GH_CSEC"
+        unset GH_CID GH_CSEC
+        ```
+
 4. **Repos privados**, con su contenido subido con git:
     - `gitops`.
-    - `core-pipelines`: en *Settings → Actions → General → Access*, elige
-      "Accessible from repositories in the 'maceosoft' organization". No hace
+    - `core-pipelines`: accesible desde los demás repos de la org. No hace
       falta crear tags: mientras pruebas, los demás repos lo usan con `@main`.
     - `infra`.
+
+    === "🖱️ Desde la interfaz"
+
+        Crea cada repo en la org con **New repository** (privado) y sube su contenido con git. En `core-pipelines`,
+        en *Settings → Actions → General → Access*, elige
+        "Accessible from repositories in the 'maceosoft' organization".
+
+    === "⌨️ Desde la consola"
+
+        Desde la carpeta de cada proyecto:
+
+        ```bash
+        gh repo create maceosoft/gitops --private --source . --remote origin --push
+        # igual para core-pipelines e infra
+        gh api -X PUT repos/maceosoft/core-pipelines/actions/permissions/access -f access_level=organization
+        ```
+
 5. **GitHub App `maceosoft-argocd`** (solo lectura, instalada **solo en
-   `gitops`**) → item `maceosoft-argocd` con los mismos tres campos. Va
+   `gitops`**) → item `maceosoft-argocd`. Va
    después de los repos porque se instala en `gitops`.
    [Permisos y pasos](../maceosoft/github.md#paso-2-repos-app-de-argocd-y-ftp-manual).
+   La App se crea e instala **solo desde la web**.
+
+    === "🖱️ Desde la interfaz"
+
+        Los mismos tres campos: `app_id` (Texto), `installation_id` (Texto) y `private_key` (Contraseña), en una
+        Nota segura de la bóveda `HomeLab`.
+
+    === "⌨️ Desde la consola"
+
+        ```bash
+        APP=maceosoft-argocd
+        read -r APP_ID INST_ID < <(gh api orgs/maceosoft/installations \
+          --jq ".installations[] | select(.app_slug==\"$APP\") | \"\(.app_id) \(.id)\"")
+        op item create --category "Secure Note" --vault HomeLab --title "$APP" \
+          "app_id[text]=$APP_ID" "installation_id[text]=$INST_ID" \
+          "private_key[password]=$(cat ~/Downloads/$APP.*.private-key.pem)"
+        ```
+
 6. **Llave de Sealed Secrets** *(opcional hasta la Fase 6)*: un par de llaves
-   generado con `openssl`, en el item `sealed-secrets` (`certificate` y
-   `private_key`), para que sobreviva si reinstalas K3s.
+   generado con `openssl`, en el item `sealed-secrets`, para que sobreviva si reinstalas K3s.
    [Comando y pasos](../maceosoft/github.md#paso-2-repos-app-de-argocd-y-ftp-manual).
+
+    === "🖱️ Desde la interfaz"
+
+        Nota segura en la bóveda `HomeLab` con `certificate` (Texto, todo `tls.crt`) y `private_key` (Contraseña,
+        todo `tls.key`).
+
+    === "⌨️ Desde la consola"
+
+        Genera el par en una carpeta temporal, guárdalo leyendo los archivos y bórralos:
+
+        ```bash
+        cd "$(mktemp -d)"
+        openssl req -x509 -days 3650 -nodes -newkey rsa:4096 \
+          -keyout tls.key -out tls.crt -subj "/CN=sealed-secret/O=sealed-secret"
+        op item create --category "Secure Note" --vault HomeLab --title sealed-secrets \
+          "certificate[text]=$(cat tls.crt)" "private_key[password]=$(cat tls.key)"
+        rm -f tls.key tls.crt
+        ```
+
 7. **Credenciales FTP (File Transfer Protocol) del repo `api`**: `api` es el
    primer proyecto del mapa de repos y despliega por FTP, así que necesita su
    item `ftp-api` (Nota segura) desde el primer pipeline. Cada repo que
    agregues después sigue el
-   [procedimiento de rutina — Agregar un repo](../operacion/agregar-repo.md). El item lleva 8 campos: `dev_host`, `dev_user`,
-   `dev_password`, `dev_remote_dir` y los mismos cuatro con `prod_`. Los
-   `*_password` van como Contraseña y el resto como Texto.
+   [procedimiento de rutina — Agregar un repo](../operacion/agregar-repo.md).
    [Tabla con ejemplos](../maceosoft/github.md#paso-2-repos-app-de-argocd-y-ftp-manual).
+
+    === "🖱️ Desde la interfaz"
+
+        El item lleva 8 campos: `dev_host`, `dev_user`,
+        `dev_password`, `dev_remote_dir` y los mismos cuatro con `prod_`. Los
+        `*_password` van como Contraseña y el resto como Texto.
+
+    === "⌨️ Desde la consola"
+
+        Cambia los hosts, usuarios y carpetas por los tuyos; las dos contraseñas se pegan sin eco:
+
+        ```bash
+        # pega cada contraseña y Enter
+        read -rs FTP_DEV_PASS;  read -rs FTP_PROD_PASS
+        op item create --category "Secure Note" --vault HomeLab --title ftp-api \
+          "dev_host[text]=dev.tu-cpanel.example.com" "dev_user[text]=usuario_dev" \
+          "dev_password[password]=$FTP_DEV_PASS" "dev_remote_dir[text]=/home/usuario/dev.maceosoft.example.com" \
+          "prod_host[text]=tu-cpanel.example.com" "prod_user[text]=usuario_prod" \
+          "prod_password[password]=$FTP_PROD_PASS" "prod_remote_dir[text]=/home/usuario/public_html"
+        unset FTP_DEV_PASS FTP_PROD_PASS
+        ```
 
 Todos los comandos para crear estos items con la CLI `op` (y los de GitHub con `gh`) están en las secciones de
 [Plataforma maceosoft — GitHub](../maceosoft/github.md): las Apps y la OAuth App se **crean solo desde la web**, y de ahí en

@@ -28,8 +28,8 @@ sudo apt-get update && apt list --upgradable
 
 ## Orden recomendado
 
-Un nodo a la vez, y `deborah` **al final**: es el servidor DNS (BIND) de la LAN y, hasta la mudanza del control plane, también
-el de K3s, así que reiniciarla corta el DNS y la API del clúster unos minutos.
+Un nodo a la vez, y `deborah` **al final**: es el servidor DNS (BIND) de la LAN y también
+el control plane de K3s, así que reiniciarla corta el DNS y la API del clúster unos minutos.
 
 1. `oliver`
 2. `invincible`

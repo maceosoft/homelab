@@ -10,6 +10,42 @@ router que sabe qué modelos tiene cada nodo y manda cada petición al que corre
 así que sumar uno es fácil ([guía](agregar-nodo-ollama.md)). Y los nodos solo se encienden cuando alguien les
 escribe: el resto del tiempo Ollama (el programa que ejecuta el modelo) está apagado y no ocupa memoria.
 
+**Esta decisión en otros entornos**
+
+=== "🏠 En casa"
+
+    IA local con Ollama en varios nodos que se encienden bajo demanda, un router propio (`ollama-router`) como única
+    puerta y Open WebUI como chat. Es gratis, aprovecha equipos que ya están en la casa y ningún dato sale a internet.
+
+=== "🏢 En la empresa"
+
+    - **Beneficios:** los prompts y los documentos nunca salen de tu red, no pagas por cada consulta y un router
+      con un token por cliente te dice quién usa la IA y te deja cortar a uno sin afectar a los demás.
+    - **Por qué una empresa también elige IA local:** datos sensibles (clientes, código, contratos), regulación o
+      soberanía de datos que no permiten mandar prompts a terceros, sitios desconectados y un costo predecible
+      cuando el volumen de uso es muy alto.
+    - **GPUs dedicadas** en lugar de equipos que se prenden y apagan: los modelos quedan cargados todo el tiempo
+      para responder rápido a muchos usuarios a la vez.
+    - **Servidores de inferencia con soporte** en vez de Ollama: [vLLM](https://docs.vllm.ai/) (código abierto),
+      [NVIDIA NIM](https://developer.nvidia.com/nim) o [Red Hat AI Inference](https://www.redhat.com/en/products/ai/inference)
+      (basado en vLLM), con alta disponibilidad y contrato de soporte.
+    - **Control de acceso y auditoría:** entrada con la identidad corporativa (SSO), permisos por equipo y registro
+      de quién preguntó qué, para cumplimiento.
+    - **Evaluación de modelos y licencias:** antes de usar un modelo se mide su calidad y se revisa que su licencia
+      permita el uso comercial. Y alguien tiene que operar todo esto: es costo de personal.
+
+=== "☁️ En la nube"
+
+    | Nube | Servicio equivalente |
+    |---|---|
+    | GCP | [Gemini Enterprise Agent Platform](https://cloud.google.com/products/gemini-enterprise-agent-platform) (antes Vertex AI) |
+    | AWS | [Amazon Bedrock](https://aws.amazon.com/bedrock/) |
+    | Azure | [Microsoft Foundry](https://azure.microsoft.com/en-us/products/ai-foundry) (antes Azure AI Foundry) |
+    | Oracle Cloud (OCI) | [OCI Generative AI](https://docs.oracle.com/en-us/iaas/Content/generative-ai/home.htm) |
+
+    Ganas modelos administrados, sin GPUs que comprar ni mantener, con SLA y escala inmediata. Pierdes control: los
+    prompts y datos viajan al proveedor, pagas por uso (caro a gran volumen) y dependes de sus modelos y sus precios.
+
 ## Qué es cada pieza
 
 | Pieza | Qué hace | Dónde vive |
@@ -86,15 +122,23 @@ Como el resto de los secretos de la plataforma, vive en 1Password y **no** pasa 
     openssl rand -hex 32
     ```
 
-2. Crea el item en 1Password (bóveda `HomeLab`, tipo *Nota segura*, llamado `open-webui`, con el campo `WEBUI_SECRET_KEY`). Con el
-   CLI `op` y 1Password desbloqueado, un solo comando genera la clave y crea el item:
+2. Crea el item en 1Password (bóveda `HomeLab`, tipo *Nota segura*, llamado `open-webui`, con el campo `WEBUI_SECRET_KEY`):
 
-    ```bash
-    op item create --category "Secure Note" --vault HomeLab --title open-webui "WEBUI_SECRET_KEY[password]=$(openssl rand -hex 32)"
-    ```
+    === "🖱️ Desde la interfaz"
 
-   Con `op` no hace falta el paso 1: el comando ya genera el valor. Desde la app de 1Password también sirve: el nombre del item y del
-   campo tienen que ser exactos y el campo no debe ir dentro de una sección.
+        Desde la app de 1Password: el nombre del item y del campo tienen que ser exactos y el campo no debe ir dentro
+        de una sección.
+
+    === "⌨️ Desde la consola"
+
+        Con el CLI `op` y 1Password desbloqueado, un solo comando genera la clave y crea el item:
+
+        ```bash
+        op item create --category "Secure Note" --vault HomeLab --title open-webui "WEBUI_SECRET_KEY[password]=$(openssl rand -hex 32)"
+        ```
+
+        Con `op` no hace falta el paso 1: el comando ya genera el valor.
+
 3. Comprueba el item sin mostrar el valor: `python3 ansible/scripts/apply_platform_secrets.py --check` debe mostrar
    `✓ WEBUI_SECRET_KEY` bajo `open-webui`.
 4. Aplícalo (crea el namespace `ai` y el Secret `ai/open-webui-secret`):
@@ -286,6 +330,8 @@ Se indica la URL interna del Service de Open Terminal, la clave y el tipo de aut
 `ENABLE_TOOL_SERVERS=true` debe estar activa en Open WebUI. El acceso se restringe a administradores y al grupo
 `maceosoft:devops`.
 
+Esta conexión se configura **solo desde la interfaz** de Open WebUI: no hay un comando para hacerlo.
+
 ### Límites de Open Terminal
 
 - **Sandbox acotado:** 1 CPU (unidad central de procesamiento) y 2 GB de RAM (memoria) como máximo.
@@ -304,12 +350,31 @@ Se indica la URL interna del Service de Open Terminal, la clave y el tipo de aut
 
 La clave protege la API de Open Terminal (Bearer). Se crea y rota igual que las demás:
 
-1. `openssl rand -hex 32`
-2. En 1Password, bóveda `HomeLab`, item **`open-terminal`**, campo **`api_key`**.
-3. `cd ansible && ansible-playbook -i inventory.ini playbook-platform-secrets.yml` crea los Secrets
+1. Genera la clave y guárdala en 1Password:
+
+    === "🖱️ Desde la interfaz"
+
+        1. `openssl rand -hex 32`
+        2. En 1Password, bóveda `HomeLab`, item **`open-terminal`**, campo **`api_key`**.
+
+    === "⌨️ Desde la consola"
+
+        El valor se genera dentro del comando, así que nunca lo ves ni lo copias. Si el item ya existe (al rotar):
+
+        ```bash
+        op item edit open-terminal "api_key[password]=$(openssl rand -hex 32)"
+        ```
+
+        La primera vez, si el item todavía no existe:
+
+        ```bash
+        op item create --category "Secure Note" --vault HomeLab --title open-terminal "api_key[password]=$(openssl rand -hex 32)"
+        ```
+
+2. `cd ansible && ansible-playbook -i inventory.ini playbook-platform-secrets.yml` crea los Secrets
    `ai-sandbox/open-terminal-api-key` y `ai/open-terminal-api-key`.
-4. Reinicia los pods de Open Terminal y de Open WebUI para que lean el valor nuevo, y actualiza la clave en
-   *Admin Settings → Integrations → Open Terminal* si hace falta.
+3. Reinicia los pods de Open Terminal y de Open WebUI para que lean el valor nuevo, y actualiza la clave en
+   *Admin Settings → Integrations → Open Terminal* si hace falta (esto último es solo desde la interfaz).
 
 La clave se monta en el pod como un **archivo** (`OPEN_TERMINAL_API_KEY_FILE`, permisos `0440`), no como variable de
 entorno. La NetworkPolicy de `ai-sandbox` viaja junto al pod (`ai/open-terminal/networkpolicy.yaml`, con el orden
@@ -327,8 +392,8 @@ Ver [Rotar credenciales](rotar-credenciales.md).
 - **El router es un punto único.** Corre en una réplica y guarda el registro en memoria: si cae, la IA cae (los
   nodos se re-registran solos en menos de un minuto cuando vuelve). Las alertas reales no dependen de él.
 - **Un modelo cargado quita memoria** al resto de cargas del nodo mientras dura.
-- **El control plane de K3s** está en `deborah` hoy y se muda a `oliver`
-  ([Mover el control plane](mover-control-plane.md)); con ello `deborah` queda libre para los modelos.
+- **El control plane de K3s** está en `deborah`, el mismo nodo que carga modelos. Por eso Ollama corre bajo
+  demanda: solo usa memoria mientras responde.
 
 ## Seguridad y firewall
 

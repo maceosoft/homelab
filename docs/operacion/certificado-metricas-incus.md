@@ -54,8 +54,20 @@ monitoreo y tener el kubeconfig del HomeLab (`~/.kube/homelab-k3s.yaml`).
     sudo incus config trust list
     ```
 
-    Y en Grafana, *Explore*, esta consulta debe devolver un valor por cada nodo con instancias:
-    `count by (nodename) (incus_procs_total)`.
+    Y esta consulta debe devolver un valor por cada nodo con instancias: `count by (nodename) (incus_procs_total)`.
+
+    === "🖱️ Desde la interfaz"
+
+        En Grafana, *Explore*, corre la consulta.
+
+    === "⌨️ Desde la consola"
+
+        Abre un túnel a VictoriaMetrics y consulta su API (deja el `port-forward` corriendo en otra terminal):
+
+        ```bash
+        kubectl -n monitoring port-forward svc/vmsingle-vm-victoria-metrics-k8s-stack 8428:8428
+        curl -s http://127.0.0.1:8428/api/v1/query --data-urlencode 'query=count by (nodename) (incus_procs_total)'
+        ```
 
 ## Si falla
 

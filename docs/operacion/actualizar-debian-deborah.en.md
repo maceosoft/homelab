@@ -10,9 +10,11 @@ updates it with backup, a prior simulation, and a **boot gate** that validates b
     Kubernetes API and DNS do not respond (the pods on the other nodes continue running). If the machine does not boot
     after the reboot, physical access (HDMI —video output— or serial console) is required. Do this during maintenance windows.
 
-!!! tip "Simpler if the control plane has already moved"
-    Once the control plane is on `oliver` ([Move the control plane](mover-control-plane.md)), `deborah` is
-    just a worker: the Kubernetes API continues responding during the update and only its part of the load (LAN DNS, Ollama, and the pods that live on it) falls. It's advisable to do the move **before** this update.
+!!! tip "The Kubernetes API goes down while `deborah` reboots"
+    `deborah` is the control plane: while it reboots, `kubectl` and Argo CD don't respond, but the pods already
+    running on the other nodes keep working. If the control plane were ever on another node
+    ([Move the control plane](mover-control-plane.md)), only `deborah`'s share of the load would go down (LAN DNS,
+    Ollama and its pods).
 
 ## What Changes and What Doesn't
 

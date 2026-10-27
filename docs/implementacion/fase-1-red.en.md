@@ -2,7 +2,7 @@
 
 ## Objective
 
-Bridge `br0` with **static IP** on the 3 nodes, ready for Incus, K3s (lightweight Kubernetes distribution), and CAPN (Cluster API Provider for Incus).
+Bridge `br0` with **static IP** on the 3 nodes, ready for Incus, K3s (a lightweight Kubernetes distribution), and CAPN (Cluster API Provider for Incus).
 
 ## What You Learn
 
@@ -13,15 +13,15 @@ secrets.
 !!! abstract "Learn this phase"
     **In simple terms:** a fixed IP is your postal address: if it changes every day, no one can find you. A **bridge** is like a virtual multi-outlet: it lets the machine and virtual machines share the same network connection.
 
-    **Key concepts**
+    **Key Concepts**
 
-    - **Static or dynamic IP:** a static IP stays the same; a dynamic one is assigned by the router (DHCP, Dynamic Host Configuration Protocol) and can change.
-    - **Mask and CIDR (Classless Inter-Domain Routing):** the notation `/22` indicates how many addresses share the network.
-    - **Gateway:** the device, usually the router, through which you exit to other networks.
-    - **DNS (Domain Name System):** the "phone book" that translates names to IP addresses.
-    - **Bridge `br0`:** the virtual interface that the node, Incus, and K3s share.
+    - **Static or dynamic IP:** A static IP stays the same; a dynamic one is assigned by the router (DHCP, Dynamic Host Configuration Protocol) and can change.
+    - **Mask and CIDR (Classless Inter-Domain Routing):** The notation `/22` indicates how many addresses share the network.
+    - **Gateway:** The device, usually the router, through which you exit to other networks.
+    - **DNS (Domain Name System):** The "phone book" that translates names to IP addresses.
+    - **Bridge `br0`:** The virtual interface that the node, Incus, and K3s share.
 
-    **Practical challenge (read-only):** on a node, find its IP, its mask, and its gateway.
+    **Practical challenge (read-only):** On a node, find its IP, its mask, and its gateway.
 
     ```bash
     ip -br addr show br0
@@ -30,11 +30,10 @@ secrets.
 
     ??? question "Why does the Homelab need a fixed IP on the nodes?"
         Because Incus stores the cluster address, K3s uses the IP as the node identity, and other
-        components reference it: if it changes, the cluster will lose connectivity.
+        components reference it: if it changes, the cluster will stop finding itself.
 
-    ??? question "What is a bridge and what is it used for here?"
-        It is a virtual interface that connects multiple interfaces into a single network. It allows
-        Incus instances and pods to use the node's physical network.
+    ??? question "What is a bridge and what is it for here?"
+        It is a virtual interface that connects several interfaces into a single network. It allows Incus instances and pods to use the node's physical network.
 
     ??? question "In `192.168.20.5/22`, which part is the address and which is the mask?"
         `192.168.20.5` is the address and `/22` indicates that the first 22 bits are the network.
@@ -60,9 +59,9 @@ Further reading: [Network — Netplan examples](../networking/index.md)
 
 ## Before You Start
 
-- [ ] [Phase 0 — Preparation](fase-0-preparacion.md) completed (`ansible ping` OK).
-- [ ] Know the physical interface per node (`eno1`, `eno2`, `enP4p65s0`).
-- [ ] Target IPs defined in inventory.
+- [X] [Phase 0 — Preparation](fase-0-preparacion.md) completed (`ansible ping` OK).
+- [X] Know the physical interface per node (`eno1`, `eno2`, `enP4p65s0`).
+- [X] Target IPs defined in inventory.
 
 | Node | Interface | IP on br0 |
 |---|---|---|
@@ -73,7 +72,7 @@ Further reading: [Network — Netplan examples](../networking/index.md)
 > Confirm always with `ip -br link` on the node before assuming these
 > values.
 
-## Run
+## Execute
 
 !!! warning "SSH Disconnect"
     If you change the IP, Ansible may lose the session. The playbook uses
@@ -94,7 +93,7 @@ Further reading: [Network — Netplan examples](../networking/index.md)
       --limit deborah
     ```
 
-=== "Alternative manual"
+=== "Manual alternative"
 
     See YAML examples in [Network](../networking/index.md):
 
@@ -109,7 +108,7 @@ Further reading: [Network — Netplan examples](../networking/index.md)
 |---|---|
 | Node order | One at a time (`serial: 1`) |
 
-!!! note "All three nodes change IP upon apply"
+!!! note "All three nodes change IP upon applying"
     No shortcut: update `ansible_host` in `inventory.ini` after
     each node (that's why `serial: 1`).
 
@@ -153,8 +152,8 @@ ping -c 2 192.168.20.7
 
 ## DNS (BIND on deborah)
 
-The three nodes use `192.168.20.5` (deborah) as the first DNS and the gateway
-`192.168.20.1` as the second. With the fixed IP already applied on deborah, install
+The three nodes use `192.168.20.5` (deborah) as the primary DNS and the gateway
+`192.168.20.1` as the secondary. With the fixed IP already applied on deborah, install
 and configure BIND (Berkeley Internet Name Domain) there (runs only on deborah):
 
 ```bash
@@ -166,8 +165,8 @@ each query.
 
 Two things that `playbook-set-static-ip.yml` leaves and that subsequent phases depend on:
 
-- A fixed `/etc/resolv.conf` on each node, with `search homelab.local mco.local` and first the BIND (`192.168.20.5`).
-  If the node has NetworkManager, also install `dns=none` to prevent it from rewriting the DNS with the router's DNS. Without
+- A fixed `/etc/resolv.conf` in each node, with `search homelab.local mco.local` and first the BIND (`192.168.20.5`).
+  If the node has NetworkManager, install also `dns=none` to prevent it from rewriting with the router's DNS. Without
   this, a node stops resolving `*.homelab.local` (the nodes cannot validate the SSO —single sign-on— of the [4.12](fase-4-gitops.md#412-ssh-to-hosts-with-dex-optional)).
 - The BIND zone `homelab.local` brings a record for each node and each published service, without wildcard
   (see [4.8](fase-4-gitops.md#48-homelablocal-dns)).
@@ -179,7 +178,7 @@ Check on each node: `cat /etc/resolv.conf` and `getent hosts oliver.homelab.loca
 
 With the IP already fixed, it's time to harden the host before it joins
 the cluster. This goes **here** in the sequence (see
-[Post-incident Hardening](../security/hardening-post-incidente.md)):
+[Post-incident hardening](../security/hardening-post-incidente.md)):
 
 ```bash
 ansible-playbook -i inventory.ini playbook-hardening.yml --check --diff

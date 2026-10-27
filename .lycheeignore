@@ -1,0 +1,17 @@
+# Enlaces que lychee (job "enlaces" de docs-lint.yml) no revisa. Una expresión regular por línea.
+# Servicios del HomeLab: solo existen dentro de la red de la casa.
+homelab\.local
+mco\.local
+127\.0\.0\.1
+localhost
+192\.168\.
+# Repos privados y páginas de administración de la org: sin sesión responden 404 aunque existan.
+github\.com/maceosoft/gitops
+github\.com/maceosoft/core-pipelines
+github\.com/maceosoft/infra
+github\.com/organizations/
+# Requiere iniciar sesión y corta la conexión HTTP/2 de los clientes automáticos.
+gemini\.google\.com
+# Plantillas con marcadores (<nodo>, <usuario>...) que no son URLs reales.
+%3C
+<

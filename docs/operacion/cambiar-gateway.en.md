@@ -6,14 +6,14 @@ The HomeLab publishes its services with [Gateway API](https://gateway-api.sigs.k
 for `*.homelab.local`. Each app hooks up with its own `HTTPRoute`
 (`argocd/route`, `vcluster/route`).
 
-Only **one controller at a time** handles that Gateway; the three share the
-IP 80/443 from MetalLB and cannot coexist:
+Who handles that Gateway is **one controller at a time**; the three cannot coexist
+on the same IP 80/443 from MetalLB:
 
 | Application | Controller | Notes |
 |---|---|---|
 | `kong` (**default**) | [Kong Ingress Controller](https://developer.konghq.com/kubernetes-ingress-controller/) (KIC) | Uses the Kong installed by the chart (unmanaged mode) |
 | `traefik` | [Traefik](https://doc.traefik.io/traefik/routing/providers/kubernetes-gateway/) | Only Gateway API: no `Ingress` or `IngressRoute` |
-| `nginx-gateway` | [NGINX Gateway Fabric](https://docs.nginx.com/nginx-gateway-fabric/) | Also needs `nginx-gateway-helm-repo` (OCI chart registry) |
+| `nginx-gateway` | [NGINX Gateway Fabric](https://docs.nginx.com/nginx-gateway-fabric/) | Also needs `nginx-gateway-helm-repo` (OCI registry of the chart) |
 
 The `Gateway` of each is in `gateway/<kong|traefik|nginx>/` of the repo
 [`gitops`](https://github.com/maceosoft/gitops); `GatewayClass`, ports, and
@@ -21,8 +21,8 @@ annotations differ from one to another, the `HTTPRoute` do not.
 
 ## How TLS Works
 
-- **cert-manager** (`cert-manager`) and a custom CA (certificate authority) (`cert-manager-config`,
-  `ClusterIssuer homelab-ca`) issue the certificate. The `Gateway` has the
+- **cert-manager** (`cert-manager`) and a custom CA (`cert-manager-config`,
+  `ClusterIssuer homelab-ca`) issue the certificate. The `Gateway` carries the
   annotation `cert-manager.io/cluster-issuer: homelab-ca` and cert-manager creates only
   the Secret `homelab-tls`.
 - The Gateway **terminates TLS** (Transport Layer Security) and speaks HTTP with the services. That's why
@@ -30,38 +30,54 @@ annotations differ from one to another, the `HTTPRoute` do not.
   `HTTPRoute` points to its port 80. The diff of the `gitops` pipeline uses
   `--plaintext` for the same reason.
 - **Kong is the exception.** KIC (Kong Ingress Controller) 3.5 with Kong 3.9 rejects (`value must be null`) the
-  certificate it builds for a Gateway API listener, and Kong never gets
+  certificate issued for a Gateway API listener, and Kong never gets
   `Ready`. That's why Kong's Gateway does not use `certificateRefs`: cert-manager issues
   `kong-default-tls` (`gateway/kong/certificate.yaml`), the chart mounts it in the pod and
   Kong loads it as the default certificate with `KONG_SSL_CERT` and `KONG_SSL_CERT_KEY`.
   Kong reads it only on startup: **after each renewal (every ~60 days) restart the
   pod**: `kubectl -n kong rollout restart deploy/kong-gateway`. Traefik and NGINX Gateway
-  Fabric use the certificate that cert-manager creates from the Gateway (`homelab-tls`)
+  Fabric use the certificate issued by cert-manager from the Gateway (`homelab-tls`)
   and update automatically.
-
 - To make the browser trust the CA, import its root certificate:
 
     ```bash
     kubectl -n cert-manager get secret homelab-ca -o jsonpath='{.data.ca\.crt}' | base64 -d > homelab-ca.crt
     ```
 
+    === "🖱️ From the UI"
+
+        - **macOS:** open `homelab-ca.crt` with a double-click (added to *Keychain Access*), open it in the list and in
+          **Trust** choose *Always Trust*.
+        - **Firefox** (has its own store; if it does not trust the system CA): *Settings → Privacy & Security → Certificates →
+          View Certificates → Authorities → Import*, and mark it to trust for identifying websites.
+
+    === "⌨️ From the console"
+
+        ```bash
+        # macOS (llavero del sistema)
+        sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain homelab-ca.crt
+        # Debian/Ubuntu
+        sudo cp homelab-ca.crt /usr/local/share/ca-certificates/ && sudo update-ca-certificates
+        ```
+
+        If Firefox still does not trust it (Linux does not read the system store), import it from its interface.
+
 ## Why the Service Uses `externalTrafficPolicy: Local`
 
 With the default policy (`Cluster`), traffic arriving from the LAN to a node that
-**does not** have the controller pod is forwarded to another node, and in this cluster
-that connection does not respond: `curl` to `192.168.23.200` expired even though DNS resolved correctly.
-It only happened with external traffic entering via `deborah` or `oliver`; pods, services, and connections
-from the nodes themselves worked fine. With `Local`, MetalLB
-advertises the IP from the node where the controller runs and the traffic goes directly to the pod
-(and also preserves the client IP). The three controllers bring it in
+**does not** have the controller pod is redirected to another node, and in this cluster that
+connection does not respond: `curl` to `192.168.23.200` expired even though DNS resolved correctly.
+It only happened with external traffic entering via `deborah` or `oliver`; pods, services, and connections from the
+nodes themselves worked fine. With `Local`, MetalLB advertises the IP from the node where the controller runs and the traffic goes directly to the pod
+(and also preserves the client IP). All three controllers bring it in
 `gitops/argocd/apps/`.
 
-!!! note "Underlying issue unresolved"
-    The reason why inter-node forwarding of external traffic fails (the Calico overlay between pods works) is not clear. It affects any other Service `LoadBalancer` or
+!!! note "Underlying Cause Not Resolved"
+    The reason why inter-node traffic redirection fails for external traffic (the Calico overlay between pods works) is unclear. It affects any other Service `LoadBalancer` or
     `NodePort` with policy `Cluster`. To investigate, packet captures are needed on
     the nodes (`tcpdump` is not installed).
 
-## Change the Controller
+## Change Controller
 
 1. In `bootstrap/root-appset.yaml` (repo `gitops`), **comment out** the current controller
    and **uncomment** the new one (and `nginx-gateway-helm-repo` if it's NGINX).
@@ -72,9 +88,9 @@ advertises the IP from the node where the controller runs and the traffic goes d
     kubectl apply -f gitops/bootstrap/root-appset.yaml
     ```
 
-3. The Applications of the controllers carry the Argo CD finalizer: when you
-   comment out the app, `homelab-root` deletes the Application **and** its resources (the
-   Gateway and the IP are freed for the new one). Wait for it to disappear:
+3. The Applications of the controllers carry the Argo CD finalizer: when
+   commenting out the app, `homelab-root` deletes the Application **and** its resources (the
+   Gateway and the IP are freed for the new one). Wait until it disappears:
 
     ```bash
     kubectl -n argocd get applications
@@ -93,7 +109,7 @@ advertises the IP from the node where the controller runs and the traffic goes d
 ## First Time (Coming from ingress-nginx)
 
 `ingress-nginx` and the `Ingress` of Argo CD no longer exist in `gitops`. Their
-Applications disappear when you reapply the ApplicationSet, but what
+Applications disappear when reapplying the ApplicationSet, but what
 they created remains in the cluster:
 
 ```bash
@@ -103,8 +119,8 @@ kubectl delete clusterrole,clusterrolebinding,ingressclass,validatingwebhookconf
   -l app.kubernetes.io/instance=ingress-nginx
 ```
 
-Apply the change to `argocd` first (activate `server.insecure`): until the
-Gateway is `Programmed`, access Argo CD with
+Apply the change of `argocd` first (activate `server.insecure`): until the
+Gateway is `Programmed`, log in to Argo CD with
 `kubectl port-forward svc/argocd-server -n argocd 8080:80` ([`http://localhost:8080`](http://localhost:8080)).
 
 ## If it fails

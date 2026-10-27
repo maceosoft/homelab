@@ -14,9 +14,9 @@ K3s (lightweight Kubernetes distribution) hybrid cluster across the 3 nodes of t
 
 | Node | IP | K3s Role |
 |---|---|---|
-| deborah | 192.168.20.5 | server (control plane; becomes worker after [moving the control plane](../operacion/mover-control-plane.md)) |
+| deborah | 192.168.20.5 | server (control plane) |
 | invincible | 192.168.20.6 | agent (worker) |
-| oliver | 192.168.20.7 | agent (worker; future control plane) |
+| oliver | 192.168.20.7 | agent (worker) |
 
 Verification from a node with API (Application Programming Interface) server access:
 

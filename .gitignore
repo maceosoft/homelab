@@ -21,6 +21,8 @@ kubeconfig*
 
 # Build de MkDocs (se genera en CI, no se commitea)
 site/
+# Caché del plugin privacy de MkDocs (fuentes y scripts externos descargados en el build).
+.cache/
 
 # Entorno Python local
 .venv/

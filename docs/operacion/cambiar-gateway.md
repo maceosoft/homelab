@@ -44,6 +44,24 @@ anotaciones cambian de uno a otro, los `HTTPRoute` no.
     kubectl -n cert-manager get secret homelab-ca -o jsonpath='{.data.ca\.crt}' | base64 -d > homelab-ca.crt
     ```
 
+    === "🖱️ Desde la interfaz"
+
+        - **macOS:** abre `homelab-ca.crt` con doble clic (se agrega a *Acceso a Llaveros*), ábrelo en la lista y en
+          **Confiar** elige *Confiar siempre*.
+        - **Firefox** (tiene su propio almacén; si no confía en la CA del sistema): *Ajustes → Privacidad y seguridad → Certificados →
+          Ver certificados → Autoridades → Importar*, y marca que confíe en ella para identificar sitios web.
+
+    === "⌨️ Desde la consola"
+
+        ```bash
+        # macOS (llavero del sistema)
+        sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain homelab-ca.crt
+        # Debian/Ubuntu
+        sudo cp homelab-ca.crt /usr/local/share/ca-certificates/ && sudo update-ca-certificates
+        ```
+
+        Si Firefox sigue sin confiar (en Linux no lee el almacén del sistema), impórtalo desde su interfaz.
+
 ## Por qué el Service usa `externalTrafficPolicy: Local`
 
 Con la política por defecto (`Cluster`), el tráfico que llega desde la LAN a un nodo que

@@ -1,6 +1,6 @@
 # incus_install
 
-Instala el paquete **Incus** desde el repo [Zabbly stable](https://github.com/zabbly/incus-stable)
+Instala el paquete **Incus** desde el repo [Zabbly stable](https://github.com/zabbly/incus)
 en los nodos del clúster. No ejecuta bootstrap ni join — eso lo hace `incus_cluster`.
 
 ## Playbook

@@ -2,7 +2,7 @@
 
 K3s (distribución ligera de Kubernetes) se actualiza **solo**: el SUC (System Upgrade Controller) revisa el canal
 `stable` de K3s y, cuando sale una versión nueva, actualiza un nodo a la vez
-(primero el control plane, el nodo con la etiqueta `node-role.kubernetes.io/control-plane`: hoy `deborah`, y `oliver` tras la [mudanza](mover-control-plane.md), cuando `deborah` pasa a worker; después los workers), vaciándolo antes
+(primero el control plane, el nodo con la etiqueta `node-role.kubernetes.io/control-plane`: `deborah`; después los workers), vaciándolo antes
 (*cordon* y *drain*). Este procedimiento es para revisar que eso funciona,
 fijar una versión cuando haga falta y mantener alineado Ansible.
 

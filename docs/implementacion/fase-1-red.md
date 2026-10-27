@@ -62,9 +62,9 @@ Profundización: [Red — ejemplos netplan](../networking/index.md)
 
 ## Antes de empezar
 
-- [ ] [Fase 0 — Preparación](fase-0-preparacion.md) completada (`ansible ping` OK).
-- [ ] Sabes la interfaz física por nodo (`eno1`, `eno2`, `enP4p65s0`).
-- [ ] IPs destino definidas en inventario.
+- [X] [Fase 0 — Preparación](fase-0-preparacion.md) completada (`ansible ping` OK).
+- [X] Sabes la interfaz física por nodo (`eno1`, `eno2`, `enP4p65s0`).
+- [X] IPs destino definidas en inventario.
 
 | Nodo | Interfaz | IP en br0 |
 |---|---|---|

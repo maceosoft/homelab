@@ -134,6 +134,44 @@ Tras `playbook-set-static-ip.yml`, actualizar `ansible_host` en
 [`inventory.ini`](https://github.com/maceosoft/homelab/blob/main/ansible/inventory.ini)
 al valor de `static_ip` si la IP de conexión cambió.
 
+**Esta decisión en otros entornos**
+
+=== "🏠 En casa"
+
+    [MetalLB](https://metallb.io/) toma IPs libres de la LAN (`.200–.220`) para los Services `LoadBalancer`, y todo el
+    tráfico web entra por un solo Gateway de Kong ([Gateway API](https://gateway-api.sigs.k8s.io/)), con
+    [Calico](https://docs.tigera.io/calico/latest/about/) como CNI. No hace falta comprar un balanceador: basta con
+    reservar un rango fuera del DHCP.
+
+=== "🏢 En la empresa"
+
+    - **Beneficios:** MetalLB da IPs de `LoadBalancer` en servidores propios sin hardware extra, y Gateway API es un
+      estándar: las rutas (`HTTPRoute`) se escriben igual aunque cambies Kong por otro controlador.
+    - **Balanceadores dedicados:** muchos centros de datos ya tienen balanceadores de hardware o virtuales, como
+      [F5 BIG-IP](https://www.f5.com/products/big-ip) o [NetScaler](https://www.netscaler.com/), y el equipo de red
+      prefiere que el clúster los use en lugar de anunciar IPs por su cuenta.
+    - **BGP en vez de L2:** MetalLB en modo [BGP](https://metallb.io/concepts/bgp/) anuncia las IPs a los routers del
+      centro de datos y reparte el tráfico entre nodos; el modo L2 del HomeLab manda todo por un nodo a la vez.
+    - **Soporte comercial:** existen versiones con soporte de los mismos componentes, como
+      [Kong Konnect](https://konghq.com/products/kong-konnect) para el gateway y
+      [Calico Enterprise](https://www.tigera.io/tigera-products/calico-commercial-editions/) para la red y sus políticas.
+    - **Cuándo sí conviene lo mismo:** en servidores propios (bare metal), sucursales o sitios desconectados, donde no
+      hay un balanceador de nube y MetalLB más un gateway dentro del clúster es lo más simple de operar.
+
+=== "☁️ En la nube"
+
+    | Nube | Servicio equivalente |
+    |---|---|
+    | GCP | [Cloud Load Balancing](https://cloud.google.com/load-balancing) con el [GKE Gateway controller](https://docs.cloud.google.com/kubernetes-engine/docs/concepts/gateway-api) |
+    | AWS | [Elastic Load Balancing](https://aws.amazon.com/elasticloadbalancing/) con el [AWS Load Balancer Controller](https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/guide/gateway/gateway/) (soporta Gateway API) |
+    | Azure | [Application Gateway for Containers](https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/overview) (Gateway API) y [Azure Load Balancer](https://learn.microsoft.com/en-us/azure/aks/load-balancer-standard) para `LoadBalancer` |
+    | Oracle Cloud (OCI) | [OCI Load Balancer](https://docs.oracle.com/en-us/iaas/Content/Balance/home.htm) con el [OCI Native Ingress Controller](https://docs.oracle.com/en-us/iaas/Content/ContEng/Tasks/contengsettingupnativeingresscontroller.htm) (usa `Ingress`, no Gateway API) |
+
+    En la nube no necesitas MetalLB: cada Service `LoadBalancer` o `Gateway` crea un balanceador administrado, con alta
+    disponibilidad y certificados integrados. A cambio, cada balanceador se paga aparte y su configuración usa
+    anotaciones o CRD propias de cada nube; en OCI, si quieres Gateway API, instalas tu propio controlador (como Kong)
+    detrás del balanceador.
+
 ### Ollama: router y nodos
 
 El asistente de IA tiene **una sola entrada**: el router `ollama-router` (namespace `ai`). Los clientes dentro del

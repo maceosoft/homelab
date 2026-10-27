@@ -26,6 +26,9 @@ mandar pings al check. Las dos son secretos: no las pegues en Git, en el chat ni
 
 Necesitas ser administrador del servidor (o tener el permiso **Manage Webhooks**) para crear los webhooks.
 
+Esta parte se hace **solo desde Discord** (web o app): crear roles, canales o webhooks por API exige un bot con permisos en
+el servidor, y el HomeLab no usa ninguno. Lo único que se puede hacer desde la consola es probar un webhook y borrarlo.
+
 ### 1. Un rol para quien ve las alertas
 
 *Server Settings → Roles → Create Role*, con el nombre `devops`. En la pestaña **Members** del rol, añade a las personas que deben
@@ -69,7 +72,25 @@ La URL tiene este formato, y el script de 1Password rechaza cualquier otro:
 https://discord.com/api/webhooks/<id numérico>/<token>
 ```
 
-Para revocar un webhook, bórralo con **Delete Webhook** en esa misma pantalla: la URL deja de funcionar al instante.
+Para revocar un webhook:
+
+=== "🖱️ Desde la interfaz"
+
+    Bórralo con **Delete Webhook** en esa misma pantalla: la URL deja de funcionar al instante.
+
+=== "⌨️ Desde la consola"
+
+    La API de Discord deja borrar un webhook con su propia URL, sin bot ni otra credencial. La URL se pega sin eco para que
+    no quede en el historial:
+
+    ```bash
+    # pega la URL del webhook y Enter (no se ve)
+    read -rs HOOK
+    curl -fsS -X DELETE "$HOOK"
+    unset HOOK
+    ```
+
+    `curl` no imprime nada si se borró (Discord responde `204`); un `404` significa que ya no existía.
 
 ### 5. Que las críticas te lleguen al móvil
 
@@ -114,17 +135,39 @@ decirte. El plan gratuito basta.
 ### 1. Crear una cuenta
 
 Regístrate en [healthchecks.io](https://healthchecks.io/) con un correo al que tengas acceso. Se crea un proyecto por defecto.
+Esto es **solo desde la web**.
+
+Si vas a crear el check desde la consola (paso 2), en la web entra a los **Settings** del proyecto y crea una **API key** de
+lectura y escritura (*read-write*): crearla también es solo desde la web. Es un secreto: no la guardes en un archivo del repo.
 
 ### 2. Crear el check
 
-En la página **Checks**, pulsa **Add Check** y rellena:
+=== "🖱️ Desde la interfaz"
 
-| Campo | Valor | Por qué |
-|---|---|---|
-| **Name** | `homelab-monitoreo` | Es el nombre que verás en el aviso de Discord |
-| **Schedule** | **Simple** | Un ping a intervalos fijos |
-| **Period** | `5 minutes` | Alertmanager envía el ping cada 5 minutos |
-| **Grace Time** | `10 minutes` | Tolera un ping tardío antes de dar el check por caído |
+    En la página **Checks**, pulsa **Add Check** y rellena:
+
+    | Campo | Valor | Por qué |
+    |---|---|---|
+    | **Name** | `homelab-monitoreo` | Es el nombre que verás en el aviso de Discord |
+    | **Schedule** | **Simple** | Un ping a intervalos fijos |
+    | **Period** | `5 minutes` | Alertmanager envía el ping cada 5 minutos |
+    | **Grace Time** | `10 minutes` | Tolera un ping tardío antes de dar el check por caído |
+
+=== "⌨️ Desde la consola"
+
+    La [API de healthchecks.io](https://healthchecks.io/docs/api/) crea el check con los mismos valores, en segundos
+    (`timeout` es el *Period* y `grace` el *Grace Time*). La API key del paso 1 se pega sin eco, así no queda en el historial:
+
+    ```bash
+    # pega la API key (read-write) y Enter (no se ve)
+    read -rs HC_KEY
+    curl -fsS -H "X-Api-Key: $HC_KEY" \
+      -d '{"name":"homelab-monitoreo","timeout":300,"grace":600}' \
+      https://healthchecks.io/api/v3/checks/ | jq -r .ping_url
+    unset HC_KEY
+    ```
+
+    Imprime la **ping URL** del check nuevo (el campo `ping_url` de la respuesta): es la del paso 3.
 
 Con esos valores, el aviso llega unos 15 minutos después de que se corte el ping. Guarda el check.
 
@@ -140,6 +183,9 @@ Pégala en el campo `url` del item `healthchecks-ping` (parte 3). Quien tenga es
 verde aunque el monitoreo esté caído: trátala como un secreto.
 
 ### 4. Conectar el check con Discord
+
+Este paso es **solo desde la web**: la integración con Discord se autoriza en el navegador, y la API de healthchecks.io solo
+permite listar las integraciones, no crearlas.
 
 1. Arriba, entra a **Integrations** y pulsa **Add Integration**.
 2. Elige **Discord** y pulsa **Connect Discord**.
@@ -176,9 +222,15 @@ script los busca por nombre. Cómo crear un item con campos propios: [Plataforma
 | `grafana-admin` | `password` | Una contraseña generada con el generador de 1Password |
 | | `username` | *(opcional)* usuario del administrador; por defecto `admin` |
 
-??? tip "Con la CLI de 1Password (`op`)"
+=== "🖱️ Desde la interfaz"
+
+    Crea cada item a mano con los campos de la tabla ([cómo](github.md#como-crear-un-item-con-campos-propios)). Para
+    `grafana-admin`, genera la contraseña con el generador de 1Password.
+
+=== "⌨️ Desde la consola"
+
     Con la app de 1Password desbloqueada y la CLI `op` instalado, los tres items se crean con un comando cada uno. Las URL
-    son secretas: se leen con `read -s` (no se ven al pegarlas ni quedan en el historial) y se borran de la variable al terminar.
+    son secretas: se leen con `read -rs` (no se ven al pegarlas ni quedan en el historial) y se borran de la variable al terminar.
     Si tienes más de una cuenta de 1Password, exporta antes `OP_ACCOUNT`.
 
     ```bash
@@ -204,8 +256,8 @@ script los busca por nombre. Cómo crear un item con campos propios: [Plataforma
     ```
 
     Para ver la contraseña de Grafana cuando la necesites: `op read "op://HomeLab/grafana-admin/password"`. Los nombres del
-    item y de los campos son exactamente los que lee `apply_platform_secrets.py`; no los cambies. Discord y healthchecks.io no
-    tienen CLI para crear el webhook o el check: ese paso es **solo desde la web** (partes 1 y 2).
+    item y de los campos son exactamente los que lee `apply_platform_secrets.py`; no los cambies. Los webhooks de Discord se crean
+    **solo desde la web** (parte 1); el check de healthchecks.io también se puede crear por API (parte 2, paso 2).
 
 Comprueba que están bien puestos, sin mostrar ningún valor (desde `ansible/`):
 

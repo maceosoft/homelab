@@ -123,7 +123,7 @@ Vista arquitectónica complementaria: [Arquitectura C4](../architecture/overview
 
 | Decisión | Opción A (default HomeLab) | Opción B |
 |---|---|---|
-| API K3s estable | Nombre `k3s.homelab.local` hacia el control plane (hoy `deborah`, `192.168.20.5`; se mudará a `oliver`) | [kube-vip](https://kube-vip.io/) (`kube_vip.enabled: true` en `k3s_install.yml`) |
+| API K3s estable | Nombre `k3s.homelab.local` hacia el control plane (`deborah`, `192.168.20.5`) | [kube-vip](https://kube-vip.io/) (`kube_vip.enabled: true` en `k3s_install.yml`) |
 | Instalar K3s | `playbook-k3s.yml` | curl manual ([referencia](../k3s/index.md)) |
 | **CNI** | [Calico](https://docs.tigera.io/calico/latest/about/) (`k3s_cni: calico`) | [Flannel](https://github.com/flannel-io/flannel) embebido (`vxlan`), [Canal](https://docs.tigera.io/calico/latest/getting-started/kubernetes/flannel/flannel), [Cilium](https://docs.cilium.io/) |
 | Secretos OAuth | [1Password SDK](https://github.com/1Password/onepassword-sdk-python) — cuenta personal, bóveda `HomeLab` | Cuenta empresa u otra bóveda vía env vars |
@@ -198,9 +198,9 @@ Con la plataforma en marcha se agregan el **asistente de IA local** (Ollama en v
 Open WebUI y Open Terminal), los **logs centralizados** con reportes semanales con IA y las capas de **seguridad**
 (firewall de host, tokens por servicio, NetworkPolicy por etapas). Están en
 [Operación](../operacion/index.md): [Asistente de IA local](../operacion/ia-ollama.md),
-[Logs](../operacion/logs.md) y [Modelo de autenticación](../security/modelo-de-autenticacion.md). La mudanza del
-control plane de `deborah` a `oliver` está documentada en [Mover el control plane](../operacion/mover-control-plane.md)
-y todavía no se ha hecho.
+[Logs](../operacion/logs.md) y [Modelo de autenticación](../security/modelo-de-autenticacion.md). Si algún día
+hiciera falta cambiar el nodo del control plane, el procedimiento está en
+[Mover el control plane](../operacion/mover-control-plane.md).
 
 ## Empieza aquí
 

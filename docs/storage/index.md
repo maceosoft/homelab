@@ -87,6 +87,43 @@ queda replicado entre arquitecturas.
   </div>
 </div>
 
+**Esta decisión en otros entornos**
+
+=== "🏠 En casa"
+
+    Longhorn (`longhorn-mixto`, 2 réplicas) replica los datos importantes entre los discos de los propios nodos, y
+    OpenEBS LocalPV (`openebs-hostpath`, por defecto) da disco local rápido y sin réplicas para lo reconstruible. Sin
+    cabina de almacenamiento ni licencias, y si un nodo cae los datos críticos siguen en el otro.
+
+=== "🏢 En la empresa"
+
+    - **Beneficios:** un almacenamiento distribuido en los propios nodos aguanta la caída de un servidor sin perder
+      datos, da snapshots y volúmenes que se mueven con el pod, y evita depender de una cabina; separar disco replicado
+      (datos críticos) de disco local (lo reconstruible) baja el costo sin arriesgar lo importante.
+    - Lo normal es una **SAN/NAS corporativa** (con su driver CSI) o un almacenamiento definido por software **con
+      soporte**: [SUSE Storage](https://www.suse.com/products/rancher/storage/) (la versión comercial de Longhorn),
+      [Portworx](https://portworx.com/), o Ceph/Rook con soporte de
+      [Red Hat OpenShift Data Foundation](https://www.redhat.com/en/technologies/cloud-computing/openshift-data-foundation)
+      o [IBM Storage Ceph](https://www.ibm.com/products/storage-ceph).
+    - La réplica no es un backup: se exigen **copias fuera del clúster** (otro sitio u objeto) con RPO/RTO (cuántos datos
+      puedes perder y cuánto tardas en volver) definidos y probados.
+    - Se usan **discos dedicados** y red de almacenamiento separada, con 3 réplicas o más y rendimiento medido; aquí
+      Longhorn comparte disco y red con todo lo demás.
+    - Longhorn **sí** encaja en sitios pequeños, edge o tiendas con pocos nodos y sin cabina, donde importa más la
+      simplicidad y el costo predecible que el rendimiento máximo.
+
+=== "☁️ En la nube"
+
+    | Nube | Servicio equivalente |
+    |---|---|
+    | GCP | [Persistent Disk](https://docs.cloud.google.com/compute/docs/disks/persistent-disks) / [Hyperdisk](https://docs.cloud.google.com/compute/docs/disks/hyperdisks) y [Filestore](https://docs.cloud.google.com/filestore/docs) (RWX), con el [driver CSI de GKE](https://docs.cloud.google.com/kubernetes-engine/docs/how-to/persistent-volumes/gce-pd-csi-driver) |
+    | AWS | [Amazon EBS](https://aws.amazon.com/ebs/) y [Amazon EFS](https://aws.amazon.com/efs/) (RWX), con sus drivers CSI ([EBS](https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi.html), [EFS](https://docs.aws.amazon.com/eks/latest/userguide/efs-csi.html)) |
+    | Azure | [Azure Disk Storage](https://azure.microsoft.com/en-us/products/storage/disks) y [Azure Files](https://azure.microsoft.com/en-us/products/storage/files) (RWX), con los [drivers CSI de AKS](https://learn.microsoft.com/en-us/azure/aks/csi-storage-drivers) |
+    | Oracle Cloud (OCI) | [Block Volume](https://docs.oracle.com/en-us/iaas/Content/Block/home.htm) y [File Storage](https://docs.oracle.com/en-us/iaas/Content/File/home.htm) (RWX), con el [driver CSI de OKE](https://docs.oracle.com/en-us/iaas/Content/ContEng/Tasks/contengcreatingpersistentvolumeclaim.htm) |
+
+    Ganas discos administrados con réplica, snapshots y SLA del proveedor, sin cuidar nodos de almacenamiento. Pierdes
+    control y portabilidad: cada nube tiene sus clases y límites, y un disco de bloque suele quedar atado a una zona.
+
 ## StorageClasses del clúster
 
 Una StorageClass (clase de almacenamiento) le dice a Kubernetes **cómo** crear el
@@ -171,6 +208,21 @@ compartidos.
     con `kubectl -n longhorn-system get settings.longhorn.io`), así que **los tres nodos**
     aportan disco, `oliver` incluido. Para limitarlo a `invincible` y `deborah`, activa ese
     ajuste en `defaultSettings` de `longhorn.yaml` y desactiva el disco de `oliver` en la UI.
+
+    === "🖱️ Desde la interfaz"
+
+        En la UI de Longhorn: *Node* → `oliver` → *Edit node and disks* → en su disco, **Scheduling** en *Disable* →
+        *Save*.
+
+    === "⌨️ Desde la consola"
+
+        Mira el nombre del disco y desactiva su *scheduling* en el recurso `nodes.longhorn.io`:
+
+        ```bash
+        kubectl -n longhorn-system get nodes.longhorn.io oliver -o jsonpath='{.spec.disks}{"\n"}'
+        kubectl -n longhorn-system patch nodes.longhorn.io oliver --type merge \
+          -p '{"spec":{"disks":{"<disco>":{"allowScheduling":false}}}}'
+        ```
 
 ### `longhorn-static` — solo para volúmenes ya creados
 

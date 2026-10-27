@@ -224,7 +224,8 @@ Sin error de certificado, y con `401` (significa que llegó al router y pide tok
   el binario de `ollama` y para el Python que ejecuta el agente. La primera vez, macOS pregunta solo.
 - **Red local.** macOS (Sequoia y posteriores) pide permiso para que las aplicaciones hablen con equipos de
   tu red. Acepta el aviso cuando aparezca, o actívalo en *Ajustes → Privacidad y seguridad → Red local*
-  para la Terminal (o el programa desde el que corres `ollama-node`).
+  para la Terminal (o el programa desde el que corres `ollama-node`). Este permiso se da **solo desde Ajustes**:
+  macOS no tiene un comando para concederlo.
 - **Subredes permitidas.** La lista `allowed_cidrs` del `config.json` hace que el agente rechace conexiones que no vengan
   de los nodos de K3s, aunque el firewall de macOS esté abierto.
 

@@ -16,6 +16,9 @@ jobs:
     runs-on: arc-runners
     steps:
       - uses: actions/checkout@v7
+        with:
+          # Historial completo: git-revision-date-localized saca de ahí la fecha de cada página.
+          fetch-depth: 0
 
       - name: Lint Markdown
         uses: DavidAnson/markdownlint-cli2-action@v24
@@ -32,6 +35,30 @@ jobs:
         run: |
           pip install -r requirements-docs.txt
           mkdocs build --strict --clean
+
+  # Enlaces externos de la documentación (GitHub, docs oficiales): mkdocs --strict solo valida los internos. Las
+  # excepciones (homelab.local, repos privados) están en .lycheeignore. Los .en.md tienen los mismos enlaces.
+  enlaces:
+    runs-on: arc-runners
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Revisar enlaces con lychee
+        uses: lycheeverse/lychee-action@v2.9.0
+        with:
+          lycheeVersion: v0.24.2
+          # Solo http(s): los enlaces internos (también los de las tarjetas HTML, en formato directorio) los valida
+          # mkdocs --strict. 429 es el límite de peticiones del sitio, no un enlace roto.
+          args: >-
+            --no-progress --max-concurrency 8 --timeout 20 --max-retries 2
+            --scheme https --scheme http
+            --accept '100..=103,200..=299,429'
+            --exclude-path 'docs/.*\.en\.md'
+            'docs/**/*.md' README.md
+          fail: true
+        env:
+          # Evita el límite de la API de GitHub para los enlaces a github.com.
+          GITHUB_TOKEN: ${{ github.token }}
 
   ansible:
     runs-on: arc-runners

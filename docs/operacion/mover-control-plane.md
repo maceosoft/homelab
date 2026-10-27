@@ -4,7 +4,11 @@ Procedimiento para pasar el **control plane** (el servidor de K3s que guarda el 
 API) de `deborah` a `oliver`, y dejar a `deborah` como **worker**. Se hace en una **ventana de mantenimiento**,
 con una persona al teclado: el playbook se detiene en varios **puntos de pausa** para que confirmes cada etapa.
 
-## Por qué se mueve
+!!! note "No está planificado"
+    El control plane se queda en `deborah`. Este procedimiento queda documentado por si algún día hace falta
+    cambiarlo de nodo.
+
+## Por qué se podría mover
 
 `deborah` es el equipo con más memoria (31 GB), pero también ejecuta Ollama, es el DNS de la LAN (red local) y
 tiene una eMMC (memoria flash soldada) lenta. Un modelo cargado compite con el control plane por memoria.

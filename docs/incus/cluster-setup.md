@@ -171,10 +171,25 @@ Error: This virtual machine image requires an agent:config disk be added
 El perfil `default` no lo incluye (tampoco debe: lo comparten los contenedores y `agent:config` solo vale en VMs).
 Añádelo a la VM:
 
-```bash
-incus config device add mi-vm agent disk source=agent:config
-incus start mi-vm
-```
+=== "🖱️ Desde la interfaz"
+
+    **Instances → (la VM) → Configuration → YAML configuration**, y dentro de `devices:` agrega
+
+    ```yaml
+    devices:
+      agent:
+        type: disk
+        source: agent:config
+    ```
+
+    Guarda con **Save changes** y pulsa **Start**.
+
+=== "⌨️ Desde la consola"
+
+    ```bash
+    incus config device add mi-vm agent disk source=agent:config
+    incus start mi-vm
+    ```
 
 O, si usas imágenes `cloud` a menudo, crea un perfil aparte y aplícalo al lanzar:
 
@@ -183,17 +198,6 @@ incus profile create vm-agent
 incus profile device add vm-agent agent disk source=agent:config
 incus launch images:almalinux/8/cloud mi-vm --vm -p default -p vm-agent --target invincible
 ```
-
-Desde la UI: **Instances → (la VM) → Configuration → YAML configuration**, y dentro de `devices:` agrega
-
-```yaml
-devices:
-  agent:
-    type: disk
-    source: agent:config
-```
-
-Guarda con **Save changes** y pulsa **Start**.
 
 ## UI de administración
 

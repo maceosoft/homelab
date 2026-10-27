@@ -65,8 +65,21 @@ El `ssh` entra con el [acceso por SSO](acceso-ssh.md) (`opkssh login` antes):
 ssh devops@deborah.homelab.local findmnt /var/lib/longhorn-nvme0n1
 ```
 
-- **Longhorn:** en la UI (interfaz de usuario), *Node → deborah* muestra el disco nuevo con
-  *Schedulable* activado.
+- **Longhorn:**
+
+    === "🖱️ Desde la interfaz"
+
+        En la UI (interfaz de usuario), *Node → deborah* muestra el disco nuevo con *Schedulable* activado.
+
+    === "⌨️ Desde la consola"
+
+        Los discos del nodo están en el recurso `nodes.longhorn.io`; el disco nuevo debe aparecer con la condición
+        `Schedulable` en `True`:
+
+        ```bash
+        kubectl -n longhorn-system get nodes.longhorn.io deborah -o jsonpath='{.status.diskStatus}'
+        ```
+
 - **Incus:** `sudo incus storage list` muestra el pool nuevo.
 
 ## Si falla

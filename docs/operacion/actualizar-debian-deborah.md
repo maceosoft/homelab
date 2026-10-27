@@ -10,11 +10,11 @@ la actualiza con respaldo, una simulación previa y una **compuerta de arranque*
     API de Kubernetes y el DNS no responden (los pods de los otros nodos siguen corriendo). Y si el equipo no arranca
     tras el reinicio, hace falta **acceso físico** (HDMI —salida de video— o consola serie). Haz esto con ventana de mantenimiento.
 
-!!! tip "Más sencillo si el control plane ya se mudó"
-    Una vez que el control plane esté en `oliver` ([Mover el control plane](mover-control-plane.md)), `deborah` es
-    solo un worker: la API de Kubernetes sigue respondiendo durante la actualización y solo cae su parte de
-    carga (el DNS de la LAN, Ollama y los pods que viven en ella). Conviene hacer la mudanza **antes** de esta
-    actualización.
+!!! tip "La API de Kubernetes se corta mientras `deborah` reinicia"
+    `deborah` es el control plane: mientras reinicia, `kubectl` y Argo CD no responden, pero los pods que ya corren
+    en los otros nodos siguen funcionando. Si alguna vez el control plane estuviera en otro nodo
+    ([Mover el control plane](mover-control-plane.md)), solo caería la parte de carga de `deborah` (el DNS de la
+    LAN, Ollama y sus pods).
 
 ## Qué cambia y qué no
 
