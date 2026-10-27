@@ -197,7 +197,7 @@ GitHub, and how to load it into 1Password) are in
 1Password items go in the **`HomeLab`** vault, almost all as
 **Secure Note** with custom fields. The item title and each field name
 must be **exact**, because the playbook looks them up by name:
-[how to create the item](../maceosoft/github.md#como-crear-un-item-con-campos-propios).
+[how to create the item](../maceosoft/github.md#how-to-create-an-item-with-custom-fields).
 
 With an **organization owner** account `maceosoft`:
 

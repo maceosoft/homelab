@@ -103,7 +103,7 @@ The full language reference is in the
 In Grafana, there are 12 HomeLab dashboards; the one for logs is called **HomeLab / Logs** and shows volume by level, errors by service and node, and restarts. It is defined as code in the repo
 [`gitops`](https://github.com/maceosoft/gitops/tree/main/monitoring/config/dashboards), not edited manually.
 
-The Ollama router also publishes metrics by **model and node** (requests, tokens, latency, live nodes), visible in the **HomeLab / Ollama** dashboard (and queryable in Explore on `ollama_router_*`). See [Local AI Assistant](ia-ollama.md#metricas-por-modelo-y-nodo).
+The Ollama router also publishes metrics by **model and node** (requests, tokens, latency, live nodes), visible in the **HomeLab / Ollama** dashboard (and queryable in Explore on `ollama_router_*`). See [Local AI Assistant](ia-ollama.md#metrics-per-model-and-node).
 
 ## Retention and Space
 

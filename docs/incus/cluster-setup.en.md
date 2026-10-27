@@ -223,7 +223,7 @@ a container: it is served by the Incus daemon on `core.https_address`.
     ```
 
 `/etc/hosts` on your workstation — full block in
-[HomeLab Overview](../implementacion/resumen-homelab.md#dns-en-tu-estacion-de-trabajo):
+[HomeLab Overview](../implementacion/resumen-homelab.md#dns-on-your-workstation):
 
 Initial access: [`https://incus.homelab.local:8443`](https://incus.homelab.local:8443) → client certificate.
 
