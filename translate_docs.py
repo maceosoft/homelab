@@ -412,9 +412,35 @@ def translate_chunk(chunk: str, call) -> str:
     raise ValueError(reason)
 
 
+# Pestañas que el sitio enlaza por su etiqueta (content.tabs.link): en inglés tienen que salir siempre iguales, así que
+# no las traduce el modelo.
+TAB_LABELS = {
+    "🏠 En casa": "🏠 At home",
+    "🏢 En la empresa": "🏢 In a company",
+    "☁️ En la nube": "☁️ In the cloud",
+    "🖱️ Desde la interfaz": "🖱️ From the UI",
+    "⌨️ Desde la consola": "⌨️ From the console",
+    "Recomendado (Ansible)": "Recommended (Ansible)",
+    "Alternativa manual": "Manual alternative",
+}
+
+
+def fixed_tab_labels(text: str) -> str:
+    """Pone las etiquetas fijas antes de traducir y, después, corrige las que el modelo cambió (mayúsculas, orden)."""
+    for es, en in TAB_LABELS.items():
+        text = text.replace(f'=== "{es}"', f'=== "{en}"')
+        words = sorted(re.findall(r"\w+", en.lower()))
+        text = re.sub(
+            r'=== "([^"]*)"',
+            lambda m, en=en, words=words: f'=== "{en}"' if sorted(re.findall(r"\w+", m.group(1).lower())) == words else m.group(0),
+            text,
+        )
+    return text
+
+
 def translate_text(source: str, call) -> str:
     masker = Masker()
-    masked = masker.mask(source)
+    masked = masker.mask(fixed_tab_labels(source))
     chunks = split_chunks(masked)
     done: list[str] = []
     for n, chunk in enumerate(chunks, 1):
@@ -426,7 +452,7 @@ def translate_text(source: str, call) -> str:
     reason = validate(masked, out_masked)
     if reason:
         raise ValueError(f"página completa: {reason}")
-    result = rewrite_anchors(source, masker.unmask(out_masked))
+    result = fixed_tab_labels(rewrite_anchors(source, masker.unmask(out_masked)))
     if not result.endswith("\n"):
         result += "\n"
     return result

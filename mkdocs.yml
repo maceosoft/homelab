@@ -32,10 +32,24 @@ theme:
     - navigation.top
     - navigation.path
     - navigation.footer
+    # Sin navigation.instant: rompe el selector de idioma contextual de mkdocs-static-i18n (lleva a la misma página en
+    # el otro idioma), que vale más que cargar sin recargar.
+    # El index.md de una sección se abre al hacer clic en la sección.
+    - navigation.indexes
+    # La URL sigue al encabezado visible: copiarla lleva al mismo punto de la página.
+    - navigation.tracking
+    - toc.follow
     - content.code.copy
+    # Anotaciones numeradas dentro de los bloques de código (# (1)!).
+    - content.code.annotate
+    # Las pestañas con la misma etiqueta se eligen juntas en todo el sitio y el navegador recuerda la elección: quien
+    # elige «En la nube» o «Desde la consola» una vez sigue viendo esa pestaña en las demás páginas.
+    - content.tabs.link
     - content.action.edit
     - search.suggest
     - search.highlight
+    # Botón para compartir el enlace a una búsqueda.
+    - search.share
     - content.tooltips
 
 # Enlace del pie para volver a abrir el aviso de cookies (Material lo reconoce por #__consent).
@@ -100,6 +114,14 @@ markdown_extensions:
 plugins:
   # lang lo fija mkdocs-static-i18n por idioma (es/en).
   - search
+  # Descarga en el build las fuentes (Google Fonts) y otros recursos externos y los sirve desde el propio sitio: sin
+  # esto, cada visita le mandaba la IP del visitante a Google sin consentimiento (ver docs/privacidad.md).
+  - privacy
+  # Clic en una captura para verla ampliada.
+  - glightbox:
+      effect: zoom
+      skip_classes:
+        - skip-lightbox
   # Español es el original; las traducciones al inglés (*.en.md) las genera translate_docs.py.
   # Una página sin .en.md cae al español (fallback_to_default).
   - i18n:
@@ -197,6 +219,15 @@ plugins:
             Modelo de autenticación: Authentication model
             Hardening post-incidente: Post-incident hardening
             Privacidad: Privacy
+  # «Última actualización» al pie de cada página, desde el último commit que la tocó (en las .en.md, la de la
+  # traducción). Va después de i18n (toma el idioma de cada página). Necesita el historial completo:
+  # actions/checkout con fetch-depth: 0 en los workflows.
+  - git-revision-date-localized:
+      type: date
+      enable_creation_date: false
+      fallback_to_build_date: true
+      exclude:
+        - index.md
   # llms.txt y llms-full.txt: toda la documentación en texto plano para IA (NotebookLM, ChatGPT, Gemini,
   # Claude…). Se publican en la raíz del sitio. Ver docs/aprende.md.
   - llmstxt:
