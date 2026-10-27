@@ -18,7 +18,7 @@ Routine **procedure**: repeated every time the org `maceosoft` needs a new repo.
 ## 2. Only if it deploys: FTP credentials in 1Password
 
 Create the item **`ftp-<repo>`** (for example `ftp-web-clientes`) in the vault `HomeLab`, type Secure Note, with these 8 fields
-([how to create an item](../maceosoft/github.md#como-crear-un-item-con-campos-propios)):
+([how to create an item](../maceosoft/github.md#how-to-create-an-item-with-custom-fields)):
 
 === "🖱️ From the UI"
 
@@ -190,6 +190,6 @@ For PHP use `ci-php.yml` and `stack: php`. The job name (`ci-cd`) is the check t
 | Symptom | To check |
 |---|---|
 | The `plan` of `infra` fails with *deploy = true requires FTP credentials* | Missing item `ftp-<repo>` or did not rerun `playbook-platform-secrets.yml` (step 2) |
-| `--check` marks fields with ✗ | Exact names of the 8 fields, no section ([details](../maceosoft/github.md#como-crear-un-item-con-campos-propios)) |
+| `--check` marks fields with ✗ | Exact names of the 8 fields, no section ([details](../maceosoft/github.md#how-to-create-an-item-with-custom-fields)) |
 | The `git push` to `main` is rejected | Only owners of the org can bypass the protection of `main`; otherwise, push the code via PR |
 | The deploy fails to connect | Data of the item `ftp-<repo>` and `ftp_protocol` in `repos.tf`; after fixing the item, repeat step 2 and relaunch the pipeline of `infra` |

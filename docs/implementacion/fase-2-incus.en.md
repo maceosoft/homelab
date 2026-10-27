@@ -234,7 +234,7 @@ Ansible installs `incus-ui-canonical` and `core.https_address` on **invincible**
 (Dex) in [Phase 4](fase-4-gitops.md#incus-ui-oidc).
 
 1. Add `incus.homelab.local` in `/etc/hosts` (full block in
-   [HomeLab Summary](resumen-homelab.md#dns-en-tu-estacion-de-trabajo)).
+   [HomeLab Summary](resumen-homelab.md#dns-on-your-workstation)).
 2. Open [`https://incus.homelab.local:8443`](https://incus.homelab.local:8443)
 3. Accept the self-signed certificate
 4. Generate/import a **client certificate**
@@ -245,7 +245,7 @@ Ansible installs `incus-ui-canonical` and `core.https_address` on **invincible**
     Only the `devops` team from `maceosoft` enters (Dex filter) and, with Incus default
     configuration, those OIDC users have full access.
 
-Deep dive: [Incus Cluster — UI](../incus/cluster-setup.md#ui-de-administracion)
+Deep dive: [Incus Cluster — UI](../incus/cluster-setup.md#admin-ui)
 
 ## Backup and snapshots (optional)
 
