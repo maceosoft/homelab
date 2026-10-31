@@ -9,6 +9,7 @@ on:
       - 'docs/**'
       - 'includes/**'
       - 'hooks/**'
+      - 'overrides/**'
       - 'mkdocs.yml'
       - 'requirements-docs.txt'
       - '.github/workflows/deploy-docs.yml'

@@ -1,0 +1,5 @@
+# Todo el sitio es público e indexable. El sitemap lo genera MkDocs en cada build (español e inglés).
+User-agent: *
+Allow: /
+
+Sitemap: https://homelab.maceo.cl/sitemap.xml

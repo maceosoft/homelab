@@ -6,6 +6,10 @@
  *
  * NotebookLM no permite pre-cargar la pregunta desde un enlace, por eso el prompt se copia y se pega en el chat.
  * Si NOTEBOOK_URL queda vacío, el botón solo copia el prompt (sirve con cualquier asistente de IA).
+ *
+ * Medición: cada uso del botón envía a Google Analytics el evento ai_tutor_open (acción, nivel y sección), solo si
+ * el visitante aceptó Analytics en el aviso de cookies. Nunca se envía el texto del prompt. La medición automática
+ * de Analytics no ve este botón porque abre el cuaderno con window.open y no con un enlace.
  */
 (function (root) {
   "use strict";
@@ -139,11 +143,28 @@
     showToast._t = setTimeout(function () { if (copied) toast.hidden = true; }, 20000);
   }
 
+  // Evento de Google Analytics. Material crea window.dataLayer y carga gtag solo cuando el visitante acepta la
+  // categoría Analytics: sin consentimiento no hay dataLayer y no se envía nada. En localhost lo bloquea la bandera
+  // ga-disable de overrides/main.html. GA4 acepta valores de hasta 100 caracteres por parámetro.
+  function track(name, params) {
+    if (!root.dataLayer || typeof root.dataLayer.push !== "function") return;
+    // gtag lee el objeto `arguments`, no un array: por eso la función intermedia.
+    (function () { root.dataLayer.push(arguments); })("event", name, params);
+  }
+
   function run(action, heading) {
-    var prompt = buildPrompt(action, getLevel(), {
+    var level = getLevel();
+    var section = heading.getAttribute("data-ai-heading") || heading.textContent;
+    var prompt = buildPrompt(action, level, {
       title: (document.querySelector(".md-content h1") || {}).textContent || document.title,
-      heading: heading.getAttribute("data-ai-heading") || heading.textContent,
+      heading: section,
       url: location.origin + location.pathname + (heading.id ? "#" + heading.id : "")
+    });
+    track("ai_tutor_open", {
+      ai_action: action,
+      ai_level: level,
+      ai_section: clean(section).slice(0, 100),
+      ai_destination: NOTEBOOK_URL ? "notebooklm" : "clipboard"
     });
     // window.open debe ocurrir dentro del clic para que el navegador no lo bloquee.
     if (NOTEBOOK_URL) root.open(NOTEBOOK_URL, "_blank", "noopener");

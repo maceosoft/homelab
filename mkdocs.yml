@@ -8,6 +8,8 @@ docs_dir: docs
 
 theme:
   name: material
+  # overrides/main.html: etiquetas Open Graph / Twitter Card para las vistas previas al compartir enlaces.
+  custom_dir: overrides
   language: es
   logo: assets/logo.svg
   favicon: assets/logo.svg
@@ -271,6 +273,8 @@ validation:
 
 hooks:
   - hooks/i18n.py
+  # Meta descripción propia por página (primer párrafo) en vez de la misma del sitio en las ~120 páginas.
+  - hooks/seo.py
 
 # Recargar mkdocs serve al editar el glosario
 watch:
