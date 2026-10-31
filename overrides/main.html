@@ -1,0 +1,142 @@
+{#
+  SEO del sitio. Extiende la plantilla de Material sin copiarla: solo agrega en bloques que Material deja para eso.
+
+  - htmltitle: si "título - nombre del sitio" pasa de 65 caracteres, Google lo corta en los resultados; en ese caso
+    se muestra solo el título de la página. No se usa "title:" en el front matter porque translate_docs.py copia el
+    front matter tal cual al .en.md (quedaría el título en español en /en/).
+  - analytics: Google Analytics solo cuenta visitas en el dominio publicado. En `mkdocs serve` (localhost) se
+    desactiva con la bandera oficial de gtag (ga-disable-<ID>), así las pruebas locales no ensucian los datos.
+  - extrahead:
+    * Open Graph y Twitter Card con imagen (docs/assets/social/card-<idioma>.jpg, 1200x630), para que los enlaces
+      compartidos en LinkedIn, Slack, WhatsApp o Discord tengan vista previa. Material solo las genera con el
+      plugin "social", que necesita Cairo en el runner.
+    * hreflang="x-default" apuntando a la versión en español (la original).
+    * Datos estructurados JSON-LD: WebSite en la portada y TechArticle en el resto.
+  La descripción viene de hooks/seo.py: page.meta.description ya va escapada (Material la imprime tal cual, Jinja
+  sin autoescape) y page.meta.seo_description va sin escapar para el JSON-LD (tojson escapa por su cuenta).
+#}
+{% extends "base.html" %}
+
+{% block htmltitle %}
+  {% if page and page.meta and page.meta.title %}
+    {% set seo_title = page.meta.title %}
+  {% elif page and page.title and not page.is_homepage %}
+    {% set seo_title = page.title | striptags %}
+  {% else %}
+    {% set seo_title = "" %}
+  {% endif %}
+  {% if not seo_title %}
+    <title>{{ config.site_name }}</title>
+  {% elif (seo_title ~ " - " ~ config.site_name) | length > 65 %}
+    <title>{{ seo_title }}</title>
+  {% else %}
+    <title>{{ seo_title }} - {{ config.site_name }}</title>
+  {% endif %}
+{% endblock %}
+
+{% block analytics %}
+  {% if config.extra.analytics and config.extra.analytics.property %}
+    <script>
+      if (location.hostname !== "{{ config.site_url.split('/')[2] }}") {
+        window["ga-disable-{{ config.extra.analytics.property }}"] = true;
+      }
+    </script>
+  {% endif %}
+  {{ super() }}
+{% endblock %}
+
+{% block extrahead %}
+  {% if page %}
+    {% set site_root = (config.site_url.split('/')[:3] | join('/')) ~ '/' %}
+    {% set lang = config.theme.language or 'es' %}
+    {% set image = site_root ~ 'assets/social/card-' ~ ('en' if lang == 'en' else 'es') ~ '.jpg' %}
+    {% set image_alt = 'HomeLab — K3s + Incus + CAPN: ' ~ ('home mini-cloud with Kubernetes' if lang == 'en' else 'mini nube con Kubernetes en casa') %}
+    {# Con mkdocs-static-i18n la portada no queda marcada como is_homepage: se reconoce por su URL (es y en). #}
+    {% set is_home = page.is_homepage or page.url in ['', './', 'en/'] %}
+
+    {% if page.meta and page.meta.title %}
+      {% set page_title = page.meta.title %}
+    {% else %}
+      {% set page_title = page.title | striptags if page.title else '' %}
+    {% endif %}
+    {% if page.is_homepage or not page_title %}
+      {% set full_title = config.site_name %}
+    {% elif (page_title ~ " - " ~ config.site_name) | length > 65 %}
+      {% set full_title = page_title %}
+    {% else %}
+      {% set full_title = page_title ~ " - " ~ config.site_name %}
+    {% endif %}
+
+    {% if page.meta and page.meta.description %}
+      {% set description = page.meta.description %}
+      {% set description_raw = page.meta.seo_description or page.meta.description %}
+    {% else %}
+      {% set description = config.site_description | e %}
+      {% set description_raw = config.site_description %}
+    {% endif %}
+
+    {# Open Graph / Twitter Card #}
+    <meta property="og:type" content="{{ 'website' if is_home else 'article' }}">
+    <meta property="og:site_name" content="{{ config.site_name | e }}">
+    <meta property="og:title" content="{{ full_title | e }}">
+    <meta property="og:description" content="{{ description }}">
+    {% if page.canonical_url %}
+      <meta property="og:url" content="{{ page.canonical_url }}">
+    {% endif %}
+    <meta property="og:locale" content="{{ 'en_US' if lang == 'en' else 'es_ES' }}">
+    <meta property="og:locale:alternate" content="{{ 'es_ES' if lang == 'en' else 'en_US' }}">
+    <meta property="og:image" content="{{ image }}">
+    <meta property="og:image:type" content="image/jpeg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="{{ image_alt | e }}">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ full_title | e }}">
+    <meta name="twitter:description" content="{{ description }}">
+    <meta name="twitter:image" content="{{ image }}">
+    <meta name="twitter:image:alt" content="{{ image_alt | e }}">
+
+    {# hreflang x-default: la versión en español. Material ya imprime es/en desde config.extra.alternate. #}
+    {% if config.extra.alternate is iterable %}
+      {% for alt in config.extra.alternate %}
+        {% if alt.lang == 'es' %}
+          {% set alt_href = alt.link if alt.link.startswith('http') else site_root.rstrip('/') ~ alt.link %}
+          <link rel="alternate" href="{{ alt_href }}" hreflang="x-default">
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+
+    {# Datos estructurados (schema.org) #}
+    {% set org = {"@type": "Organization", "name": "maceosoft", "url": "https://github.com/maceosoft"} %}
+    {% if is_home %}
+      {% set ld = {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": config.site_name,
+        "url": page.canonical_url or site_root,
+        "description": description_raw,
+        "inLanguage": lang,
+        "image": image,
+        "publisher": org
+      } %}
+    {% else %}
+      {% set ld = {
+        "@context": "https://schema.org",
+        "@type": "TechArticle",
+        "headline": page_title,
+        "description": description_raw,
+        "inLanguage": lang,
+        "url": page.canonical_url,
+        "mainEntityOfPage": page.canonical_url,
+        "image": image,
+        "author": org,
+        "publisher": org,
+        "isPartOf": {"@type": "WebSite", "name": config.site_name, "url": site_root ~ ('en/' if lang == 'en' else '')}
+      } %}
+      {% if page.meta and page.meta.git_revision_date_localized_raw_iso_date %}
+        {% set _ = ld.update({"dateModified": page.meta.git_revision_date_localized_raw_iso_date}) %}
+      {% endif %}
+    {% endif %}
+    <script type="application/ld+json">{{ ld | tojson }}</script>
+  {% endif %}
+{% endblock %}

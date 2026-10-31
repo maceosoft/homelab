@@ -1,6 +1,6 @@
 # Política de privacidad
 
-**Última actualización:** 4 de octubre de 2026
+**Última actualización:** 31 de octubre de 2026
 
 Esta política explica qué datos se recogen cuando visitas esta documentación
 (`homelab.maceo.cl`), para qué se usan y cómo puedes cambiar tu decisión.
@@ -30,7 +30,10 @@ el mantenedor del sitio no tiene acceso a esos registros.
 Si aceptas la categoría **Google Analytics**, el sitio carga Google Analytics 4 para saber
 cómo se usa la documentación y mejorarla: qué páginas se visitan, desde qué página llegas,
 el país o ciudad aproximados, el tipo de dispositivo y navegador, y los términos que buscas
-dentro del sitio. Se usan las cookies `_ga` y `_ga_*`.
+dentro del sitio. También registra qué haces en él: hasta dónde lees una página, los enlaces
+externos que abres, las descargas (por ejemplo `llms-full.txt`) y el uso de los botones
+**Aprende con IA** (la opción, el nivel y la sección; nunca el texto de la pregunta).
+Se usan las cookies `_ga` y `_ga_*`.
 
 - Los datos los procesa Google según su [política de privacidad](https://policies.google.com/privacy)
   y [cómo usa la información de los sitios que usan sus servicios](https://policies.google.com/technologies/partner-sites).
@@ -57,6 +60,9 @@ Los botones **Aprende con IA** de la guía copian una pregunta a tu portapapeles
 tu equipo hasta que tú la pegas. El nivel que eliges (principiante, intermedio o experto) se guarda únicamente en la
 pestaña de tu navegador (`sessionStorage`) y se borra al cerrarla. Lo que escribas dentro de NotebookLM lo trata
 Google según su [política de privacidad](https://policies.google.com/privacy).
+
+Si aceptaste Google Analytics, cada uso del botón se cuenta en las estadísticas del sitio con la opción, el nivel y la
+sección, para saber qué pasos generan más dudas. La pregunta que se copia nunca se envía.
 
 ## Base para usar los datos
 
