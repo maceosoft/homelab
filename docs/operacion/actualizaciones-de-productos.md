@@ -33,7 +33,7 @@ flowchart LR
 | **Argo CD** | Sigue la rama `stable` del manifiesto oficial ([Actualizar Argo CD](actualizar-argocd.md)) |
 | **Imágenes con tag `latest`** (el runner de ARC) | No hay versión que comparar |
 | Apps opcionales **no activas** en `bootstrap/root-appset.yaml` (Traefik, NGINX Gateway, vCluster, Cilium, Canal) | Se ignoran para no generar ruido. Si activas una, quita su ruta de la regla correspondiente en `renovate.json5` |
-| `homelab` (este repo) | Sus dependencias de Python las sigue vigilando Dependabot (ver [más abajo](#y-dependabot-de-homelab)) |
+| `homelab` (este repo) y `core-pipelines` | Los vigila Dependabot: Python, GitHub Actions y OpenTofu (ver [más abajo](#y-dependabot-de-homelab)) |
 
 ### Qué queda solo en aviso
 
@@ -325,6 +325,23 @@ Cerrar los PRs abiertos de Renovate y borrar sus ramas `renovate/*` es manual (c
 
 ## Y Dependabot de `homelab`
 
-`homelab` tiene Dependabot abierto en pip (PRs de `black` y `certifi`). Renovate aquí solo vigila `gitops`, así que
-**no lo reemplaza**: conviven sin pisarse. Si más adelante prefieres un solo sistema, se puede sumar `homelab` a Renovate
-(instalar la App también en ese repo y añadirlo a `RENOVATE_REPOSITORIES`) y entonces retirar Dependabot.
+En `homelab` y `core-pipelines` las versiones las vigila Dependabot. Renovate solo vigila `gitops`, así que
+**no lo reemplaza**: conviven sin pisarse. La configuración está en `.github/dependabot.yml` de cada repo:
+
+| Repo | Qué vigila | Cómo llegan los PRs |
+|---|---|---|
+| `homelab` | Python (`requirements.txt`, que incluye `requirements-docs.txt`), GitHub Actions y el provider de OpenTofu (`lxc/incus`) | Lunes a las 08:00. Ansible y MkDocs llegan en un PR por grupo; el resto de versiones menores y parches, en un solo PR; las mayores, en PRs separados |
+| `core-pipelines` | GitHub Actions de los workflows reutilizables (los `maceosoft/*@main` propios se ignoran) | Lunes a las 08:00. Menores y parches en un solo PR; las mayores, en PRs separados |
+
+- Dependabot espera **7 días** desde que se publica una versión antes de proponerla (`cooldown`). Las versiones que se
+  retiran o salen comprometidas (ataques a la cadena de suministro) suelen detectarse en esos primeros días.
+- No hay automerge: cada PR pasa por la CI del repo y lo revisa una persona. En `core-pipelines` un cambio afecta a los
+  pipelines de todos los repos que llaman a sus workflows.
+- Dependabot no ve las versiones de herramientas que `core-pipelines` recibe como inputs con valor por defecto
+  (`helm-version`, `kustomize-version`, `kubeconform-version`, etc. en `gitops.yml`): esas se suben a mano.
+
+`gitops` **no tiene** `dependabot.yml`: Renovate ya cubre sus GitHub Actions, y Dependabot no entiende las Applications
+de Argo CD ni las URLs de Calico y Gateway API. Con los dos activos llegarían PRs duplicados.
+
+Si más adelante prefieres un solo sistema, se puede sumar `homelab` a Renovate (instalar la App también en ese repo y
+añadirlo a `RENOVATE_REPOSITORIES`) y entonces retirar Dependabot.
