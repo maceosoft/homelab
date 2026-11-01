@@ -12,6 +12,9 @@ github\.com/maceosoft/infra
 github\.com/organizations/
 # Requiere iniciar sesión y corta la conexión HTTP/2 de los clientes automáticos.
 gemini\.google\.com
+# Fandom (wiki de Invincible, de donde salen los nombres de los nodos): responde 403 a los clientes automáticos
+# como lychee aunque la página exista para quien la abre en el navegador.
+invincible\.fandom\.com
 # Plantillas con marcadores (<nodo>, <usuario>...) que no son URLs reales.
 %3C
 <

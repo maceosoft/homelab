@@ -96,11 +96,13 @@
     <meta name="twitter:image" content="{{ image }}">
     <meta name="twitter:image:alt" content="{{ image_alt | e }}">
 
-    {# hreflang x-default: la versión en español. Material ya imprime es/en desde config.extra.alternate. #}
+    {# hreflang x-default: la versión en español. Material ya imprime es/en desde config.extra.alternate.
+       mkdocs-static-i18n entrega alt.link como "/" en la portada y como "implementacion/fase-3-k3s/" (sin "/" inicial)
+       en las demás páginas: se quita la barra inicial y se antepone la raíz del sitio, que termina en "/". #}
     {% if config.extra.alternate is iterable %}
       {% for alt in config.extra.alternate %}
         {% if alt.lang == 'es' %}
-          {% set alt_href = alt.link if alt.link.startswith('http') else site_root.rstrip('/') ~ alt.link %}
+          {% set alt_href = alt.link if alt.link.startswith('http') else site_root ~ alt.link.lstrip('/') %}
           <link rel="alternate" href="{{ alt_href }}" hreflang="x-default">
         {% endif %}
       {% endfor %}
