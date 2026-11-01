@@ -205,7 +205,7 @@ It should respond `OK` and the check switches to **Up**. Once monitoring is depl
 
 ## Part 3 — Store in 1Password
 
-Items go in the **`HomeLab`** vault, as a **Secure Note**, with fields **outside any section** and with the exact name, because the script looks them up by name. How to create an item with custom fields: [maceosoft Platform — GitHub](github.md#como-crear-un-item-con-campos-propios).
+Items go in the **`HomeLab`** vault, as a **Secure Note**, with fields **outside any section** and with the exact name, because the script looks them up by name. How to create an item with custom fields: [maceosoft Platform — GitHub](github.md#how-to-create-an-item-with-custom-fields).
 
 | Item | Field | Content |
 |---|---|---|
@@ -219,7 +219,7 @@ Items go in the **`HomeLab`** vault, as a **Secure Note**, with fields **outside
 
 === "🖱️ From the UI"
 
-    Create each item manually with the fields from the table ([how](github.md#como-crear-un-item-con-campos-propios)). For
+    Create each item manually with the fields from the table ([how](github.md#how-to-create-an-item-with-custom-fields)). For
     `grafana-admin`, generate the password with the 1Password generator.
 
 === "⌨️ From the console"

@@ -169,7 +169,7 @@ in full during Phase 3, you already have it (`k3s_install.fetch_kubeconfig.enabl
 
     The file on the node is owned by root with `600` permissions, so it is read with
     `sudo`; then `127.0.0.1` is replaced with the control plane IP. `<usuario-admin>` is your
-    node admin user ([Phase 0, Day 0](fase-0-preparacion.md#dia-0-nodos-recien-instalados-solo-la-primera-vez-por-nodo)):
+    node admin user ([Phase 0, Day 0](fase-0-preparacion.md#day-0-freshly-installed-nodes-only-the-first-time-per-node)):
     SSO access ([4.12](#412-ssh-to-hosts-with-dex-optional)) does not exist yet, which requires Dex.
 
     ```bash
@@ -238,7 +238,7 @@ cd ..
 It also creates the `terraform` namespace, where OpenTofu stores its state. Always
 use `~/.kube/homelab-k3s.yaml`, not the current `kubectl` context. It
 is idempotent: run it again when you rotate something in 1Password. Details:
-[Platform maceosoft — GitHub](../maceosoft/github.md#paso-3-cluster-y-secretos-de-plataforma).
+[Platform maceosoft — GitHub](../maceosoft/github.md#step-3-cluster-and-platform-secrets).
 
 **Then, the bootstrap ApplicationSet:**
 
@@ -299,7 +299,7 @@ Wait for `Healthy` in: `gateway-api`, `cert-manager`, `sealed-secrets`, `openebs
 | `cert-manager` | [cert-manager](https://cert-manager.io/docs/) | Issues certificates; creates the one for each Gateway with the `cert-manager.io/cluster-issuer` annotation |
 | `sealed-secrets` | [Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets) | Decrypts `SealedSecret` in the cluster; uses the 1Password key (item `sealed-secrets`) if the secrets playbook already created it |
 | `openebs` | [OpenEBS](https://openebs.io/docs) | Default LocalPV |
-| `homelab-storage` | — | StorageClasses `openebs-hostpath` and `longhorn-mixto` ([which to use and their trade-offs](../storage/index.md#storageclasses-del-cluster)) |
+| `homelab-storage` | — | StorageClasses `openebs-hostpath` and `longhorn-mixto` ([which to use and their trade-offs](../storage/index.md#cluster-storageclasses)) |
 | `metallb` | [MetalLB](https://metallb.universe.tf/) | LoadBalancer Controller |
 
 **Verify:**
@@ -474,7 +474,7 @@ curl -s -o /dev/null -w "%{http_code} -> %{redirect_url}\n" http://argocd.homela
 
 ### Incus UI OIDC
 
-Requirements: UI installed in [Phase 2](fase-2-incus.md#ui-de-administracion),
+Requirements: UI installed in [Phase 2](fase-2-incus.md#admin-ui),
 `argocd` Healthy, secrets injected, and Dex restarted.
 
 Incus (7.x) only knows five OIDC keys: `oidc.issuer`, `oidc.client.id`, `oidc.audience`,
@@ -515,7 +515,7 @@ incus config get oidc.client.id
 They must return `200 ssl_verify=0`, `https://argocd.homelab.local/api/dex`, and `incus-ui`.
 
 Manual alternative on the bootstrap node (**invincible**), after installing the CA
-([manual](../incus/cluster-setup.md#oidc-via-dex-fase-4)):
+([manual](../incus/cluster-setup.md#oidc-via-dex-phase-4)):
 
 ```bash
 incus config set oidc.issuer=https://argocd.homelab.local/api/dex
@@ -1164,7 +1164,7 @@ secrets playbook already applied.
 | SSO fails | 1Password secrets + restart `argocd-dex-server` |
 | `homelab-root` `ComparisonError` / repo not accessible | Missing `argocd/repo-gitops`, or App `maceosoft-argocd` not installed in `maceosoft/gitops`: re-run `playbook-platform-secrets.yml` |
 | `arc-runners` `OutOfSync` and the listener pod restarts every few minutes | Argo CD prunes in a loop the resources created by the ARC controller (`AutoscalingListener`, `Role`, `RoleBinding`: they copy the label `app.kubernetes.io/instance`). Fixed with `application.resourceTrackingMethod: annotation` in `argocd-cm` (already in `gitops/argocd/config`). Check: `kubectl -n argocd get cm argocd-cm -o jsonpath='{.data.application\.resourceTrackingMethod}'` → `annotation`; if not, sync `argocd` and restart the controller: `kubectl -n argocd rollout restart statefulset argocd-application-controller` |
-| Apps in `Error`: `ComparisonError … terminatingReplicas: field not declared in schema` | Argo CD is prior to 3.5 and the cluster has Kubernetes 1.34 or newer: [Update Argo CD](../operacion/actualizar-argocd.md#la-primera-vez-actualizar-a-mano-y-despues-activar-la-app) |
+| Apps in `Error`: `ComparisonError … terminatingReplicas: field not declared in schema` | Argo CD is prior to 3.5 and the cluster has Kubernetes 1.34 or newer: [Update Argo CD](../operacion/actualizar-argocd.md#the-first-time-update-manually-then-enable-the-app) |
 | GitHub login gives 404 (`client_id=.github.clientId`) | Missing `dex.*` in `argocd-secret`: run `playbook-dex-oauth-secrets.yml --tags argocd` ([4.7](#47-oauth-secrets-github-vcluster-incus-ui)) |
 | Runner does not appear in GitHub | `kubectl logs -n arc-systems` of the listener; Secret `arc-runners/arc-runners-github-app` (App installed in `maceosoft`) |
 | Pipeline `tofu` without runner or without credentials | Runner `arc-runners` Online; Secrets `terraform-app`/`tofu-vars` in `arc-runners` |

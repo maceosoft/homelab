@@ -367,7 +367,7 @@ See [Rotate credentials](rotar-credenciales.md).
   [Authentication model](../security/modelo-de-autenticacion.md).
 - **HTTPS only via Kong.** There is no HTTP listener for `ollama.homelab.local`. Inside the cluster, the internal
   Service `ollama-router.ai.svc` only allows ingress from allowed namespaces and labels when the `ai` namespace NetworkPolicy
-  is active (it is enabled in stages; see [What is active](../security/modelo-de-autenticacion.md#que-esta-activo-y-que-esta-por-activar)).
+  is active (it is enabled in stages; see [What is active](../security/modelo-de-autenticacion.md#whats-active-and-whats-pending-activation)).
 - **Router limits.** Registers up to 64 nodes with 2000 models each, priorities 0–100, and model names with the format `^[A-Za-z0-9._:/@-]{1,128}$`; the `HEAD`, `OPTIONS`, and `PATCH` methods respond `405`; timeouts are 900 seconds. Only accepts node registrations from within `ALLOWED_NODE_CIDRS` (`192.168.20.0/22`), and a live node cannot be overwritten from another IP (responds `409` until it expires or `DELETE` is done). Kong only exposes
   `/api`, `/v1`, and `/_registry`: neither `/metrics` nor `/healthz` go out that way.
 - **Model management blocked** (`pull`, `create`, `delete`, `copy`, `push`, and `blobs`).
