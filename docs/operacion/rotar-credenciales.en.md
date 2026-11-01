@@ -27,7 +27,7 @@ Replace a credential with a new one: periodically, or immediately if you suspect
 | `#ia` channel webhook (AI reports) | `discord-webhooks` (field `ai`) | `playbook-platform-secrets.yml` ([create the channel](logs.md#create-the-ia-channel-and-its-webhook-once)) |
 | Node root password | `root@<nodo>` (created by the playbook) | `playbook-rotate-root-passwords.yml` |
 | Sealed Secrets key | `sealed-secrets` | `playbook-platform-secrets.yml` ([note: see below](#sealed-secrets-key)) |
-| Argo CD token from the `gitops` pipeline (account `ci`) | `argocd-ci` | `playbook-platform-secrets.yml` ([how to generate it](pipeline-gitops.md#activar-el-diff-contra-el-cluster-una-vez)) |
+| Argo CD token from the `gitops` pipeline (account `ci`) | `argocd-ci` | `playbook-platform-secrets.yml` ([how to generate it](pipeline-gitops.md#enable-the-cluster-diff-once)) |
 
 ## Private key of a GitHub App
 

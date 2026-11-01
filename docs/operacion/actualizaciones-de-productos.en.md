@@ -91,7 +91,7 @@ After *Create GitHub App* (creating the App, generating its key, and installing 
 2. Left menu → **Install App** → *Install* next to `maceosoft` → **Only select repositories** → choose **`gitops`**
    → *Install*. Install it **only on `gitops`**.
 3. Save the App in 1Password (vault `HomeLab`, Secure Note `maceosoft-renovate`, as in
-   [maceosoft Platform — GitHub](../maceosoft/github.md#como-crear-un-item-con-campos-propios)).
+   [maceosoft Platform — GitHub](../maceosoft/github.md#how-to-create-an-item-with-custom-fields)).
    The *Installation ID* isn't needed: the workflow resolves it automatically.
 
     === "🖱️ From the UI"

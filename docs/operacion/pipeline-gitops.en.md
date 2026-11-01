@@ -36,7 +36,7 @@ The diff uses a **read-only** Argo CD account, `ci`, which is already declared i
 
         In 1Password, vault `HomeLab`, create the item **`argocd-ci`** (Secure Note)
         with a field **`token`** (Password) and paste the token
-        ([how to create an item](../maceosoft/github.md#como-crear-un-item-con-campos-propios)).
+        ([how to create an item](../maceosoft/github.md#how-to-create-an-item-with-custom-fields)).
 
     === "⌨️ From the console"
 

@@ -120,7 +120,7 @@ In addition to SSH hardening, it is advisable to rotate the local
 `root` password on all 3 nodes (defense in depth for console/`su -` —
   `root` login via SSH is already disabled). There is a dedicated playbook
   that generates a new password per host and stores it in 1Password (vault
-  `HomeLab`): see [Secrets management](../secrets/index.md#rotacion-de-password-de-root-1password-sdk-local).
+  `HomeLab`): see [Secrets management](../secrets/index.md#root-password-rotation-local-1password-sdk).
 
 ```bash
 ansible-playbook -i inventory.ini playbook-rotate-root-passwords.yml \
@@ -153,7 +153,7 @@ These changes are made **only from the router's web interface**; menus depend on
   reinstall (or when [moving the control plane](../operacion/mover-control-plane.md), if ever done).
 - **NetworkPolicies** `default-deny` between namespaces (`ai`, `monitoring`, `longhorn-system`,
   `kong`, `gateway`, `arc-*`): manifests are ready but enabled in stages,
-  namespace by namespace. See [What is active](modelo-de-autenticacion.md#que-esta-activo-y-que-esta-por-activar).
+  namespace by namespace. See [What is active](modelo-de-autenticacion.md#whats-active-and-whats-pending-activation).
 - **Pod Security Admission** (PSA) in `warn` and `audit` mode with the `restricted` level
   before making it mandatory (labels ready, pending activation).
 

@@ -3,7 +3,7 @@
 !!! info "Part of the implementation guide"
     - **[Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets)** — Phase 4 wave 0; CAPN (Cluster API Provider for Incus) Phase 6.
     - **OAuth (Open Authorization) Dex** — [Phase 4 step 4.7](../implementacion/fase-4-gitops.md#47-oauth-secrets-github-vcluster-incus-ui).
-    - **maceosoft platform** (Argo CD Apps, ARC —Actions Runner Controller— and OpenTofu, FTP) — [1Password → cluster](../maceosoft/github.md#paso-3-cluster-y-secretos-de-plataforma).
+    - **maceosoft platform** (Argo CD Apps, ARC —Actions Runner Controller— and OpenTofu, FTP) — [1Password → cluster](../maceosoft/github.md#step-3-cluster-and-platform-secrets).
 
 ## Diagram — three secret pathways
 
