@@ -490,6 +490,7 @@ With k3s installed ([Phase 3](../implementacion/fase-3-k3s.md), Argo CD included
 ```bash
 # tu cuenta
 export ONEPASSWORD_ACCOUNT_NAME="Mi Cuenta"
+export ONEPASSWORD_VAULT="HomeLab"
 cd ansible
 ansible-playbook -i inventory.ini playbook-platform-secrets.yml
 ```
