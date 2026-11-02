@@ -398,7 +398,8 @@ async def build_manifests() -> list[dict]:
     legacy_arc = await read_app_optional(client, LEGACY_ARC_ITEM)
     legacy_tf = await read_app_optional(client, LEGACY_TF_ITEM)
     if legacy_arc:
-        manifests.append(namespace(LEGACY_RUNNER_NAMESPACE, baseline=True))
+        # privileged: sus runners llevan un sidecar dind (gitops: arc/values-scaleset-symintel.yaml).
+        manifests.append(namespace(LEGACY_RUNNER_NAMESPACE, privileged=True))
         manifests.append(
             secret(
                 LEGACY_RUNNER_NAMESPACE,

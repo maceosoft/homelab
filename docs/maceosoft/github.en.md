@@ -536,10 +536,11 @@ serve the new org (`maceosoft`) and the old org (`symintel`) there are **two sca
 | ARC App (1Password item) | `maceosoft-arc-runners` | `symintel-arc-runners` |
 | Name in `runs-on:` | `arc-runners` | `arc-runners` (the same) |
 | Cache `/cache` (RWX, Longhorn) | 20 GiB | 10 GiB, separate |
+| Docker (`dind`) | No | Yes, with a privileged sidecar; namespace with `enforce=privileged` |
 | OpenTofu and FTP | Yes (`terraform-app`, `tofu-vars`) | Only if item `symintel-terraform` exists |
 
 Both use **the same runner template**
-([`values-scaleset.yaml`](https://github.com/maceosoft/gitops/blob/main/arc/values-scaleset.yaml)); the old org only changes
+([`values-scaleset.yaml`](https://github.com/maceosoft/gitops/blob/main/arc/values-scaleset.yaml)); the old org changes
 `githubConfigUrl` ([`values-scaleset-symintel.yaml`](https://github.com/maceosoft/gitops/blob/main/arc/values-scaleset-symintel.yaml)).
 Each namespace has its own Secrets, with **the same name**, so those of one org aren't visible to the other, and the cache isn't
 shared either (a poisoned cache in one org doesn't reach the other).

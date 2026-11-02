@@ -576,10 +576,11 @@ atiendan a la org nueva (`maceosoft`) y a la antigua (`symintel`) hay **dos scal
 | App de ARC (item de 1Password) | `maceosoft-arc-runners` | `symintel-arc-runners` |
 | Nombre en `runs-on:` | `arc-runners` | `arc-runners` (el mismo) |
 | Caché `/cache` (RWX, Longhorn) | 20 GiB | 10 GiB, propia |
+| Docker (`dind`) | No | Sí, con un sidecar privilegiado; namespace con `enforce=privileged` |
 | OpenTofu y FTP | Sí (`terraform-app`, `tofu-vars`) | Solo si existe el item `symintel-terraform` |
 
 Los dos usan **la misma plantilla** de runner
-([`values-scaleset.yaml`](https://github.com/maceosoft/gitops/blob/main/arc/values-scaleset.yaml)); la org antigua solo cambia
+([`values-scaleset.yaml`](https://github.com/maceosoft/gitops/blob/main/arc/values-scaleset.yaml)); la org antigua cambia
 `githubConfigUrl` ([`values-scaleset-symintel.yaml`](https://github.com/maceosoft/gitops/blob/main/arc/values-scaleset-symintel.yaml)).
 Cada namespace tiene sus propios Secrets, con **el mismo nombre**, así que los de una org no los ve la otra, y la caché tampoco se
 comparte (una caché envenenada en una org no llega a la otra).
