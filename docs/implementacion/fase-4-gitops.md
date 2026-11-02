@@ -682,7 +682,7 @@ Con `arc-helm-repo`, `arc-controller`, `terraform-rbac` y `arc-runners` descomen
 |---|---|
 | `arc-controller` | Controller de ARC (`arc-systems`) |
 | `terraform-rbac` | ServiceAccount `tofu-runner`, con acceso solo a Secrets/Leases del namespace `terraform` |
-| `arc-runners` | Scale set de la org `maceosoft` (hasta 3 runners), para CI, deploys y OpenTofu. La org antigua tiene el suyo, `arc-runners-symintel` (ver [Dos organizaciones](../maceosoft/github.md#dos-organizaciones-un-scale-set-por-org)) |
+| `arc-runners` | Scale set de la org `maceosoft` (hasta 15 runners), para CI, deploys y OpenTofu. La org antigua tiene el suyo, `arc-runners-symintel` (ver [Dos organizaciones](../maceosoft/github.md#dos-organizaciones-un-scale-set-por-org)) |
 | `arc-runners` (caché) | Volumen compartido `arc-cache` montado en `/cache` de los runners ([Caché de los runners](../operacion/cache-arc.md)) |
 
 ```bash
