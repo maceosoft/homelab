@@ -495,7 +495,7 @@ ansible-playbook -i inventory.ini playbook-platform-secrets.yml
 ```
 
 [`playbook-platform-secrets.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-platform-secrets.yml)
-creates the namespaces `argocd`, `arc-runners` (PSS `baseline`) and `terraform`
+creates the namespaces `argocd`, `arc-runners` (PSS `privileged`, for the `dind` sidecar) and `terraform`
 (only stores OpenTofu state), and these Secrets:
 
 | Secret | Namespace | Content |
@@ -536,7 +536,7 @@ serve the new org (`maceosoft`) and the old org (`symintel`) there are **two sca
 | ARC App (1Password item) | `maceosoft-arc-runners` | `symintel-arc-runners` |
 | Name in `runs-on:` | `arc-runners` | `arc-runners` (the same) |
 | Cache `/cache` (RWX, Longhorn) | 20 GiB | 10 GiB, separate |
-| Docker (`dind`) | No | Yes, with a privileged sidecar; namespace with `enforce=privileged` |
+| Docker (`dind`) | Yes, with a privileged sidecar | Yes, the same |
 | OpenTofu and FTP | Yes (`terraform-app`, `tofu-vars`) | Only if item `symintel-terraform` exists |
 
 Both use **the same runner template**
