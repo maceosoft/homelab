@@ -22,7 +22,7 @@ What is stored and where:
 
 | Folder | Content | Variable |
 |---|---|---|
-| `/cache/pip`, `/cache/npm` | Downloaded packages | `PIP_CACHE_DIR`, `npm_config_cache` |
+| `/cache/pip`, `/cache/npm`, `/cache/composer` | Downloaded packages | `PIP_CACHE_DIR`, `npm_config_cache`, `COMPOSER_CACHE_DIR` |
 | `/cache/helm`, `/cache/xdg` | Helm indexes and charts, generic caches | `HELM_CACHE_HOME`, `XDG_CACHE_HOME` |
 | `/cache/tofu-plugins` | OpenTofu providers (per OS and architecture) | `TF_PLUGIN_CACHE_DIR` |
 | `/cache/dl` | Tarballs of helm, kustomize, kubeconform, gitleaks, and argocd from the `gitops` pipeline | `RUNNER_CACHE` |

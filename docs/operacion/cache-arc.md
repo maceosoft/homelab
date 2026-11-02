@@ -16,13 +16,13 @@ entre jobs, excepto el *tool cache* de `setup-python`/`setup-node` (ver abajo).
 |---|---|---|
 | PVC `arc-cache` | [`gitops/arc/cache/pvc.yaml`](https://github.com/maceosoft/gitops/blob/main/arc/cache/pvc.yaml) | 20 Gi, `ReadWriteMany` (RWX: varios pods a la vez, en nodos distintos), StorageClass `longhorn` (se sirve por NFS) |
 | Montaje y variables | [`gitops/arc/values-scaleset.yaml`](https://github.com/maceosoft/gitops/blob/main/arc/values-scaleset.yaml) | Monta el volumen en `/cache` y apunta las cachés de cada herramienta ahí; un `initContainer` deja las carpetas con el usuario del runner |
-| Limpieza | [`gitops/arc/cache/prune-cronjob.yaml`](https://github.com/maceosoft/gitops/blob/main/arc/cache/prune-cronjob.yaml) | CronJob semanal (domingo 04:00) que borra archivos sin tocar hace más de 30 días de pip, npm, Helm y XDG, y muestra el uso |
+| Limpieza | [`gitops/arc/cache/prune-cronjob.yaml`](https://github.com/maceosoft/gitops/blob/main/arc/cache/prune-cronjob.yaml) | CronJob semanal (domingo 04:00) que borra archivos sin tocar hace más de 30 días de pip, npm, Composer, Helm y XDG, y muestra el uso |
 
 Qué se guarda y dónde:
 
 | Carpeta | Contenido | Variable |
 |---|---|---|
-| `/cache/pip`, `/cache/npm` | Paquetes descargados | `PIP_CACHE_DIR`, `npm_config_cache` |
+| `/cache/pip`, `/cache/npm`, `/cache/composer` | Paquetes descargados | `PIP_CACHE_DIR`, `npm_config_cache`, `COMPOSER_CACHE_DIR` |
 | `/cache/helm`, `/cache/xdg` | Índices y charts de Helm, cachés genéricas | `HELM_CACHE_HOME`, `XDG_CACHE_HOME` |
 | `/cache/tofu-plugins` | Providers de OpenTofu (por sistema y arquitectura) | `TF_PLUGIN_CACHE_DIR` |
 | `/cache/dl` | Tarballs de helm, kustomize, kubeconform, gitleaks y argocd del pipeline de `gitops` | `RUNNER_CACHE` |
@@ -38,6 +38,15 @@ Qué se guarda y dónde:
 El clúster mezcla nodos `amd64` y `arm64` (`deborah`): por eso lo que depende de la
 arquitectura va en carpetas separadas por ella (providers de OpenTofu y nombres de
 tarball) y es seguro compartirlo.
+
+## Docker y runners con PHP
+
+Todos los runners llevan Docker con un sidecar `dind` privilegiado, por lo que sus namespaces usan `enforce=privileged`. Lo define [`gitops/arc/values-scaleset.yaml`](https://github.com/maceosoft/gitops/blob/main/arc/values-scaleset.yaml), con MTU 1400 porque Calico usa 1450: con una MTU mayor, las conexiones TLS desde contenedores se cuelgan.
+
+El scale set `arc-php-84` usa la imagen `ghcr.io/symintel/ci-php`, con PHP 8.4, Composer, `lftp` y PostgreSQL 16. Comparte namespace, Secrets y caché con `arc-runners-symintel`. Su archivo de valores repite `containers`: cualquier cambio en esa parte de la plantilla debe copiarse ahí.
+
+!!! warning "Forks"
+    Un job con Docker tiene privilegios altos sobre su nodo. `homelab` es público, así que solo los colaboradores pueden abrir PR y ningún fork puede disparar workflows en estos runners. No relajes esa opción.
 
 ## Cómo se verifica lo que se reutiliza
 
