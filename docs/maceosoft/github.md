@@ -528,8 +528,9 @@ como admin de Argo CD. Se aplica en el
 Con k3s instalado ([Fase 3](../implementacion/fase-3-k3s.md), Argo CD incluido):
 
 ```bash
-# tu cuenta
+# tu cuenta y tu bóveda
 export ONEPASSWORD_ACCOUNT_NAME="Mi Cuenta"
+export ONEPASSWORD_VAULT="HomeLab"
 cd ansible
 ansible-playbook -i inventory.ini playbook-platform-secrets.yml
 ```
