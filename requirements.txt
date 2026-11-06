@@ -1,10 +1,10 @@
 # Entorno completo del operador: el sitio (requirements-docs.txt) + Ansible, lint y 1Password.
 -r requirements-docs.txt
 annotated-types==0.7.0
-ansible==14.1.0
-ansible-compat==26.6.0
-ansible-core==2.21.1
-ansible-lint==26.6.0
+ansible==14.5.0
+ansible-compat==26.10.0
+ansible-core==2.21.5
+ansible-lint==26.10.1
 attrs==26.1.0
 black==26.10.1
 bracex==3.0
