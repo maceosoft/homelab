@@ -1,0 +1,9 @@
+---
+# MacBook Pro 16" 2019 (MacBookPro16,1): i9-9980HK 8c/16t, 31 GB, NVMe 1 TB, chip T2.
+# Por ahora solo drivers (playbook-t2-mac.yml): no está en Incus ni en K3s.
+ansible_python_interpreter: /usr/bin/python3
+# WiFi BCM4364 con firmware de Apple (ver roles/t2_mac/README.md).
+has_wifi: true
+wifi_iface: wlp5s0
+# enxacde48001122 (MAC ac:de:48:00:11:22) es la red interna con el chip T2, no un cable:
+# no usarla como bridge_iface al fijar la IP.

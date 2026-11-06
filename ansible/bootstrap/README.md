@@ -71,6 +71,14 @@ nombre fijo en el repo:
 
 Todos con `--limit <host>` para un nodo puntual.
 
+## Mac con chip T2 (eve)
+
+Las Mac Intel con chip T2 no siguen esta tabla todavía. El paso -1 (`setup_sudo.yml`) también se corre, pero
+entrando con tu usuario y subiendo a root con `su`, porque root no entra por SSH con contraseña:
+`-e ansible_user=<usuario> -b --become-method=su --ask-become-pass` (ver el README del rol). Después se corre `playbook-t2-mac.yml` para los drivers (teclado, trackpad,
+ventiladores y WiFi). Detalle en [`roles/t2_mac/README.md`](../roles/t2_mac/README.md). Los pasos de esta tabla
+(IP fija, hardening, Incus, K3s) vienen después, cuando el nodo tenga su red definitiva.
+
 ## Fuera de esta secuencia (no son "bootstrap de nodo")
 
 - `playbook-dex-oauth-secrets.yml` — secretos OAuth a nivel de clúster

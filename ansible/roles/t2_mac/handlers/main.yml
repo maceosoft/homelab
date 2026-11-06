@@ -1,0 +1,32 @@
+---
+# logind relee su config con SIGHUP sin cerrar las sesiones abiertas.
+- name: Recargar logind
+  ansible.builtin.command: systemctl kill -s HUP systemd-logind
+  changed_when: true
+
+# setupcon aplica la fuente en las consolas ya abiertas; update-initramfs la deja
+# desde el arranque.
+- name: Aplicar fuente de consola
+  ansible.builtin.shell: setupcon --force --save && update-initramfs -u
+  changed_when: true
+
+- name: Aplicar reglas udev
+  ansible.builtin.shell: udevadm control --reload && udevadm trigger --subsystem-match=power_supply
+  changed_when: true
+
+- name: Reiniciar acpid
+  ansible.builtin.systemd_service:
+    name: acpid
+    state: restarted
+    enabled: true
+  when: not (ansible_check_mode and t2_mac_acpid_pkg is changed)
+
+- name: Reiniciar gpm
+  ansible.builtin.systemd_service:
+    name: gpm
+    state: restarted
+    enabled: true
+
+- name: Regenerar GRUB
+  ansible.builtin.command: update-grub
+  changed_when: true

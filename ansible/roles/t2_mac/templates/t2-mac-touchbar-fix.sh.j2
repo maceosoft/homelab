@@ -1,0 +1,34 @@
+#!/bin/sh
+# {{ ansible_managed }}
+# Al arrancar, appletbdrm a veces falla con -110 ("Failed to get display
+# information") y la Touch Bar queda negra. Workaround del mantenedor
+# (t2linux/wiki#635, #729): pasar la Touch Bar a la configuración USB 0 y
+# volver a la 2, para que el driver la vuelva a detectar.
+set -eu
+
+# Esperar a que el T2 exponga la Touch Bar (hasta 60 s).
+dev=""
+for _ in $(seq 60); do
+    dev=$(grep -l "Touch Bar Display" /sys/bus/usb/devices/*/product 2>/dev/null | head -1 | xargs -r dirname)
+    [ -n "$dev" ] && break
+    sleep 1
+done
+[ -n "$dev" ] || { echo "Touch Bar no encontrada"; exit 0; }
+iface="$(basename "$dev"):2.1"
+
+# Dar tiempo a que appletbdrm termine su propio intento.
+sleep 5
+for intento in 1 2 3; do
+    if [ -e "/sys/bus/usb/drivers/appletbdrm/$iface" ]; then
+        echo "appletbdrm ligado a $iface"
+        systemctl start --no-block tiny-dfr.service
+        exit 0
+    fi
+    echo "appletbdrm sin ligar a $iface: reinicio de configuración USB (intento $intento)"
+    echo 0 > "$dev/bConfigurationValue"
+    sleep 1
+    echo 2 > "$dev/bConfigurationValue"
+    sleep 4
+done
+echo "appletbdrm no se ligó tras 3 intentos"
+exit 1
