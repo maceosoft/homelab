@@ -1,0 +1,67 @@
+---
+# t2_mac — valores por defecto. Ver README.md del rol.
+
+# Repo apt de t2linux (AdityaGarg8/t2-ubuntu-repo): uno común y uno por versión
+# de Debian/Ubuntu. Tras subir de versión de Debian, el de la versión cambia solo
+# (usa el codename del sistema).
+t2_mac_repo_key_url: https://adityagarg8.github.io/t2-ubuntu-repo/KEY.gpg
+t2_mac_repo_common_uri: https://adityagarg8.github.io/t2-ubuntu-repo
+t2_mac_repo_release_uri: >-
+  https://github.com/AdityaGarg8/t2-ubuntu-repo/releases/download/{{ ansible_facts['distribution_release'] }}
+
+# linux-t2 trae integrados apple-bce (teclado, trackpad, Touch Bar, audio) y applesmc.
+# NO agregar apple-bce, apple-touchbar, applesmc-t2, apfs-dkms ni bcm5974-t2:
+# el README del repo avisa que chocan con linux-t2.
+t2_mac_packages:
+  - linux-t2
+  - apple-firmware-script   # get-apple-firmware: firmware WiFi/Bluetooth desde macOS
+  - apple-t2-audio-config
+  - t2fanrd                 # control de ventiladores
+  - tiny-dfr                # Touch Bar como fila de teclas (Esc, F1-F12)
+
+# Librerías que tiny-dfr necesita y su paquete no declara (en un escritorio ya están).
+t2_mac_tinydfr_libs:
+  - libfontconfig1
+  - librsvg2-2
+  - libcairo2
+  - libinput10
+
+# Parámetros de arranque recomendados por wiki.t2linux.org. apple_gmux.force_igd=1
+# deja la iGPU Intel como principal: la AMD no hace falta en un servidor y calienta.
+# consoleblank apaga la pantalla tras N segundos sin teclado (el default 0 la deja
+# encendida siempre, también con la tapa cerrada); una tecla la vuelve a encender.
+t2_mac_kernel_params:
+  - intel_iommu=on
+  - iommu=pt
+  - pm_async=off
+  - apple_gmux.force_igd=1
+  - consoleblank=300
+
+# Trackpad en la consola (gpm). -a es la aceleración y -d el umbral desde el que
+# acelera; con la fuente 16x32 hace falta subir la aceleración. -d 1 hace fallar a gpm.
+t2_mac_console_mouse: true
+t2_mac_gpm_append: "-a 6 -d 2"
+
+# Luz de la pantalla que se apaga al cerrar la tapa (gmux en las MacBook Pro con dos GPU).
+t2_mac_lid_backlight: gmux_backlight
+
+# Fuente de consola (console-setup) legible en la pantalla Retina.
+# Otras opciones: Terminus 14x28, o FONTFACE Terminus (sin negrita).
+t2_mac_console_fontface: TerminusBold
+t2_mac_console_fontsize: 16x32
+
+# Tope de carga de la batería (%). El nodo vive enchufado; 80 alarga su vida útil.
+t2_mac_battery_charge_limit: 80
+
+# Apagar la GPU dedicada (AMD) en cada arranque. La wiki de t2linux no es clara
+# sobre si funciona en todos los modelos: en la MacBookPro16,1 sí.
+t2_mac_dgpu_off: true
+
+# Un servidor no usa Bluetooth.
+t2_mac_disable_bluetooth: true
+
+# Pausa antes de reiniciar el nodo para pasar al kernel T2.
+t2_mac_reboot_confirm: true
+
+# Firmware WiFi del chip del modelo (MacBookPro16,1 = BCM4364).
+t2_mac_wifi_firmware_pattern: brcmfmac4364*

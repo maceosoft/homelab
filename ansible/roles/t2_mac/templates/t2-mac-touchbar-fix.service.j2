@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Recuperar la pantalla de la Touch Bar (appletbdrm -110)
+After=systemd-udevd.service systemd-modules-load.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/t2-mac-touchbar-fix
+
+[Install]
+WantedBy=multi-user.target

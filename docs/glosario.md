@@ -126,6 +126,7 @@ paréntesis.
 | **SSL** | Secure Sockets Layer | Antecesor de TLS; el nombre se sigue usando para hablar de certificados y conexiones cifradas. |
 | **SSO** | inicio de sesión único | Single Sign-On: entrar a varios servicios con la misma cuenta (aquí, GitHub vía Dex). |
 | **SUC** | [System Upgrade Controller](https://github.com/rancher/system-upgrade-controller) | Controlador de Rancher que actualiza K3s nodo por nodo. |
+| **T2** | [chip Apple T2](https://wiki.t2linux.org/) | Coprocesador de seguridad de las Mac Intel 2018-2020; maneja teclado, trackpad, audio y Touch ID, y en Linux necesita el kernel `linux-t2` (nodo `eve`). |
 | **TLS** | Transport Layer Security | Cifrado de las conexiones (lo que pone la S en HTTPS). |
 | **TTL** | Time To Live | Tiempo que se guarda un dato en caché antes de volver a pedirlo. |
 | **UDP** | User Datagram Protocol | Protocolo de transporte sin conexión; lo usan, por ejemplo, el DNS y VXLAN. |

@@ -1,0 +1,126 @@
+---
+# Nodo 24/7: cerrar la tapa no debe suspenderlo.
+- name: Crear el directorio de drop-ins de logind
+  ansible.builtin.file:
+    path: /etc/systemd/logind.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Ignorar la tapa en logind
+  ansible.builtin.template:
+    src: logind-lid.conf.j2
+    dest: /etc/systemd/logind.conf.d/10-t2-mac-lid.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Recargar logind
+
+# logind ignora la tapa (no suspende), así que nadie apaga la pantalla al cerrarla:
+# lo hace acpid.
+- name: Instalar acpid
+  ansible.builtin.apt:
+    name: acpid
+    state: present
+  register: t2_mac_acpid_pkg
+
+- name: Script de la tapa (apagar y encender la pantalla)
+  ansible.builtin.template:
+    src: t2-mac-lid.sh.j2
+    dest: /etc/acpi/t2-mac-lid.sh
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Evento de acpid para la tapa
+  ansible.builtin.template:
+    src: t2-mac-lid.acpi.j2
+    dest: /etc/acpi/events/t2-mac-lid
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reiniciar acpid
+
+# La pantalla Retina (3072x1920) deja ilegible la fuente de consola por defecto (8x16).
+- name: Fuente grande en la consola
+  ansible.builtin.lineinfile:
+    path: /etc/default/console-setup
+    regexp: "^{{ item.key }}="
+    line: '{{ item.key }}="{{ item.value }}"'
+  loop:
+    - { key: FONTFACE, value: "{{ t2_mac_console_fontface }}" }
+    - { key: FONTSIZE, value: "{{ t2_mac_console_fontsize }}" }
+  notify: Aplicar fuente de consola
+
+# Trackpad en la consola con gpm: cursor y selección de texto. El trackpad solo
+# reporta el botón izquierdo, así que pegar necesita un mouse con botón central.
+- name: Instalar gpm (mouse en la consola)
+  ansible.builtin.apt:
+    name: gpm
+    state: present
+  register: t2_mac_gpm_pkg
+  when: t2_mac_console_mouse | bool
+
+- name: Velocidad del trackpad en la consola
+  ansible.builtin.lineinfile:
+    path: /etc/gpm.conf
+    regexp: "^append="
+    line: "append='{{ t2_mac_gpm_append }}'"
+  notify: Reiniciar gpm
+  when:
+    - t2_mac_console_mouse | bool
+    - not (ansible_check_mode and t2_mac_gpm_pkg is changed)
+
+# En las Mac T2 la suspensión funciona a medias (wiki.t2linux.org/state):
+# mejor que no ocurra nunca.
+- name: Deshabilitar suspensión e hibernación
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    masked: true
+  loop:
+    - sleep.target
+    - suspend.target
+    - hibernate.target
+    - hybrid-sleep.target
+
+# Sin escritorio instalado, graphical.target no aporta nada.
+- name: Leer el target de arranque
+  ansible.builtin.command: systemctl get-default
+  register: t2_mac_default_target
+  changed_when: false
+
+- name: Arrancar en modo servidor (multi-user.target)
+  ansible.builtin.command: systemctl set-default multi-user.target
+  changed_when: true
+  when: t2_mac_default_target.stdout != 'multi-user.target'
+
+# Siempre enchufada, la batería al 100% se degrada (y puede hincharse).
+# El driver macsmc del kernel T2 acepta el límite en charge_control_end_threshold.
+- name: Limitar la carga de la batería
+  ansible.builtin.template:
+    src: 90-t2-mac-battery.rules.j2
+    dest: /etc/udev/rules.d/90-t2-mac-battery.rules
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Aplicar reglas udev
+
+- name: Instalar thermald
+  ansible.builtin.apt:
+    name: thermald
+    state: present
+
+- name: Habilitar thermald
+  ansible.builtin.systemd_service:
+    name: thermald
+    enabled: true
+    state: started
+  when: not ansible_check_mode
+
+- name: Deshabilitar Bluetooth
+  ansible.builtin.systemd_service:
+    name: bluetooth
+    enabled: false
+    state: stopped
+  when: t2_mac_disable_bluetooth | bool

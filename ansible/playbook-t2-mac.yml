@@ -1,0 +1,18 @@
+---
+# Drivers de las Mac Intel con chip T2 (grupo t2_macs; hoy: eve, MacBookPro16,1).
+# Instala el kernel linux-t2 (teclado, trackpad, Touch Bar y audio internos),
+# control de ventiladores y deja la laptop lista para correr como servidor.
+# Reinicia el nodo una vez (con pausa de confirmación).
+#
+# Requiere sudo en el nodo (paso 0 manual, ver bootstrap/README.md).
+# El firmware WiFi es un paso manual: ver roles/t2_mac/README.md.
+#
+# Ejecutar (dry-run primero):
+#   ansible-playbook -i inventory.ini playbook-t2-mac.yml --check --diff
+#   ansible-playbook -i inventory.ini playbook-t2-mac.yml
+
+- name: Drivers de Mac T2
+  hosts: t2_macs
+  become: true
+  roles:
+    - role: t2_mac

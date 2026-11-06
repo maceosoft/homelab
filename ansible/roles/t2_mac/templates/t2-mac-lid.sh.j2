@@ -1,0 +1,24 @@
+#!/bin/sh
+# {{ ansible_managed }}
+# Llamado por acpid en cada evento de la tapa. Al cerrarla guarda el brillo de
+# la pantalla y lo pone en 0; al abrirla lo restaura.
+set -eu
+
+bl=/sys/class/backlight/{{ t2_mac_lid_backlight }}
+saved=/run/t2-mac-lid-brightness
+
+[ -e "$bl/brightness" ] || exit 0
+
+case "$(awk '{print $2}' /proc/acpi/button/lid/*/state)" in
+    closed)
+        current=$(cat "$bl/brightness")
+        # Si ya estaba en 0 (dos cierres seguidos), no pisar el valor guardado.
+        [ "$current" -gt 0 ] && echo "$current" > "$saved"
+        echo 0 > "$bl/brightness"
+        ;;
+    open)
+        if [ -s "$saved" ]; then
+            cat "$saved" > "$bl/brightness"
+        fi
+        ;;
+esac

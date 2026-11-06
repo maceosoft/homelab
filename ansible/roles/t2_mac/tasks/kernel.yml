@@ -1,0 +1,146 @@
+---
+# deb822_repository necesita python3-debian; el módulo apt, python3-apt.
+- name: Instalar dependencias del repo apt
+  ansible.builtin.apt:
+    name: [python3-apt, python3-debian]
+    state: present
+    update_cache: true
+
+# Repos planos ("./", sin componentes), firmados con la misma clave.
+- name: Agregar el repo T2 común
+  ansible.builtin.deb822_repository:
+    name: t2-common
+    uris: "{{ t2_mac_repo_common_uri }}"
+    suites: ./
+    signed_by: "{{ t2_mac_repo_key_url }}"
+  register: t2_mac_repo_common
+
+- name: Agregar el repo T2 de esta versión de Debian
+  ansible.builtin.deb822_repository:
+    name: t2-release
+    uris: "{{ t2_mac_repo_release_uri }}"
+    suites: ./
+    signed_by: "{{ t2_mac_repo_key_url }}"
+  register: t2_mac_repo_release
+
+# El kernel de Debian queda instalado: es la entrada de respaldo en GRUB.
+# En --check con el repo recién agregado apt no conoce los paquetes: se salta.
+- name: Instalar kernel T2, firmware y servicios
+  ansible.builtin.apt:
+    name: "{{ t2_mac_packages }}"
+    state: present
+    update_cache: "{{ t2_mac_repo_common is changed or t2_mac_repo_release is changed }}"
+  when: not (ansible_check_mode and (t2_mac_repo_common is changed or t2_mac_repo_release is changed))
+
+- name: Parámetros de arranque para T2
+  ansible.builtin.template:
+    src: grub-t2.cfg.j2
+    dest: /etc/default/grub.d/t2.cfg
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Regenerar GRUB
+
+- name: Aplicar GRUB antes de un posible reinicio
+  ansible.builtin.meta: flush_handlers
+
+- name: Avisar antes de reiniciar al kernel T2
+  ansible.builtin.pause:
+    prompt: >-
+      {{ inventory_hostname }} corre {{ ansible_facts['kernel'] }} y se reinicia al kernel T2.
+      Si no vuelve, en GRUB queda el kernel de Debian como respaldo. ENTER para seguir, Ctrl+C y A para abortar
+  when:
+    - "'t2' not in ansible_facts['kernel']"
+    - t2_mac_reboot_confirm | bool
+    - not ansible_check_mode
+
+- name: Reiniciar al kernel T2
+  ansible.builtin.reboot:
+    reboot_timeout: 600
+  when:
+    - "'t2' not in ansible_facts['kernel']"
+    - not ansible_check_mode
+
+- name: Releer los datos del nodo tras el reinicio
+  ansible.builtin.setup:
+  when: not ansible_check_mode
+
+- name: Comprobar que arrancó el kernel T2
+  ansible.builtin.assert:
+    that: "'t2' in ansible_facts['kernel']"
+    fail_msg: >-
+      Arrancó {{ ansible_facts['kernel'] }}, no el kernel T2. Revisa el orden de entradas en GRUB
+      (grep menuentry /boot/grub/grub.cfg).
+    quiet: true
+  when: not ansible_check_mode
+
+- name: Leer los dispositivos de entrada
+  ansible.builtin.command: cat /proc/bus/input/devices
+  register: t2_mac_input_devices
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Comprobar teclado y trackpad internos
+  ansible.builtin.assert:
+    that: t2_mac_input_devices.stdout is search('Apple Internal Keyboard')
+    fail_msg: >-
+      El teclado interno no aparece. Mira el driver del T2 con: sudo journalctl -k --grep='bce|vhci'
+    quiet: true
+  when: not ansible_check_mode
+
+# tiny-dfr solo declara systemd como dependencia: sin escritorio faltan sus librerías.
+- name: Instalar librerías de tiny-dfr
+  ansible.builtin.apt:
+    name: "{{ t2_mac_tinydfr_libs }}"
+    state: present
+
+- name: Script que recupera la pantalla de la Touch Bar
+  ansible.builtin.template:
+    src: t2-mac-touchbar-fix.sh.j2
+    dest: /usr/local/sbin/t2-mac-touchbar-fix
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Servicio que recupera la pantalla de la Touch Bar
+  ansible.builtin.template:
+    src: t2-mac-touchbar-fix.service.j2
+    dest: /etc/systemd/system/t2-mac-touchbar-fix.service
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Habilitar la recuperación de la Touch Bar
+  ansible.builtin.systemd_service:
+    name: t2-mac-touchbar-fix
+    enabled: true
+    daemon_reload: true
+  when: not ansible_check_mode
+
+# Probado en eve (MacBookPro16,1): de 15 a 12 W y unos 4 °C menos, sin errores.
+- name: Servicio que apaga la GPU dedicada
+  ansible.builtin.template:
+    src: t2-mac-dgpu-off.service.j2
+    dest: /etc/systemd/system/t2-mac-dgpu-off.service
+    owner: root
+    group: root
+    mode: "0644"
+  when: t2_mac_dgpu_off | bool
+
+- name: Habilitar el apagado de la GPU dedicada
+  ansible.builtin.systemd_service:
+    name: t2-mac-dgpu-off
+    enabled: true
+    state: started
+    daemon_reload: true
+  when:
+    - t2_mac_dgpu_off | bool
+    - not ansible_check_mode
+
+# Los ventiladores dependen de applesmc del kernel T2: se arrancan después del reinicio.
+- name: Habilitar y arrancar t2fanrd
+  ansible.builtin.systemd_service:
+    name: t2fanrd
+    enabled: true
+    state: started
+  when: not ansible_check_mode

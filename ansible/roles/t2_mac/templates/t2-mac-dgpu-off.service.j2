@@ -1,0 +1,16 @@
+# {{ ansible_managed }}
+# Apaga la GPU dedicada (AMD) en cada arranque: con apple_gmux.force_igd=1 la
+# pantalla usa la iGPU Intel y la AMD solo consume energía y calienta.
+[Unit]
+Description=Apagar la GPU dedicada (vga_switcheroo)
+After=sys-kernel-debug.mount systemd-modules-load.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# El switch aparece cuando amdgpu terminó de cargar: se espera hasta 60 s.
+ExecStartPre=/bin/sh -c 'for i in $(seq 60); do [ -e /sys/kernel/debug/vgaswitcheroo/switch ] && exit 0; sleep 1; done; exit 1'
+ExecStart=/bin/sh -c 'echo OFF > /sys/kernel/debug/vgaswitcheroo/switch'
+
+[Install]
+WantedBy=multi-user.target

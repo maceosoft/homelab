@@ -1,0 +1,14 @@
+---
+# Drivers de una Mac Intel con chip T2 en Debian: kernel linux-t2 (teclado,
+# trackpad, Touch Bar y audio internos van por el T2), ventiladores, y la
+# laptop preparada para correr como servidor (tapa cerrada, sin suspensión).
+# El firmware WiFi no se puede automatizar: ver wifi.yml.
+
+- name: Base del nodo (tapa, suspensión)
+  ansible.builtin.import_tasks: base.yml
+
+- name: Kernel T2 y reinicio
+  ansible.builtin.import_tasks: kernel.yml
+
+- name: Firmware WiFi
+  ansible.builtin.import_tasks: wifi.yml

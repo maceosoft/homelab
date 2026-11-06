@@ -1,0 +1,3 @@
+# {{ ansible_managed }}
+# Parámetros de arranque para Mac T2 (wiki.t2linux.org).
+GRUB_CMDLINE_LINUX_DEFAULT="$GRUB_CMDLINE_LINUX_DEFAULT {{ t2_mac_kernel_params | join(' ') }}"
