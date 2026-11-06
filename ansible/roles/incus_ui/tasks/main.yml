@@ -1,8 +1,10 @@
 ---
-- name: Instalar UI nativa de Incus
+# latest y no present: la UI son archivos estáticos que sirve el daemon de Incus, así que actualizarla no
+# reinicia nada ni toca las instancias. Con present solo se actualizaba al correr playbook-upgrade-incus.yml.
+- name: Instalar o actualizar la UI nativa de Incus
   ansible.builtin.apt:
     name: incus-ui-canonical
-    state: present
+    state: latest  # noqa: package-latest
     update_cache: true
   when: not ansible_check_mode
 

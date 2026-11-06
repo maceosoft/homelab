@@ -33,7 +33,7 @@ ansible-playbook -i inventory.ini playbook-k3s.yml --tags kube_vip
 | `k3s_install.kube_vip.address` | `192.168.20.4` | VIP en LAN |
 | `k3s_install.kube_vip.interface` | `br0` | Interfaz L2 |
 | `k3s_install.kube_vip.mode` | `arp` | Modo ARP o BGP |
-| `k3s_install.kube_vip.image_version` | `v1.2.4` | Imagen kube-vip |
+| `k3s_install.kube_vip.image_version` | `v1.3.1` | Imagen kube-vip |
 
 Con VIP habilitada, `k3s_api_url` apunta a la VIP y los agents se unen por ella.
 

@@ -64,7 +64,7 @@ k3s_install:
     address: "192.168.20.4"
     interface: br0
     mode: arp
-    image_version: v1.2.4
+    image_version: v1.3.1
 
   gitops_argocd:
     enabled: "{{ k3s_gitops_argocd_enabled | bool }}"
