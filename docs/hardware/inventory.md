@@ -38,8 +38,8 @@ es la fuente de verdad para planificación.
     <div class="text-muted">MacBook Pro 16" 2019 · i9-9980HK 8c/16t</div>
     <div class="hr"></div>
     <div class="card-body">RAM: <span class="card-highlight">31 GB</span></div>
-    <div class="card-body">IP: <span class="card-highlight">DHCP (pendiente)</span></div>
-    <div class="card-meta">Solo drivers T2 · sin Incus ni K3s por ahora</div>
+    <div class="card-body">IP estática: <span class="card-highlight">192.168.20.8</span></div>
+    <div class="card-meta">Incus: Miembro (grupo x86) · K3s: Worker (agent)</div>
   </div>
 </div>
 
@@ -85,13 +85,17 @@ sola a los 5 minutos, arranque sin modo gráfico, GPU AMD apagada, trackpad en l
   firmware de otra Mac con macOS: así se hizo con `eve`. Pasos en el
   [README del rol](https://github.com/maceosoft/homelab/blob/main/ansible/roles/t2_mac/README.md#firmware-wifi-paso-manual).
 - **Touch ID:** no funciona. Linux solo usa huellas registradas desde macOS.
-- **Red:** por ahora, DHCP con un adaptador USB. La IP fija, Incus y K3s quedan para después.
+- **Red:** no tiene puerto Ethernet. El `br0` va sobre un adaptador USB (`bridge_iface` en `inventory.ini`); al
+  cambiar de adaptador cambia el nombre de la interfaz, se actualiza `bridge_iface` y se vuelve a correr
+  `playbook-set-static-ip.yml`. La IP fija (`192.168.20.8`) no cambia, así que Incus y K3s no se enteran. El WiFi
+  queda de respaldo (`playbook-wifi-failover.yml`).
 
 ## Presupuesto de RAM (recalculado)
 
 - **invincible (15.5 GB)**: K3s (distribución ligera de Kubernetes) agent + Argo CD controller + Incus leader. Es el nodo x86 con más margen y el disco más rápido: admite CAPN (Cluster API Provider for Incus) management y Longhorn a la vez.
 - **oliver (7.7 GB)**: K3s agent (CoreDNS, metrics-server) + Incus en `scheduler.instance manual`. RAM ajustada: por eso queda como nodo ligero y, en el diseño, fuera de Longhorn (ver [Longhorn v1](../storage/index.md#longhorn-v1-ha-selectiva-cross-arch)).
-- **deborah (31 GB)**: control plane K3s + BIND (rol `bind_dns`) + Ollama bajo demanda (rol `ollama_ondemand`, grupo `llm_nodes`, junto a `invincible` y `oliver`): solo usa RAM mientras responde y la libera unos 5 minutos después (ver [Asistente de IA local](../operacion/ia-ollama.md)). Raíz en eMMC; el NVMe (disco SSD por PCIe) no se detecta (ver [Almacenamiento e I/O](#almacenamiento-e-io)).
+- **eve (31 GB)**: K3s agent + Incus miembro + Ollama bajo demanda (el nodo preferido para los modelos de 7B: es el x86 más rápido). Por ahora sin disco para Longhorn.
+- **deborah (31 GB)**: control plane K3s + BIND (rol `bind_dns`) + Ollama bajo demanda (rol `ollama_ondemand`, grupo `llm_nodes`, junto a `invincible`, `oliver` y `eve`): solo usa RAM mientras responde y la libera unos 5 minutos después (ver [Asistente de IA local](../operacion/ia-ollama.md)). Raíz en eMMC; el NVMe (disco SSD por PCIe) no se detecta (ver [Almacenamiento e I/O](#almacenamiento-e-io)).
 
 ## Decisión: control plane en deborah
 

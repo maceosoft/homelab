@@ -24,14 +24,15 @@
 # --check no drena ni reinicia: muestra los paquetes pendientes (apt list --upgradable,
 # según las listas de apt ya descargadas) y si haría falta reiniciar.
 # Tags: precheck, upgrade, reboot, postcheck. Otro orden:
-#   -e '{"node_patch_order": ["invincible", "oliver", "deborah"]}'
-# Con un cuarto nodo, agregar otro play igual al final (node_patch_queue[3]).
+#   -e '{"node_patch_order": ["eve", "invincible", "oliver", "deborah"]}'
+# Con un quinto nodo, agregar otro play igual al final (node_patch_queue[4]).
 
 - name: Parches - nodo 1
   hosts: "{{ node_patch_queue[0] }}"
   become: true
   vars: &node_patch_vars
     node_patch_order:
+      - eve
       - oliver
       - invincible
       - deborah
@@ -53,6 +54,14 @@
 
 - name: Parches - nodo 3
   hosts: "{{ node_patch_queue[2] }}"
+  become: true
+  vars: *node_patch_vars
+  any_errors_fatal: true
+  roles:
+    - node_patch
+
+- name: Parches - nodo 4
+  hosts: "{{ node_patch_queue[3] }}"
   become: true
   vars: *node_patch_vars
   any_errors_fatal: true
