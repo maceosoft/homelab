@@ -15,6 +15,7 @@ alcanzables entre hosts sin necesitar OVN (Open Virtual Network).
 | invincible | `eno2` | 192.168.20.6 |
 | oliver | `eno1` | 192.168.20.7 |
 | deborah | `enP4p65s0` | 192.168.20.5 |
+| eve | `enx34298f75a04a` (adaptador USB) | 192.168.20.8 |
 
 > Confirma con `ip -br link` en el nodo antes de aplicar — el nombre de la
 > interfaz física puede diferir de esta tabla tras una actualización del SO.
@@ -95,6 +96,7 @@ incus profile device add default eth0 nic nictype=bridged parent=br0
 | invincible | 192.168.23.162 | 192.168.20.6 |
 | oliver | 192.168.20.87 | 192.168.20.7 |
 | deborah | 192.168.21.211 | 192.168.20.5 |
+| eve | 192.168.23.33 | 192.168.20.8 |
 
 > La LAN es un `/22` (`192.168.20.0`–`192.168.23.255`), no un `/24` — las
 > IPs "actuales" de esta tabla son leases DHCP dentro de ese mismo rango
@@ -109,7 +111,7 @@ El DHCP del router reparte **`192.168.20.31` a `192.168.23.191`**. Todo lo fijo 
 |---|---|---|
 | `192.168.20.1` | Gateway (router) | Router |
 | `192.168.20.4` | VIP del API de K3s (kube-vip, opcional) | `kube_vip.address` en `k3s_install.yml` |
-| `192.168.20.5`, `.6`, `.7` | deborah, invincible, oliver | `static_ip` en `inventory.ini` |
+| `192.168.20.5`, `.6`, `.7`, `.8` | deborah, invincible, oliver, eve | `static_ip` en `inventory.ini` |
 | `192.168.20.31 – 192.168.23.191` | **DHCP del router** | Router |
 | `192.168.23.192 – .199` | Libre | — |
 | `192.168.23.200 – .220` | **MetalLB** (`LoadBalancer`, Gateway; el Gateway de Kong usa `.200`) | [`gitops/metallb/ipaddresspool.yaml`](https://github.com/maceosoft/gitops/blob/main/metallb/ipaddresspool.yaml) |
@@ -178,7 +180,7 @@ El asistente de IA tiene **una sola entrada**: el router `ollama-router` (namesp
 clúster usan el Service `http://ollama-router.ai.svc`; los de fuera, `https://ollama.homelab.local` (Kong, solo
 HTTPS; el nombre está en la zona `homelab.local` de BIND). El router exige un token Bearer.
 
-Cada nodo de Ollama (`deborah` `192.168.20.5`, `invincible` `192.168.20.6`, `oliver` `192.168.20.7` y, cuando está
+Cada nodo de Ollama (`deborah` `192.168.20.5`, `invincible` `192.168.20.6`, `oliver` `192.168.20.7`, `eve` `192.168.20.8` y, cuando está
 encendido, el Mac) tiene un **socket en el puerto `11434`** que despierta a Ollama; internamente Ollama escucha solo
 en `127.0.0.1:11435`. El socket escucha **únicamente en la IP del nodo** (variable `ollama_ondemand_listen`) y el
 firewall del nodo admite el puerto desde los nodos de K3s y desde los pods (el router puede estar en el mismo nodo). El Ollama del nodo no autentica: la protección de la inferencia es el token del router más las NetworkPolicy del namespace `ai` (que se activan por etapas). Detalle en

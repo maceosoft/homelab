@@ -92,6 +92,7 @@ k3s_install:
       deborah: "04:00"
       invincible: "04:20"
       oliver: "04:40"
+      eve: "05:00"
 
 # Derivadas para roles existentes (compatibilidad)
 k3s_version: "{{ k3s_install.core.version }}"

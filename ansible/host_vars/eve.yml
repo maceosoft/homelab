@@ -1,9 +1,27 @@
 ---
 # MacBook Pro 16" 2019 (MacBookPro16,1): i9-9980HK 8c/16t, 31 GB, NVMe 1 TB, chip T2.
-# Por ahora solo drivers (playbook-t2-mac.yml): no está en Incus ni en K3s.
+# Drivers del hardware Apple: playbook-t2-mac.yml (grupo t2_macs), antes que el resto.
+incus_role: "Miembro"
+incus_cluster_role: member
+incus_cluster_groups: [x86-nodes, default]
+k3s_role: agent
+# Pasa a true tras playbook-set-static-ip.yml (y ansible_host a 192.168.20.8 en inventory.ini).
+ip_static: false
+k3s_node_labels:
+  node.longhorn.io/create-default-disk: "false"
 ansible_python_interpreter: /usr/bin/python3
-# WiFi BCM4364 con firmware de Apple (ver roles/t2_mac/README.md).
+
+# WiFi BCM4364 con firmware de Apple (ver roles/t2_mac/README.md): respaldo del cable
+# con playbook-wifi-failover.yml.
 has_wifi: true
 wifi_iface: wlp5s0
-# enxacde48001122 (MAC ac:de:48:00:11:22) es la red interna con el chip T2, no un cable:
-# no usarla como bridge_iface al fijar la IP.
+
+# --- Ollama (rol ollama_ondemand) ---
+# i9-9980HK 8c/16t y 31 GB sin otra carga: el nodo más rápido para los 7B, por eso la prioridad más alta. El tope
+# deja ~15 GB para K3s e Incus. La GPU AMD (5500M) queda apagada (t2_mac_dgpu_off): Ollama corre en CPU.
+ollama_ondemand_models:
+  - qwen2.5-coder:7b
+  - qwen2.5:7b-instruct
+ollama_ondemand_memory_max: 16G
+ollama_node_priority: 90
+ollama_node_tags: [x86, code, always-on]
