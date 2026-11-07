@@ -2,7 +2,7 @@
 # opkssh — valores por defecto. Ver README.md del rol.
 
 # Versión fijada del binario y arquitectura del host (x86_64 -> amd64, aarch64 -> arm64).
-opkssh_version: v0.17.0
+opkssh_version: v0.19.2
 opkssh_arch: "{{ 'arm64' if ansible_facts['architecture'] in ['aarch64', 'arm64'] else 'amd64' }}"
 opkssh_download_base: "https://github.com/openpubkey/opkssh/releases/download/{{ opkssh_version }}"
 opkssh_binary: /usr/local/bin/opkssh

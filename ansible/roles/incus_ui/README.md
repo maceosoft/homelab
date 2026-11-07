@@ -22,7 +22,7 @@ Definida en [`group_vars/incus_cluster.yml`](../../group_vars/incus_cluster.yml)
 
 ## Qué hace
 
-1. `apt install incus-ui-canonical`
+1. Instala `incus-ui-canonical` o lo actualiza a la última versión del repositorio (`state: latest`): son archivos estáticos que sirve el daemon, actualizarlos no reinicia Incus
 2. `incus config set core.https_address :8443` (idempotente)
 
 ## Verificar
