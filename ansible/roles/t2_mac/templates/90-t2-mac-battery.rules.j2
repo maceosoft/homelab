@@ -1,0 +1,3 @@
+# {{ ansible_managed }}
+# Límite de carga de la batería: el nodo vive enchufado.
+ACTION=="add|change", SUBSYSTEM=="power_supply", KERNEL=="macsmc-battery", ATTR{charge_control_end_threshold}="{{ t2_mac_battery_charge_limit }}"

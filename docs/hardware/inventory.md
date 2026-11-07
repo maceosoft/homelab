@@ -33,6 +33,14 @@ es la fuente de verdad para planificación.
     <div class="card-body">IP estática: <span class="card-highlight">192.168.20.5</span></div>
     <div class="card-meta">Incus: Miembro (grupo arm64) · K3s: Control-plane (server)</div>
   </div>
+  <div class="card">
+    <div class="card-title"><code>eve</code> <span class="tag tag-neutral">x86_64</span></div>
+    <div class="text-muted">MacBook Pro 16" 2019 · i9-9980HK 8c/16t</div>
+    <div class="hr"></div>
+    <div class="card-body">RAM: <span class="card-highlight">31 GB</span></div>
+    <div class="card-body">IP estática: <span class="card-highlight">192.168.20.8</span></div>
+    <div class="card-meta">Incus: Miembro (grupo x86) · K3s: Worker (agent)</div>
+  </div>
 </div>
 
 !!! note "Specs nominales vs medidas"
@@ -61,11 +69,33 @@ si la IP de conexión cambió.
 
 Prueba: `dd` de 40 MB en bloques de 4k con escritura directa (`oflag=direct`). El NVMe WDC 250GB (`nvme0n1`) de `deborah` **no se detecta**: `lsblk` y `lspci` no lo ven y `dmesg` dice `rk-pcie … PCIe Link Fail` (el enlace de la ranura no levanta).
 
+## eve: MacBook Pro con chip T2
+
+`eve` es una MacBook Pro 16" 2019 (`MacBookPro16,1`) con Debian 13. Tiene el chip T2 (coprocesador de seguridad de
+Apple): el teclado, el trackpad, la Touch Bar y el audio internos pasan por él, y el kernel de Debian no los ve.
+[`playbook-t2-mac.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-t2-mac.yml) instala el
+kernel `linux-t2` de [t2linux](https://wiki.t2linux.org/), el control de ventiladores (`t2fanrd`) y la deja lista
+para correr como servidor (tapa cerrada, sin suspensión, GPU Intel como principal, pantalla que se apaga al cerrar la tapa y
+sola a los 5 minutos, arranque sin modo gráfico, GPU AMD apagada, trackpad en la consola (`gpm`), `thermald` y batería limitada al 80 % de carga porque vive enchufada). Detalle en el
+[README del rol](https://github.com/maceosoft/homelab/blob/main/ansible/roles/t2_mac/README.md).
+
+- **WiFi (BCM4364):** el firmware solo viene con macOS. Como macOS se borró, se baja una vez a mano con
+  `sudo get-apple-firmware` desde una imagen de recuperación de Apple de **Sonoma** (el script recomienda
+  Monterey, Ventura o Sonoma; Tahoe puede dejar archivos incompletos). Si la descarga se traba, sirve el
+  firmware de otra Mac con macOS: así se hizo con `eve`. Pasos en el
+  [README del rol](https://github.com/maceosoft/homelab/blob/main/ansible/roles/t2_mac/README.md#firmware-wifi-paso-manual).
+- **Touch ID:** no funciona. Linux solo usa huellas registradas desde macOS.
+- **Red:** no tiene puerto Ethernet. El `br0` va sobre un adaptador USB (`bridge_iface` en `inventory.ini`); al
+  cambiar de adaptador cambia el nombre de la interfaz, se actualiza `bridge_iface` y se vuelve a correr
+  `playbook-set-static-ip.yml`. La IP fija (`192.168.20.8`) no cambia, así que Incus y K3s no se enteran. El WiFi
+  queda de respaldo (`playbook-wifi-failover.yml`).
+
 ## Presupuesto de RAM (recalculado)
 
 - **invincible (15.5 GB)**: K3s (distribución ligera de Kubernetes) agent + Argo CD controller + Incus leader. Es el nodo x86 con más margen y el disco más rápido: admite CAPN (Cluster API Provider for Incus) management y Longhorn a la vez.
 - **oliver (7.7 GB)**: K3s agent (CoreDNS, metrics-server) + Incus en `scheduler.instance manual`. RAM ajustada: por eso queda como nodo ligero y, en el diseño, fuera de Longhorn (ver [Longhorn v1](../storage/index.md#longhorn-v1-ha-selectiva-cross-arch)).
-- **deborah (31 GB)**: control plane K3s + BIND (rol `bind_dns`) + Ollama bajo demanda (rol `ollama_ondemand`, grupo `llm_nodes`, junto a `invincible` y `oliver`): solo usa RAM mientras responde y la libera unos 5 minutos después (ver [Asistente de IA local](../operacion/ia-ollama.md)). Raíz en eMMC; el NVMe (disco SSD por PCIe) no se detecta (ver [Almacenamiento e I/O](#almacenamiento-e-io)).
+- **eve (31 GB)**: K3s agent + Incus miembro + Ollama bajo demanda (el nodo preferido para los modelos de 7B: es el x86 más rápido). Por ahora sin disco para Longhorn.
+- **deborah (31 GB)**: control plane K3s + BIND (rol `bind_dns`) + Ollama bajo demanda (rol `ollama_ondemand`, grupo `llm_nodes`, junto a `invincible`, `oliver` y `eve`): solo usa RAM mientras responde y la libera unos 5 minutos después (ver [Asistente de IA local](../operacion/ia-ollama.md)). Raíz en eMMC; el NVMe (disco SSD por PCIe) no se detecta (ver [Almacenamiento e I/O](#almacenamiento-e-io)).
 
 ## Decisión: control plane en deborah
 

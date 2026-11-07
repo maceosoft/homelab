@@ -50,7 +50,7 @@ escribe: el resto del tiempo Ollama (el programa que ejecuta el modelo) está ap
 
 | Pieza | Qué hace | Dónde vive |
 |---|---|---|
-| **Ollama** | Ejecuta los modelos de lenguaje | En cada nodo (`deborah`, `invincible`, `oliver` y, cuando se enciende, el Mac), fuera de Kubernetes |
+| **Ollama** | Ejecuta los modelos de lenguaje | En cada nodo (`deborah`, `invincible`, `oliver`, `eve` y, cuando se enciende, el Mac), fuera de Kubernetes |
 | **Socket y proxy** | Escuchan en el puerto `11434` del nodo y despiertan a Ollama solo cuando llega una petición | Cada nodo (systemd en Linux, `launchd` en el Mac) |
 | **Agente de registro** | Cada 60 segundos avisa al router que el nodo está vivo y qué modelos tiene | Cada nodo |
 | **Router de Ollama** (`ollama-router`) | Única puerta de entrada: valida el token, elige el nodo según el modelo y publica métricas | Clúster, namespace `ai` |
@@ -75,6 +75,7 @@ flowchart LR
         D["deborah"]
         I["invincible"]
         O["oliver"]
+        E["eve"]
         M["Mac (si está en on)"]
     end
     OW -->|"Bearer"| R
@@ -84,10 +85,12 @@ flowchart LR
     R -->|"según el modelo"| D
     R --> I
     R --> O
+    R --> E
     R -.-> M
     D -. "registro cada 60 s" .-> R
     I -. "registro" .-> R
     O -. "registro" .-> R
+    E -. "registro" .-> R
     M -. "registro" .-> R
 ```
 
@@ -159,8 +162,9 @@ es (se ajusta midiendo tokens por segundo y memoria en cada nodo):
 
 | Nodo | Modelos | Para qué |
 |---|---|---|
-| `deborah` | `qwen2.5:7b-instruct` de respaldo (y un 14B opcional) | Modelo por defecto cuando `invincible` no responde: chat con el asistente y traducción de la documentación |
-| `invincible` | `qwen2.5-coder:7b` y `qwen2.5:7b-instruct` (nodo preferido para el 7B, prioridad 80 contra 60 de `deborah`) | Ayuda con código (Ansible, YAML y manifiestos de Kubernetes) y el modelo por defecto |
+| `deborah` | `qwen2.5:7b-instruct` de respaldo (y un 14B opcional) | Modelo por defecto cuando `eve` e `invincible` no responden: chat con el asistente y traducción de la documentación |
+| `eve` | `qwen2.5-coder:7b` y `qwen2.5:7b-instruct` (nodo preferido para el 7B, prioridad 90: i9 de 8 núcleos) | Ayuda con código (Ansible, YAML y manifiestos de Kubernetes) y el modelo por defecto |
+| `invincible` | `qwen2.5-coder:7b` y `qwen2.5:7b-instruct` (prioridad 80, contra 60 de `deborah`) | Lo mismo que `eve` cuando ella está ocupada o apagada |
 | `oliver` | `nomic-embed-text` y modelos de hasta 3B | *Embeddings* (convertir textos en números para buscar en la documentación) y tareas livianas |
 | Mac | Modelos grandes | Tareas pesadas, solo mientras el interruptor esté en `on` |
 
