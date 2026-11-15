@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Bridge `br0` con **IP estática** en los 3 nodos, lista para Incus, K3s (distribución ligera de Kubernetes) y CAPN (Cluster API Provider for Incus).
+Bridge `br0` con **IP estática** en los 4 nodos, lista para Incus, K3s (distribución ligera de Kubernetes) y CAPN (Cluster API Provider for Incus).
 
 ## Qué aprendes
 
@@ -111,7 +111,7 @@ Profundización: [Red — ejemplos netplan](../networking/index.md)
 |---|---|
 | Orden de nodos | Uno a la vez (`serial: 1`) |
 
-!!! note "Los 3 nodos cambian de IP al aplicar"
+!!! note "Los nodos cambian de IP al aplicar"
     No hay atajo: actualiza `ansible_host` en `inventory.ini` después de
     cada nodo (por eso `serial: 1`).
 
@@ -126,12 +126,12 @@ Profundización: [Red — ejemplos netplan](../networking/index.md)
     <div class="card-col">
       <div class="card-title">Netplan manual</div>
       <div class="text-muted">Control total del YAML</div>
-      <div class="text-muted">Sin rollback automático; fácil desalinear los 3 nodos</div>
+      <div class="text-muted">Sin rollback automático; fácil desalinear los nodos</div>
     </div>
     <div class="card-col">
       <div class="card-title"><code>serial: 1</code></div>
       <div class="text-muted">Recuperación nodo a nodo</div>
-      <div class="text-muted">Más lento que los 3 en paralelo</div>
+      <div class="text-muted">Más lento que todos en paralelo</div>
     </div>
   </div>
 </div>
@@ -144,6 +144,7 @@ ansible -i ansible/inventory.ini incus_cluster -m command -a "ip -br addr show b
 ping -c 2 192.168.20.5
 ping -c 2 192.168.20.6
 ping -c 2 192.168.20.7
+ping -c 2 192.168.20.8
 ```
 
 ## Si falla
@@ -155,7 +156,7 @@ ping -c 2 192.168.20.7
 
 ## DNS (BIND en deborah)
 
-Los 3 nodos usan `192.168.20.5` (deborah) como primer DNS y el gateway
+Los 4 nodos usan `192.168.20.5` (deborah) como primer DNS y el gateway
 `192.168.20.1` como segundo. Con la IP fija ya aplicada en deborah, instala
 y configura BIND (Berkeley Internet Name Domain) ahí (corre solo sobre deborah):
 

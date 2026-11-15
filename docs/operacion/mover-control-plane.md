@@ -110,7 +110,7 @@ control en vez de `curl | sh`. El certificado de administrador queda solo para e
 
 | Qué | Cómo |
 |---|---|
-| Nodos | `kubectl get nodes -o wide`: `oliver` con rol `control-plane`, y los tres en `Ready` |
+| Nodos | `kubectl get nodes -o wide`: `oliver` con rol `control-plane`, y todos en `Ready` |
 | Argo CD | `kubectl -n argocd get applications`: todas `Synced` y `Healthy` |
 | Longhorn | UI o `kubectl -n longhorn-system get volumes.longhorn.io`: sin volúmenes degradados |
 | Kong | `curl -kI https://argocd.homelab.local` responde |

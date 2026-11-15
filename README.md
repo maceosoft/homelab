@@ -1,4 +1,4 @@
-# 🏠 HomeLab — K3s + Incus + CAPN
+# 🏠 HomeLab — K8s + Incus
 
 📖 **Documentación publicada:** https://homelab.maceo.cl/
 

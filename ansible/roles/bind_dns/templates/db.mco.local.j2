@@ -15,4 +15,7 @@ www    IN      CNAME   ns
 
 {% for host in groups['incus_cluster'] %}
 {{ host }}     IN      A       {{ hostvars[host].static_ip }}
+{% if hostvars[host].wifi_ip is defined %}
+{{ host }}-wifi     IN      A       {{ hostvars[host].wifi_ip }}
+{% endif %}
 {% endfor %}

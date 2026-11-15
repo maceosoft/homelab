@@ -24,6 +24,11 @@ updates:
     commit-message:
       prefix: "deps"
     open-pull-requests-limit: 5
+    ignore:
+      # mdformat_tables 1.0.0 (la última) exige mdformat<0.8: mdformat 1.x rompe la instalación de requirements-docs.txt.
+      # Quitar cuando salga un mdformat_tables compatible.
+      - dependency-name: "mdformat"
+        versions: [">=0.8"]
     groups:
       # Ansible y su lint se prueban juntos (ansible, ansible-core, ansible-lint, ansible-compat).
       ansible:

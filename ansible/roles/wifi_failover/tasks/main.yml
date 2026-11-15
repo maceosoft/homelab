@@ -1,18 +1,21 @@
 ---
 # WiFi de respaldo del cable, solo en nodos con hardware WiFi
-# (has_wifi: true). NetworkManager se limita a la interfaz WiFi -- br0 y
-# la NIC fisica quedan "unmanaged" para no competir con
-# systemd-networkd/netplan, y dns=none para que no toque /etc/resolv.conf
-# (mismo criterio que netplan_bridge, formalizado aqui para los hosts que
-# tienen NetworkManager).
+# (has_wifi: true). NetworkManager se limita a la interfaz WiFi: br0 y la
+# NIC fisica son de systemd-networkd/netplan, y cali*, OVN e Incus de sus
+# propios componentes. dns=none para que no toque /etc/resolv.conf (lo
+# gestiona netplan_bridge).
 
-- name: Instalar NetworkManager
-  ansible.builtin.apt:
-    name: network-manager
-    state: present
-    update_cache: true
+# La configuración va ANTES que el paquete: al instalarse, NetworkManager arranca con lo que haya en
+# conf.d. Con la config por defecto toma las interfaces de Calico y OVN y las deja caídas (pasó en eve).
+- name: Crear el directorio de configuración de NetworkManager
+  ansible.builtin.file:
+    path: /etc/NetworkManager/conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
 
-- name: Marcar br0 y la NIC física como unmanaged para NetworkManager
+- name: NetworkManager solo gestiona la interfaz WiFi
   ansible.builtin.template:
     src: unmanaged.conf.j2
     dest: /etc/NetworkManager/conf.d/unmanaged-netplan.conf
@@ -30,25 +33,160 @@
     mode: "0644"
   register: wifi_failover_nm_dns_none
 
+- name: Instalar NetworkManager
+  ansible.builtin.apt:
+    name: network-manager
+    state: present
+    update_cache: true
+  register: wifi_failover_nm_pkg
+
 - name: Reiniciar NetworkManager si cambio alguna config
   ansible.builtin.systemd:
     name: NetworkManager
     state: restarted
     enabled: true
-  when: wifi_failover_nm_unmanaged is changed or wifi_failover_nm_dns_none is changed
+  when:
+    - wifi_failover_nm_unmanaged is changed or wifi_failover_nm_dns_none is changed
+    - not (ansible_check_mode and wifi_failover_nm_pkg is changed)
 
 - name: Verificar si el perfil wifi de respaldo ya existe
   ansible.builtin.command: "nmcli -t -f NAME connection show"
   register: wifi_failover_nm_connections
   changed_when: false
+  check_mode: false
+  when: not (ansible_check_mode and wifi_failover_nm_pkg is changed)
+
+- name: Leer el SSID y la clave del WiFi desde 1Password (estación del operador)
+  ansible.builtin.command:
+    argv:
+      - "{{ ansible_playbook_python }}"
+      - scripts/read_onepassword_field.py
+      - --item
+      - "{{ wifi_failover_op_item }}"
+      - --field
+      - "{{ item }}"
+    chdir: "{{ playbook_dir }}"
+  loop:
+    - "{{ wifi_failover_op_ssid_field }}"
+    - "{{ wifi_failover_op_psk_field }}"
+  delegate_to: localhost
+  become: false
+  register: wifi_failover_op_read
+  # De a un nodo: la integración de 1Password con la app de escritorio no tolera varias sesiones del SDK a la vez.
+  throttle: 1
+  changed_when: false
+  check_mode: false
+  no_log: true
+  when:
+    - wifi_failover_connection not in (wifi_failover_nm_connections.stdout_lines | default([]))
+    - wifi_ssid is not defined or wifi_psk is not defined
+
+# El script nunca escribe el secreto en stderr: mostrar el motivo es seguro.
+- name: Fallar con el motivo si no se pudo leer 1Password
+  ansible.builtin.assert:
+    that: item.rc == 0
+    fail_msg: "{{ item.stderr | default('sin detalle') }} (¿1Password desbloqueado y ONEPASSWORD_ACCOUNT_NAME exportado?)"
+    quiet: true
+  loop: "{{ wifi_failover_op_read.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: item.rc is defined
 
 - name: Crear perfil de conexión wifi de respaldo (métrica más alta que el cable)
-  ansible.builtin.command: >-
-    nmcli connection add type wifi con-name homelab-backup
-    ifname {{ wifi_iface }} ssid {{ wifi_ssid }}
-    wifi-sec.key-mgmt wpa-psk wifi-sec.psk {{ wifi_psk }}
-    connection.autoconnect yes
-    ipv4.route-metric 700 ipv6.route-metric 700
-  when: "'homelab-backup' not in wifi_failover_nm_connections.stdout_lines"
+  ansible.builtin.command:
+    argv:
+      - nmcli
+      - connection
+      - add
+      - type
+      - wifi
+      - con-name
+      - "{{ wifi_failover_connection }}"
+      - ifname
+      - "{{ wifi_iface }}"
+      - ssid
+      - "{{ wifi_ssid | default(wifi_failover_op_read.results[0].stdout) }}"
+      - wifi-sec.key-mgmt
+      - wpa-psk
+      - wifi-sec.psk
+      - "{{ wifi_psk | default(wifi_failover_op_read.results[1].stdout) }}"
+      - connection.autoconnect
+      - "yes"
+      - ipv4.route-metric
+      - "{{ wifi_failover_route_metric }}"
+      - ipv6.route-metric
+      - "{{ wifi_failover_route_metric }}"
+  when: wifi_failover_connection not in (wifi_failover_nm_connections.stdout_lines | default([]))
   no_log: true
   changed_when: true
+  register: wifi_failover_profile_created
+
+# IP fija del WiFi (wifi_ip en inventory.ini, fuera del DHCP del router): así tiene nombre en el DNS
+# (<nodo>-wifi) y se puede entrar por SSH si se corta el cable. Sin wifi_ip, DHCP.
+- name: IP del perfil WiFi (fija si hay wifi_ip, si no DHCP)
+  ansible.builtin.set_fact:
+    wifi_failover_ipv4: >-
+      {{ {'ipv4.method': 'manual', 'ipv4.addresses': wifi_ip ~ '/' ~ wifi_failover_prefix, 'ipv4.gateway': gateway}
+         if wifi_ip is defined else
+         {'ipv4.method': 'auto', 'ipv4.addresses': '', 'ipv4.gateway': ''} }}
+
+- name: Leer la IP configurada en el perfil WiFi
+  ansible.builtin.command:
+    argv: [nmcli, -g, "ipv4.method,ipv4.addresses,ipv4.gateway", connection, show, "{{ wifi_failover_connection }}"]
+  register: wifi_failover_ipv4_now
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode or wifi_failover_connection in (wifi_failover_nm_connections.stdout_lines | default([]))
+
+- name: Aplicar la IP del perfil WiFi y reconectarlo
+  ansible.builtin.shell: |
+    set -o pipefail
+    nmcli connection modify {{ wifi_failover_connection | quote }} \
+      ipv4.method {{ wifi_failover_ipv4['ipv4.method'] }} \
+      ipv4.addresses {{ wifi_failover_ipv4['ipv4.addresses'] | quote }} \
+      ipv4.gateway {{ wifi_failover_ipv4['ipv4.gateway'] | quote }}
+    nmcli connection up {{ wifi_failover_connection | quote }}
+  args:
+    executable: /bin/bash
+  changed_when: true
+  when:
+    - wifi_failover_ipv4_now.stdout_lines is defined
+    - wifi_failover_ipv4_now.stdout_lines != [wifi_failover_ipv4['ipv4.method'], wifi_failover_ipv4['ipv4.addresses'], wifi_failover_ipv4['ipv4.gateway']]
+
+# El WiFi y br0 están en la misma LAN: sin esto, el kernel responde el ARP de la IP de br0 también por el
+# WiFi (y al revés), y otros equipos pueden mandar el tráfico del cable por el WiFi.
+- name: Cada interfaz responde ARP solo por sus propias IP
+  ansible.posix.sysctl:
+    name: "{{ item }}"
+    value: "{{ '1' if item.endswith('arp_ignore') else '2' }}"
+    sysctl_file: /etc/sysctl.d/90-wifi-failover-arp.conf
+    reload: true
+  loop:
+    - "net.ipv4.conf.{{ wifi_iface }}.arp_ignore"
+    - "net.ipv4.conf.{{ wifi_iface }}.arp_announce"
+    - net.ipv4.conf.br0.arp_ignore
+    - net.ipv4.conf.br0.arp_announce
+
+# br0 tiene puertos que nunca pierden el enlace (incusovn1a de OVN, tap* de Incus): sin el cable sigue
+# "UP" y sus rutas (métrica 0) le ganan al WiFi, que queda inalcanzable (pasó en eve). BindCarrier baja
+# br0 cuando la NIC física pierde el enlace y lo vuelve a subir cuando vuelve. Netplan no lo expone:
+# va como drop-in del .network que genera (10-netplan-br0.network, en /run/systemd/network).
+- name: Crear el directorio del drop-in de br0
+  ansible.builtin.file:
+    path: /etc/systemd/network/10-netplan-br0.network.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Hacer que br0 siga el enlace de la NIC física (BindCarrier)
+  ansible.builtin.copy:
+    dest: /etc/systemd/network/10-netplan-br0.network.d/bind-carrier.conf
+    content: |
+      # Gestionado por Ansible (rol wifi_failover).
+      [Network]
+      BindCarrier={{ bridge_iface }}
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Recargar systemd-networkd

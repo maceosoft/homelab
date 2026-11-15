@@ -140,7 +140,7 @@ Notas puntuales:
 ## Rotar la password de root
 
 Además del hardening de SSH, conviene rotar la password local de
-`root` en los 3 nodos (defensa en profundidad para consola/`su -` — el
+`root` en todos los nodos (defensa en profundidad para consola/`su -` — el
 login de `root` por SSH ya está deshabilitado). Hay un playbook dedicado
 que genera una password nueva por host y la guarda en 1Password (bóveda
 `HomeLab`): ver [Gestión de secretos](../secrets/index.md#rotacion-de-password-de-root-1password-sdk-local).

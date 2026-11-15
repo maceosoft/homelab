@@ -7,7 +7,7 @@ Este procedimiento es lo que haces al recibirla.
 
 ## Una sola vez: activar el aviso
 
-Aplica el rol que publica las métricas en los tres nodos
+Aplica el rol que publica las métricas en todos los nodos
 ([`playbook-apt-metrics.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-apt-metrics.yml)) desde `ansible/`:
 
 ```bash
@@ -31,9 +31,10 @@ sudo apt-get update && apt list --upgradable
 Un nodo a la vez, y `deborah` **al final**: es el servidor DNS (BIND) de la LAN y también
 el control plane de K3s, así que reiniciarla corta el DNS y la API del clúster unos minutos.
 
-1. `oliver`
-2. `invincible`
-3. `deborah`
+1. `eve`
+2. `oliver`
+3. `invincible`
+4. `deborah`
 
 ## Con Ansible (recomendado)
 
@@ -51,6 +52,7 @@ ansible-playbook -i inventory.ini playbook-parchear.yml --check
 Después, nodo a nodo, o todos seguidos:
 
 ```bash
+ansible-playbook -i inventory.ini playbook-parchear.yml -l eve
 ansible-playbook -i inventory.ini playbook-parchear.yml -l oliver
 ansible-playbook -i inventory.ini playbook-parchear.yml -l invincible
 ansible-playbook -i inventory.ini playbook-parchear.yml -l deborah

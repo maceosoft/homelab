@@ -15,7 +15,7 @@ Calico es el CNI (Container Network Interface, la red de los pods) del clúster.
 
 !!! warning "Sync manual, sin prune"
     Las dos Applications **no** sincronizan solas. Un cambio de versión en Git actualiza la red
-    de los pods de los 3 nodos, así que se aplica a mano (UI de Argo CD → **Sync**). Tampoco
+    de los pods de todos los nodos, así que se aplica a mano (UI de Argo CD → **Sync**). Tampoco
     tienen `prune` ni finalizer: si se borra la Application, el CNI no se toca.
 
 ## Qué versión corre
@@ -42,7 +42,7 @@ Las dos Applications llevan `argocd.argoproj.io/compare-options: ServerSideDiff=
 fantasma en los CRD de Calico y en los campos que el operador completa (como `assignmentMode` en el pool, nuevo en la v3.31),
 aunque `kubectl diff --server-side` salga vacío.
 
-!!! danger "Es la red de los pods de los tres nodos"
+!!! danger "Es la red de los pods de todos los nodos"
     Si una etapa falla, la red de pods queda comprometida y **no hay vuelta atrás sencilla**. Hazlo con ventana de
     mantenimiento y con acceso directo a los nodos. Es el mismo error que rompió Longhorn al saltar de la 1.6 a la 1.13:
     nunca saltes más versiones de las que soporta la documentación del proyecto.
@@ -52,7 +52,7 @@ aunque `kubectl diff --server-side` salga vacío.
 ```bash
 # calico y apiserver: AVAILABLE=True
 kubectl get tigerastatus
-# los 3 Ready
+# todos Ready
 kubectl get nodes
 # sin pods raros
 kubectl get pods -A --no-headers | awk '$4!="Running" && $4!="Completed"'
@@ -131,5 +131,5 @@ El último comprueba que un pod aún llega a un servicio de otro nodo.
 |---|---|
 | `calico-operator` queda `OutOfSync` tras el Sync | Es normal un momento por los campos que el operador agrega; si persiste, `kubectl diff --server-side` para ver qué difiere |
 | `tigerastatus calico` en `Degraded` | `kubectl -n tigera-operator logs deploy/tigera-operator --tail=50` |
-| Pods nuevos sin red | `kubectl -n calico-system get pods`; `calico-node` debe estar `Running` en los 3 nodos |
+| Pods nuevos sin red | `kubectl -n calico-system get pods`; `calico-node` debe estar `Running` en todos los nodos |
 | Argo CD no puede sincronizar (porque el CNI cayó) | Corrige el CNI con `kubectl` directo desde la estación, no a través de Argo CD |

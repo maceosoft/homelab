@@ -5,6 +5,10 @@ metadata:
   name: default
 spec:
   calicoNetwork:
+    # IP de cada nodo para la red de pods: la InternalIP de Kubernetes (la del cable). Con firstFound Calico puede
+    # elegir la IP del WiFi de respaldo, que está en la misma subred (ver gitops: cni/calico/custom-resources.yaml).
+    nodeAddressAutodetectionV4:
+      kubernetes: NodeInternalIP
     ipPools:
       - blockSize: 26
         cidr: {{ k3s_install.core.cluster_cidr }}

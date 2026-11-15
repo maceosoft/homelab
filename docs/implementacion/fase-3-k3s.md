@@ -2,8 +2,8 @@
 
 ## Objetivo
 
-Management cluster **K3s (distribución ligera de Kubernetes)** en 3 nodos (control plane en deborah, workers en invincible y
-oliver), con controller **Argo CD** listo para GitOps.
+Management cluster **K3s (distribución ligera de Kubernetes)** en 4 nodos (control plane en deborah, workers en invincible,
+oliver y eve), con controller **Argo CD** listo para GitOps.
 
 ## Qué aprendes
 
@@ -62,11 +62,13 @@ flowchart TB
   subgraph workers [Workers]
     INV[invincible_agent]
     NOL[oliver_agent]
+    EVE[eve_agent]
   end
   DEB --> API[API_6443]
   VIP -.-> API
   INV --> API
   NOL --> API
+  EVE --> API
   DEB --> ArgoCD[ArgoCD_controller]
 ```
 
@@ -82,7 +84,7 @@ Profundización: [Opciones del playbook](../k3s/playbook-options.md) · [Catálo
 
 === "🏠 En casa"
 
-    Un solo control plane en deborah, con el datastore por defecto de K3s (SQLite), y dos workers. Es simple, gasta
+    Un solo control plane en deborah, con el datastore por defecto de K3s (SQLite), y tres workers. Es simple, gasta
     poca memoria y basta para aprender; si deborah se apaga, los pods siguen corriendo pero no puedes cambiar nada
     hasta que vuelva. Si más adelante quieres alta disponibilidad, K3s puede pasar a
     [etcd embebido](https://docs.k3s.io/datastore/ha-embedded).
@@ -239,7 +241,7 @@ Detalle: [playbook-options — CNI](../k3s/playbook-options.md#cni).
 ```bash
 # En deborah o con kubeconfig
 sudo k3s kubectl get nodes
-# 3 nodos Ready
+# 4 nodos Ready
 sudo k3s kubectl get pods -n argocd
 # argocd-server Running (si gitops_argocd.enabled=true)
 ```

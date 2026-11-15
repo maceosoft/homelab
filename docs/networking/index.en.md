@@ -6,20 +6,21 @@
 
 ## L2 Bridge to the Physical LAN
 
-The **3 nodes** use a Linux bridge (`br0`) over the physical interface,
-so that Incus instances receive IP directly from the LAN (local network) and are
-reachable between hosts without needing OVN (Open Virtual Network).
+All nodes use a Linux bridge (`br0`) over the physical interface,
+so that Incus instances receive a direct IP from the LAN (local network) and are
+reachable across hosts without needing OVN (Open Virtual Network).
 
 | Node | Physical Interface | IP on br0 (static) |
 |---|---|---|
 | invincible | `eno2` | 192.168.20.6 |
 | oliver | `eno1` | 192.168.20.7 |
 | deborah | `enP4p65s0` | 192.168.20.5 |
+| eve | `enx9c69d3a4be6a` (TP-Link USB adapter) | 192.168.20.8 |
 
-> Confirm with `ip -br link` on the node before applying — the name of the
-> physical interface may differ from this table after an OS update.
+> Confirm with `ip -br link` on the node before applying — the physical interface name
+> may differ from this table after an OS update.
 
-Example netplan — invincible:
+netplan example — invincible:
 
 ```yaml
 # /etc/netplan/br0.yaml
@@ -40,7 +41,7 @@ network:
         addresses: [192.168.20.5, 192.168.20.1]
 ```
 
-Example netplan — deborah (same subnet, different interface and last octet):
+netplan example — deborah (same subnet, different interface and last octet):
 
 ```yaml
 # /etc/netplan/br0.yaml
@@ -76,13 +77,13 @@ the NIC (network interface card) out of ifupdown before writing `/etc/netplan/br
 ansible-playbook -i inventory.ini playbook-set-static-ip.yml --limit deborah
 ```
 
-Incus profile to use the bridge in the instances:
+Incus profile to use the bridge in instances:
 
 ```bash
 incus profile device add default eth0 nic nictype=bridged parent=br0
 ```
 
-## Fixed IP — why it is mandatory here
+## Static IP — Why It's Mandatory Here
 
 1. **Incus cluster**: `cluster.https_address` is recorded by IP when joining.
 2. **K3s (lightweight Kubernetes distribution)**: kubelet uses the node IP as identity.
@@ -95,40 +96,41 @@ incus profile device add default eth0 nic nictype=bridged parent=br0
 | invincible | 192.168.23.162 | 192.168.20.6 |
 | oliver | 192.168.20.87 | 192.168.20.7 |
 | deborah | 192.168.21.211 | 192.168.20.5 |
+| eve | 192.168.23.33 (DHCP) | 192.168.20.8 |
 
 > The LAN is a `/22` (`192.168.20.0`–`192.168.23.255`), not a `/24` — the
 > "current" IPs in this table are DHCP leases within that same range
-> (not separate subnets). The source of truth at all times is
+> (not distinct subnets). The source of truth at all times is
 > `ansible_host` in `inventory.ini`.
 
 ### LAN Addressing (`192.168.20.0/22`, gateway `192.168.20.1`)
 
-The router's DHCP assigns **`192.168.20.31` to `192.168.23.191`**. Everything static lives **outside** that range:
+The router's DHCP hands out **`192.168.20.31` to `192.168.23.191`**. Everything static lives **outside** that range:
 
-| Range | Use | Where Configured |
+| Range | Use | Where configured |
 |---|---|---|
 | `192.168.20.1` | Gateway (router) | Router |
 | `192.168.20.4` | K3s API VIP (kube-vip, optional) | `kube_vip.address` in `k3s_install.yml` |
-| `192.168.20.5`, `.6`, `.7` | deborah, invincible, oliver | `static_ip` in `inventory.ini` |
+| `192.168.20.5`, `.6`, `.7`, `.8` | deborah, invincible, oliver, eve | `static_ip` in `inventory.ini` |
+| `192.168.20.9`, `.10`, `.11` | WiFi fallback for deborah, invincible and eve (`<nodo>-wifi` in DNS); oliver has no WiFi | `wifi_ip` in `inventory.ini` |
 | `192.168.20.31 – 192.168.23.191` | **Router DHCP** | Router |
 | `192.168.23.192 – .199` | Free | — |
-| `192.168.23.200 – .220` | **MetalLB** (`LoadBalancer`, Gateway; the Kong Gateway uses `.200`) | [`gitops/metallb/ipaddresspool.yaml`](https://github.com/maceosoft/gitops/blob/main/metallb/ipaddresspool.yaml) |
+| `192.168.23.200 – .220` | **MetalLB** (`LoadBalancer`, Gateway; Kong Gateway uses `.200`) | [`gitops/metallb/ipaddresspool.yaml`](https://github.com/maceosoft/gitops/blob/main/metallb/ipaddresspool.yaml) |
 | `192.168.23.221 – .223` | Free | — |
-| `192.168.23.224/28` (`.224–.239`) | **Incus LB** (OVN), uplink `ipv4.routes` | `incus_ovn_lb_routes` in `group_vars/incus_cluster/ovn.yml` |
-| `192.168.23.240 – .249` | **External OVN**, `ipv4.ovn.ranges` (a virtual router per OVN network) | `incus_ovn_external_ranges` in the same file |
+| `192.168.23.224/28` (`.224–.239`) | **Incus LB** (OVN), `ipv4.routes` of the uplink | `incus_ovn_lb_routes` in `group_vars/incus_cluster/ovn.yml` |
+| `192.168.23.240 – .249` | **External OVN**, `ipv4.ovn.ranges` (one virtual router per OVN network) | `incus_ovn_external_ranges` in the same file |
 | `192.168.23.250 – .255` | Free (`.255` is the broadcast of the `/22`) | — |
 
-Outside the LAN, private networks that do not overlap with it or each other:
+Outside the LAN, private networks that must not overlap with it or each other:
 
 | Network | Use |
 |---|---|
 | `10.42.0.0/16` and `10.43.0.0/16` | K3s Pods and Services |
-| `192.168.19.0/24` | Internal OVN network (`ovn-lan`, with NAT) |
+| `192.168.19.0/24` | OVN internal network (`ovn-lan`, with NAT) |
 
-!!! warning "Outside the DHCP Range"
-    Fixed IPs, the MetalLB pool, and OVN segments must remain **outside the DHCP range**
-    (`192.168.20.31–192.168.23.191`). If not, the router may assign them to another device, causing conflicts. The preflight check for the
-    role `incus_ovn` fails if its segments overlap with DHCP or MetalLB.
+!!! warning "Outside DHCP"
+    Static IPs, the MetalLB pool, and OVN segments must stay **outside the DHCP range**
+    (`192.168.20.31–192.168.23.191`). Otherwise the router could hand them to another host and cause a conflict. The `incus_ovn` role preflight fails if its segments overlap with DHCP or MetalLB.
 
 After `playbook-set-static-ip.yml`, update `ansible_host` in
 [`inventory.ini`](https://github.com/maceosoft/homelab/blob/main/ansible/inventory.ini)
@@ -138,54 +140,93 @@ to the value of `static_ip` if the connection IP changed.
 
 === "🏠 At home"
 
-    [MetalLB](https://metallb.io/) takes free IPs from the LAN (`.200–.220`) for K3s Services `LoadBalancer`, and all web traffic enters through a single Kong Gateway ([Gateway API](https://gateway-api.sigs.k8s.io/)), with
-    [Calico](https://docs.tigera.io/calico/latest/about/) as CNI. No need to buy a load balancer: just reserve a range outside the DHCP.
+    [MetalLB](https://metallb.io/) takes free LAN IPs (`.200–.220`) for `LoadBalancer` Services, and all web traffic enters through a single Kong Gateway ([Gateway API](https://gateway-api.sigs.k8s.io/)), with [Calico](https://docs.tigera.io/calico/latest/about/) as CNI. No need to buy a load balancer: just reserve a range outside DHCP.
 
 === "🏢 In a company"
 
-    - **Benefits:** MetalLB provides IPs of `LoadBalancer` on your own servers without extra hardware, and Gateway API is a standard: routes (`HTTPRoute`) are written the same even if you switch Kong for another controller.
+    - **Benefits:** MetalLB provides `LoadBalancer` IPs on own servers without extra hardware, and Gateway API is a standard: routes (`HTTPRoute`) are written the same even if you swap Kong for another controller.
     - **Dedicated load balancers:** many data centers already have hardware or virtual load balancers, such as [F5 BIG-IP](https://www.f5.com/products/big-ip) or [NetScaler](https://www.netscaler.com/), and the network team prefers the cluster to use them instead of announcing IPs on its own.
-    - **BGP instead of L2:** MetalLB in [BGP](https://metallb.io/concepts/bgp/) mode announces IPs to data center routers and distributes traffic among nodes; the L2 mode of the HomeLab sends all traffic through one node at a time.
-    - **Commercial support:** there are versions with support for the same components, such as
-      [Kong Konnect](https://konghq.com/products/kong-konnect) for the gateway and
-      [Calico Enterprise](https://www.tigera.io/tigera-products/calico-commercial-editions/) for networking and its policies.
-    - **When it still makes sense:** on bare metal servers, branches, or disconnected sites, where there is no cloud load balancer and MetalLB plus a gateway inside the cluster is the simplest to operate.
+    - **BGP instead of L2:** MetalLB in [BGP](https://metallb.io/concepts/bgp/) mode advertises IPs to data center routers and spreads traffic across nodes; the HomeLab's L2 mode sends everything through one node at a time.
+    - **Commercial support:** supported versions of the same components exist, such as [Kong Konnect](https://konghq.com/products/kong-konnect) for the gateway and [Calico Enterprise](https://www.tigera.io/tigera-products/calico-commercial-editions/) for networking and its policies.
+    - **When the same approach makes sense:** on bare-metal servers, branch offices, or disconnected sites, where there is no cloud load balancer and MetalLB plus an in-cluster gateway is the simplest to operate.
 
 === "☁️ In the cloud"
 
-    | Cloud | Equivalent Service |
+    | Cloud | Equivalent service |
     |---|---|
     | GCP | [Cloud Load Balancing](https://cloud.google.com/load-balancing) with the [GKE Gateway controller](https://docs.cloud.google.com/kubernetes-engine/docs/concepts/gateway-api) |
     | AWS | [Elastic Load Balancing](https://aws.amazon.com/elasticloadbalancing/) with the [AWS Load Balancer Controller](https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/guide/gateway/gateway/) (supports Gateway API) |
     | Azure | [Application Gateway for Containers](https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/overview) (Gateway API) and [Azure Load Balancer](https://learn.microsoft.com/en-us/azure/aks/load-balancer-standard) for `LoadBalancer` |
     | Oracle Cloud (OCI) | [OCI Load Balancer](https://docs.oracle.com/en-us/iaas/Content/Balance/home.htm) with the [OCI Native Ingress Controller](https://docs.oracle.com/en-us/iaas/Content/ContEng/Tasks/contengsettingupnativeingresscontroller.htm) (uses `Ingress`, not Gateway API) |
 
-    In the cloud, you do not need MetalLB: each Service `LoadBalancer` or `Gateway` creates a managed load balancer, with high availability and integrated certificates. In return, each load balancer is billed separately and its configuration uses annotations or CRDs specific to each cloud; in OCI, if you want Gateway API, you install your own controller (like Kong) behind the load balancer.
+    In the cloud you don't need MetalLB: each `LoadBalancer` or `Gateway` Service creates a managed load balancer, with high availability and integrated certificates. In exchange, each load balancer is billed separately and its configuration uses cloud-specific annotations or CRDs; in OCI, if you want Gateway API, you install your own controller (like Kong) behind the load balancer.
 
 ### Ollama: router and nodes
 
-The AI assistant has **one single entry point**: the router `ollama-router` (namespace `ai`). Cluster clients use the Service `http://ollama-router.ai.svc`; external clients, `https://ollama.homelab.local` (Kong, only HTTPS; the name is in the `homelab.local` zone of BIND). The router requires a Bearer token.
+The AI assistant has **a single entry point**: the router `ollama-router` (namespace `ai`). Clients inside the cluster use the Service `http://ollama-router.ai.svc`; external ones use `https://ollama.homelab.local` (Kong, HTTPS only; the name is in the `homelab.local` zone of BIND). The router requires a Bearer token.
 
-Each Ollama node (`deborah` `192.168.20.5`, `invincible` `192.168.20.6`, `oliver` `192.168.20.7`, and when powered on, the Mac) has a **socket on port `11434`** that wakes up Ollama; internally, Ollama listens only on `127.0.0.1:11435`. The socket listens **only on the node's IP** (variable `ollama_ondemand_listen`) and the node's firewall allows the port from K3s nodes and from pods (the router can be on the same node). The Ollama node does not authenticate: inference protection is the router's token plus NetworkPolicy in namespace `ai` (which are activated in stages). Details in
-[Local AI Assistant](../operacion/ia-ollama.md) and [Add a Node to the Ollama Cluster](../operacion/agregar-nodo-ollama.md).
+Each Ollama node (`deborah` `192.168.20.5`, `invincible` `192.168.20.6`, `oliver` `192.168.20.7`, `eve` `192.168.20.8` and, when powered on, the Mac) has a **socket on port `11434`** that wakes Ollama; internally Ollama listens only on `127.0.0.1:11435`. The socket listens **only on the node's IP** (variable `ollama_ondemand_listen`) and the node firewall allows the port from K3s nodes and from pods (the router may be on the same node). The node's Ollama does not authenticate: inference protection is the router's token plus the NetworkPolicy of the `ai` namespace (enabled in stages). Details in [Local AI Assistant](../operacion/ia-ollama.md) and [Add a Node to the Ollama Cluster](../operacion/agregar-nodo-ollama.md).
 
-### K3s API Names
+### Resolve HomeLab names from your machine
 
-Agents, kubeconfig, and certificates use the name `k3s.homelab.local` for the API (port `6443`) instead of a specific node's IP. This way, the control plane can move without affecting clients
-([procedure](../operacion/mover-control-plane.md)).
+The zones `homelab.local` and `mco.local` are only known to the BIND instance on `deborah` (`192.168.20.5`); the router's DNS responds that they don't exist. To use HomeLab names from your machine (`kubectl` with `k3s.homelab.local`, `https://ollama.homelab.local`, Grafana, etc.), you need to tell the system to query **only those two zones** at `deborah`. All other names continue to go through the usual DNS, so if `deborah` is down, only HomeLab names stop resolving.
 
-## Exposed Ports and Host Firewall
+=== "macOS"
 
-Each node has a host firewall with `nftables` (role `host_firewall`): its own table, evaluated before
-kube-proxy and not modifying Calico chains. The policy is `accept` with explicit denials (to avoid breaking K3s, Calico, Longhorn, or MetalLB if they change ports), and traffic between nodes is trusted. The following is restricted:
+    One file per zone in `/etc/resolver/` (macOS reads it automatically, no restart needed):
 
-- SSH (`22`) from the LAN, with authentication via Dex.
-- The K3s API (`6443`), kubelet (`10250`), BGP traffic (`179`), FRR (`2623`), and MetalLB (`7946`) traffic, and Typha
-  (`5473`): only between nodes and the pod range.
-- Metrics (`9100`, `9120`, `9140`, `9141`): only to the collector and nodes.
-- Incus (`8443`): nodes, pods, and operator. Ollama (`11434`): K3s nodes, pods, and machines added to `host_firewall_ollama_extra_cidrs` (the Mac).
+    ```bash
+    sudo mkdir -p /etc/resolver
+    echo "nameserver 192.168.20.5" | sudo tee /etc/resolver/homelab.local
+    echo "nameserver 192.168.20.5" | sudo tee /etc/resolver/mco.local
+    ```
+
+    Verify (`dig` and `nslookup` ignore `/etc/resolver`; use `dscacheutil`, which queries the way applications do):
+
+    ```bash
+    scutil --dns | grep -A2 homelab.local
+    dscacheutil -q host -a name k3s.homelab.local   # ip_address: 192.168.20.5
+    ```
+
+=== "Linux"
+
+    With `systemd-resolved` (Debian, Ubuntu, Fedora; confirmed with `resolvectl status`), a configuration file that sends only those zones to `deborah` (the `~` prefix on the name means "only for this zone"):
+
+    ```bash
+    sudo mkdir -p /etc/systemd/resolved.conf.d
+    printf '[Resolve]\nDNS=192.168.20.5\nDomains=~homelab.local ~mco.local\n' \
+      | sudo tee /etc/systemd/resolved.conf.d/homelab.conf
+    sudo systemctl restart systemd-resolved
+    resolvectl query k3s.homelab.local   # 192.168.20.5
+    ```
+
+    Without `systemd-resolved` (`/etc/resolv.conf` written manually or via DHCP), there's no way to send only a single zone: put `nameserver 192.168.20.5` first in `/etc/resolv.conf`. The BIND instance on `deborah` also resolves Internet names.
+
+=== "Windows"
+
+    An NRPT rule (Name Resolution Policy Table, the Windows table that assigns a DNS server to a zone), in PowerShell as administrator:
+
+    ```powershell
+    Add-DnsClientNrptRule -Namespace ".homelab.local" -NameServers "192.168.20.5"
+    Add-DnsClientNrptRule -Namespace ".mco.local" -NameServers "192.168.20.5"
+    Clear-DnsClientCache
+    Resolve-DnsName k3s.homelab.local   # 192.168.20.5
+    ```
+
+    To remove them: `Get-DnsClientNrptRule` and `Remove-DnsClientNrptRule -Name <nombre>`.
+
+### K3s API names
+
+Agents, kubeconfig, and certificates use the name `k3s.homelab.local` for the API (port `6443`) instead of a specific node's IP. This allows the control plane to move without touching clients ([procedure](../operacion/mover-control-plane.md)).
+
+## Exposed ports and host firewall
+
+Each node has a host firewall with `nftables` (role `host_firewall`): a dedicated table, evaluated before kube-proxy and without modifying Calico's chains. The policy is `accept` with explicit denials (to avoid breaking K3s, Calico, Longhorn, or MetalLB if they change their ports), and inter-node traffic is trusted. The following is restricted:
+
+- SSH (`22`) from the LAN, with Dex authentication.
+- The K3s API (`6443`), kubelet (`10250`), BGP traffic (`179`), FRR (`2623`), MetalLB (`7946`), and Typha (`5473`): only between nodes and the pod CIDR.
+- Metrics (`9100`, `9120`, `9140`, `9141`): only toward the collector and the nodes.
+- Incus (`8443`): nodes, pods, and operator. Ollama (`11434`): K3s nodes, pods, and the machines added to `host_firewall_ollama_extra_cidrs` (the Mac).
 - DNS (`53`) from the LAN.
 
-The list of what remains without its own authentication, with the reason and the network control that replaces it, is in
-[Authentication Model](../security/modelo-de-autenticacion.md#network-controlled-exceptions). The rules are
-applied with a safety auto-reversal (see [Post-Incident Hardening](../security/hardening-post-incidente.md)).
+The list of what remains without its own authentication, with the reason and the network control that replaces it, is in [Authentication model](../security/modelo-de-autenticacion.md#network-controlled-exceptions). The rules are applied with an auto-rollback for safety (see [Post-incident hardening](../security/hardening-post-incidente.md)).

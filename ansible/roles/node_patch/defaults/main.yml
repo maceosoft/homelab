@@ -13,6 +13,12 @@ node_patch_kubeconfig: "{{ lookup('ansible.builtin.env', 'KUBECONFIG') | default
 # Nombre del nodo en Kubernetes (coincide con el del inventario).
 node_patch_k8s_node: "{{ inventory_hostname }}"
 
+# Repos de Debian (sources.yml). deborah agrega contrib y non-free en su host_vars.
+node_patch_debian_mirror: http://ftp.cl.debian.org/debian
+node_patch_debian_security_mirror: http://security.debian.org/debian-security
+node_patch_debian_components: main non-free-firmware
+node_patch_debian_keyring: /usr/share/keyrings/debian-archive-keyring.gpg
+
 # apt: borrar dependencias que ya nadie usa (apt-get autoremove).
 node_patch_autoremove: false
 

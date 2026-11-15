@@ -48,6 +48,7 @@ su `README.md` con variables, tags y verificación.
 | [`ollama_node`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/ollama_node/README.md) | Agente de registro de Ollama como servicio systemd (`ollama-node-register`), que corre como usuario `ollama-node` (grupo suplementario `ollama`) y anuncia los modelos del nodo al router ([guía](../operacion/agregar-nodo-ollama.md)) | `playbook-ollama.yml` | `register` |
 | [`wifi_failover`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/wifi_failover/README.md) | WiFi de respaldo del cable (nodos con WiFi) | `playbook-wifi-failover.yml` | — |
 | [`storage_provision`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/storage_provision/README.md) | Formatea y monta un disco libre (destructivo) | `playbook-storage-provision.yml` | — |
+| [`data_relocation`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/data_relocation/README.md) | Mueve carpetas (K3s, modelos de Ollama) a otro disco con un bind mount | `playbook-data-relocation.yml` | — |
 
 ## Playbooks sin rol (tareas inline)
 
@@ -58,7 +59,7 @@ su `README.md` con variables, tags y verificación.
 | [`playbook-incus-cluster.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-incus-cluster.yml) | 2 | Bootstrap/join/groups/UI Incus |
 | [`playbook-dex-oauth-secrets.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-dex-oauth-secrets.yml) | 4 | OAuth Dex: 1Password + Argo CD + Incus/vCluster |
 | [`playbook-rotate-root-passwords.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-rotate-root-passwords.yml) | Seguridad | Rota password de root → 1Password (bóveda HomeLab) |
-| [`playbook-k3s-uninstall.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-k3s-uninstall.yml) | Apéndice | Desinstala K3s en los 3 nodos |
+| [`playbook-k3s-uninstall.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-k3s-uninstall.yml) | Apéndice | Desinstala K3s en todos los nodos |
 
 Documentación OAuth: [`gitops/argocd/secrets/1password.md`](https://github.com/maceosoft/gitops/blob/main/argocd/secrets/1password.md)
 

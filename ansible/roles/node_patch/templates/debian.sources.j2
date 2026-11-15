@@ -1,0 +1,13 @@
+# {{ ansible_managed }}
+# Repos de Debian en formato deb822 con Signed-By (apt 3 avisa "Missing Signed-By" sin él).
+Types: deb
+URIs: {{ node_patch_debian_mirror }}
+Suites: {{ ansible_facts['distribution_release'] }} {{ ansible_facts['distribution_release'] }}-updates
+Components: {{ node_patch_debian_components }}
+Signed-By: {{ node_patch_debian_keyring }}
+
+Types: deb
+URIs: {{ node_patch_debian_security_mirror }}
+Suites: {{ ansible_facts['distribution_release'] }}-security
+Components: {{ node_patch_debian_components }}
+Signed-By: {{ node_patch_debian_keyring }}

@@ -6,7 +6,7 @@
 
 ## Bridge L2 hacia la LAN física
 
-Los **3 nodos** usan un bridge Linux (`br0`) sobre la interfaz física,
+Todos los nodos usan un bridge Linux (`br0`) sobre la interfaz física,
 para que las instancias Incus reciban IP directa de la LAN (red local) y sean
 alcanzables entre hosts sin necesitar OVN (Open Virtual Network).
 
@@ -15,7 +15,7 @@ alcanzables entre hosts sin necesitar OVN (Open Virtual Network).
 | invincible | `eno2` | 192.168.20.6 |
 | oliver | `eno1` | 192.168.20.7 |
 | deborah | `enP4p65s0` | 192.168.20.5 |
-| eve | `enx34298f75a04a` (adaptador USB) | 192.168.20.8 |
+| eve | `enx9c69d3a4be6a` (adaptador USB TP-Link) | 192.168.20.8 |
 
 > Confirma con `ip -br link` en el nodo antes de aplicar — el nombre de la
 > interfaz física puede diferir de esta tabla tras una actualización del SO.
@@ -96,7 +96,7 @@ incus profile device add default eth0 nic nictype=bridged parent=br0
 | invincible | 192.168.23.162 | 192.168.20.6 |
 | oliver | 192.168.20.87 | 192.168.20.7 |
 | deborah | 192.168.21.211 | 192.168.20.5 |
-| eve | 192.168.23.33 | 192.168.20.8 |
+| eve | 192.168.23.33 (DHCP) | 192.168.20.8 |
 
 > La LAN es un `/22` (`192.168.20.0`–`192.168.23.255`), no un `/24` — las
 > IPs "actuales" de esta tabla son leases DHCP dentro de ese mismo rango
@@ -112,6 +112,7 @@ El DHCP del router reparte **`192.168.20.31` a `192.168.23.191`**. Todo lo fijo 
 | `192.168.20.1` | Gateway (router) | Router |
 | `192.168.20.4` | VIP del API de K3s (kube-vip, opcional) | `kube_vip.address` en `k3s_install.yml` |
 | `192.168.20.5`, `.6`, `.7`, `.8` | deborah, invincible, oliver, eve | `static_ip` en `inventory.ini` |
+| `192.168.20.9`, `.10`, `.11` | WiFi de respaldo de deborah, invincible y eve (`<nodo>-wifi` en el DNS); oliver no tiene WiFi | `wifi_ip` en `inventory.ini` |
 | `192.168.20.31 – 192.168.23.191` | **DHCP del router** | Router |
 | `192.168.23.192 – .199` | Libre | — |
 | `192.168.23.200 – .220` | **MetalLB** (`LoadBalancer`, Gateway; el Gateway de Kong usa `.200`) | [`gitops/metallb/ipaddresspool.yaml`](https://github.com/maceosoft/gitops/blob/main/metallb/ipaddresspool.yaml) |
@@ -185,6 +186,63 @@ encendido, el Mac) tiene un **socket en el puerto `11434`** que despierta a Olla
 en `127.0.0.1:11435`. El socket escucha **únicamente en la IP del nodo** (variable `ollama_ondemand_listen`) y el
 firewall del nodo admite el puerto desde los nodos de K3s y desde los pods (el router puede estar en el mismo nodo). El Ollama del nodo no autentica: la protección de la inferencia es el token del router más las NetworkPolicy del namespace `ai` (que se activan por etapas). Detalle en
 [Asistente de IA local](../operacion/ia-ollama.md) y [Agregar un nodo al clúster de Ollama](../operacion/agregar-nodo-ollama.md).
+
+### Resolver los nombres del HomeLab desde tu equipo
+
+Las zonas `homelab.local` y `mco.local` solo las conoce el BIND de `deborah` (`192.168.20.5`); el DNS del router
+responde que no existen. Para usar desde tu equipo los nombres del HomeLab (`kubectl` con `k3s.homelab.local`,
+`https://ollama.homelab.local`, Grafana, etc.) hay que decirle al sistema que pregunte **solo esas dos zonas** a
+`deborah`. El resto de los nombres sigue saliendo por el DNS de siempre, así que si `deborah` está apagada solo
+dejan de resolver los nombres del HomeLab.
+
+=== "macOS"
+
+    Un archivo por zona en `/etc/resolver/` (macOS lo lee solo, sin reiniciar nada):
+
+    ```bash
+    sudo mkdir -p /etc/resolver
+    echo "nameserver 192.168.20.5" | sudo tee /etc/resolver/homelab.local
+    echo "nameserver 192.168.20.5" | sudo tee /etc/resolver/mco.local
+    ```
+
+    Comprobar (`dig` y `nslookup` ignoran `/etc/resolver`; usa `dscacheutil`, que pregunta como lo hacen las
+    aplicaciones):
+
+    ```bash
+    scutil --dns | grep -A2 homelab.local
+    dscacheutil -q host -a name k3s.homelab.local   # ip_address: 192.168.20.5
+    ```
+
+=== "Linux"
+
+    Con `systemd-resolved` (Debian, Ubuntu, Fedora; se confirma con `resolvectl status`), un archivo de
+    configuración que manda solo esas zonas a `deborah` (el `~` delante del nombre indica "solo para esta zona"):
+
+    ```bash
+    sudo mkdir -p /etc/systemd/resolved.conf.d
+    printf '[Resolve]\nDNS=192.168.20.5\nDomains=~homelab.local ~mco.local\n' \
+      | sudo tee /etc/systemd/resolved.conf.d/homelab.conf
+    sudo systemctl restart systemd-resolved
+    resolvectl query k3s.homelab.local   # 192.168.20.5
+    ```
+
+    Sin `systemd-resolved` (`/etc/resolv.conf` escrito a mano o por DHCP) no hay forma de mandar solo una zona:
+    pon `nameserver 192.168.20.5` primero en `/etc/resolv.conf`. El BIND de `deborah` también resuelve los
+    nombres de Internet.
+
+=== "Windows"
+
+    Una regla de NRPT (Name Resolution Policy Table, la tabla de Windows que asigna un servidor DNS a una zona),
+    en PowerShell como administrador:
+
+    ```powershell
+    Add-DnsClientNrptRule -Namespace ".homelab.local" -NameServers "192.168.20.5"
+    Add-DnsClientNrptRule -Namespace ".mco.local" -NameServers "192.168.20.5"
+    Clear-DnsClientCache
+    Resolve-DnsName k3s.homelab.local   # 192.168.20.5
+    ```
+
+    Para quitarlas: `Get-DnsClientNrptRule` y `Remove-DnsClientNrptRule -Name <nombre>`.
 
 ### Nombres de la API de K3s
 

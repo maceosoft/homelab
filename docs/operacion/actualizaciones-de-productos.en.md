@@ -1,4 +1,4 @@
-# New version notices (Renovate)
+# New Version Notices (Renovate)
 
 Every day, [Renovate](https://docs.renovatebot.com/) checks whether a new version of the products installed in the cluster has been released and opens a PR (pull request) in [`maceosoft/gitops`](https://github.com/maceosoft/gitops) for each one. At the end of each run, the workflow itself posts a summary in the `actualizaciones` Discord channel. **It does not update anything on its own**: you review the PR, test it, and merge it, and only then does Argo CD deploy.
 
@@ -25,16 +25,16 @@ flowchart LR
 
 | Doesn't detect | Why |
 |---|---|
-| **Debian patches on nodes** | Already covered by OS automatic updates and monitoring alerts |
+| **Debian node patches** | Already covered by OS automatic updates and monitoring alerts |
 | **K3s** | Updated by SUC plans via the `stable` channel ([Update K3s](actualizar-k3s.md)); no version in Git |
 | **Argo CD** | Follows the `stable` branch of the official manifest ([Update Argo CD](actualizar-argocd.md)) |
 | **Images with `latest` tag** (the ARC runner) | No version to compare |
 | Optional apps **not active** in `bootstrap/root-appset.yaml` (Traefik, NGINX Gateway, vCluster, Cilium, Canal) | Ignored to avoid noise. If you enable one, remove its path from the corresponding rule in `renovate.json5` |
-| `homelab` (this repo) | Its Python dependencies are still watched by Dependabot (see [below](#and-dependabot-of-homelab)) |
+| `homelab` (this repo) and `core-pipelines` | Watched by Dependabot: Python, GitHub Actions and OpenTofu (see [below](#and-dependabot-from-homelab)) |
 
 ### What stays as notice only
 
-These components have their own procedure. Renovate **opens the PR as a draft** with the label
+These components have their own procedure. Renovate **opens the PR as a draft** (*Draft*) with the label
 `procedimiento-manual` and **does not merge** until the guide is followed:
 
 | Component | Procedure |
@@ -42,15 +42,17 @@ These components have their own procedure. Renovate **opens the PR as a draft** 
 | Calico | [Calico (CNI) with Argo CD](actualizar-calico.md): manual sync, and only from one minor version to the next |
 | Longhorn | From one minor version to the next, with healthy and backed-up volumes, reading the Longhorn release notes first |
 
-Additionally, **every major version** arrives in a separate PR, as a draft and with the label `mayor`. No PR merges automatically (no automerge).
+Additionally, **every major version** arrives in a separate PR, as a draft and with the label `mayor`. No PR merges automatically
+(there is no automerge).
 
 ## The credential: a custom GitHub App
 
-Renovate needs to write to `gitops`: create branches, open PRs, and touch `.github/workflows` files. There are two reasonable options:
+Renovate needs to write to `gitops`: create branches, open PRs, and touch `.github/workflows` files. There are two
+reasonable options:
 
 | Option | Verdict |
 |---|---|
-| Reuse the ARC App (`maceosoft-arc-runners`) | **No.** It has organization permissions (*Administration*, *Self-hosted runners*: Read and write) that Renovate doesn't need, and its key lives in the cluster, not in GitHub Actions. Using it otherwise expands what anyone who reaches it can do |
+| Reuse the ARC App (`maceosoft-arc-runners`) | **No.** It has organization permissions (*Administration*, *Self-hosted runners*: Read and write) that Renovate doesn't need, and its key lives in the cluster, not in GitHub Actions. Using it otherwise expands what whoever reaches it can do |
 | **A new `maceosoft-renovate` App**, installed only on `gitops` | **Chosen.** Minimal permissions, no organization permissions, revocable without touching anything else |
 
 An App is used instead of a personal token (PAT, *Personal Access Token*) because it doesn't depend on a person, expires on its own (the installation token lasts 1 hour), and leaves PRs authored by the bot. Moreover, PRs opened by an App **do trigger** the `gitops` pipeline, so each one arrives with its validation and its Argo CD diff.
@@ -82,16 +84,16 @@ The rest of the form is left blank or unchecked.
 | Metadata | Read-only | Required |
 
 No organization permissions. All others remain *No access*. These are the ones
-[Renovate documentation](https://docs.renovatebot.com/modules/platform/github/) requests for an App, without the
+[Renovate documentation](https://docs.renovatebot.com/modules/platform/github/) requires for an App, without the
 optional ones (*Dependabot alerts*, *Merge queues*, *Members*), which aren't used here.
 
 After *Create GitHub App* (creating the App, generating its key, and installing it is done **only from the web**):
 
-1. On the App page, under *Private keys* → **Generate a private key**. A file `.pem` downloads.
+1. On the App page, under *Private keys* → **Generate a private key**. A file `.pem` is downloaded.
 2. Left menu → **Install App** → *Install* next to `maceosoft` → **Only select repositories** → choose **`gitops`**
    → *Install*. Install it **only on `gitops`**.
 3. Save the App in 1Password (vault `HomeLab`, Secure Note `maceosoft-renovate`, as in
-   [maceosoft Platform — GitHub](../maceosoft/github.md#how-to-create-an-item-with-custom-fields)).
+   [maceosoft Platform — GitHub](../maceosoft/github.md#como-crear-un-item-con-campos-propios)).
    The *Installation ID* isn't needed: the workflow resolves it automatically.
 
     === "🖱️ From the UI"
@@ -135,7 +137,7 @@ After *Create GitHub App* (creating the App, generating its key, and installing 
         gh secret list --repo maceosoft/gitops
         ```
 
-5. **Delete the `.pem`** from Downloads. Via console: `shred -u ~/Downloads/maceosoft-renovate.*.private-key.pem`
+5. **Delete the `.pem`** from Downloads. From the console: `shred -u ~/Downloads/maceosoft-renovate.*.private-key.pem`
    (on macOS use `rm -P` instead of `shred -u`).
 
 This doesn't go through `playbook-platform-secrets.yml`: it's not a cluster Secret, GitHub Actions reads it. To rotate the
@@ -157,7 +159,7 @@ have the **Manage Webhooks** permission).
 
 1. Hover over the `🖥️ Infraestructura` category, click **+** (**Create Channel**) and choose **Text**.
 2. **Channel Name:** `actualizaciones`. Since it's in the private category it inherits its permissions: confirm in
-   *Edit Channel → Permissions* that only the `devops` role sees it and that `@everyone` doesn't.
+   *Edit Channel → Permissions* that only the `devops` role can see it and that `@everyone` cannot.
 3. Right-click the channel → **Notification Settings** → **Only @mentions** (or muted): check it when you want.
 
 ### 2. The webhook
@@ -176,7 +178,7 @@ The URL is `https://discord.com/api/webhooks/<id numérico>/<token>`. **Save it 
 === "⌨️ From the console"
 
     The URL is read without echo, so it doesn't stay in history. If the item already exists from monitoring, `op item edit`
-    adds the field:
+    adds the field to it:
 
     ```bash
     # pega la URL del webhook y Enter
@@ -191,47 +193,45 @@ It's a secret: don't paste it in Git, chat, or a ticket.
 
 ### 3. Save it as an Actions secret
 
-The workflow reads the URL from a repo secret, so it doesn't appear in Git or in the log:
+The workflow reads the URL from a repo secret, so it never appears in Git or in the log:
 
 === "🖱️ From the UI"
 
     1. In GitHub, repo **`maceosoft/gitops`** → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**.
-    2. **Name:** `DISCORD_WEBHOOK_UPDATES`. **Secret:** the webhook URL, exactly as you copied it (**without** `/github` at the end).
+    2. **Name:** `DISCORD_WEBHOOK_UPDATES`. **Secret:** the webhook URL, exactly as you copied it ( **without** `/github` at the end).
     3. **Add secret**.
 
 === "⌨️ From the console"
 
-    Using the GitHub CLI, reading the URL without echo:
+    With the GitHub CLI, reading the URL without echo:
 
     ```bash
     # pega la URL del webhook y Enter
     read -rs DC_UPD; printf '%s' "$DC_UPD" | gh secret set DISCORD_WEBHOOK_UPDATES --repo maceosoft/gitops; unset DC_UPD
     ```
 
-Without this secret the workflow works the same, but it doesn't notify in Discord (the step notes it in its log and continues).
+Without this secret the workflow works the same, but it won't notify Discord (the step notes it in its log and continues).
 
 !!! note "Why `updates` doesn't go through the playbook"
     The webhook is used **from GitHub Actions**, not from the cluster, so there's no Kubernetes Secret to create and
     [`apply_platform_secrets.py`](https://github.com/maceosoft/homelab/blob/main/ansible/scripts/apply_platform_secrets.py)
-    is not touched. The `updates` field in 1Password is just the webhook backup copy: that script doesn't read or
+    isn't touched. The `updates` field in 1Password is just the webhook backup copy: that script doesn't read or
     validate it, and it doesn't interfere with monitoring.
 
 ## How notifications arrive
 
 - **Discord, `actualizaciones`:** when the daily run finishes, **a single message** with the PRs Renovate created in
-  the last 26 hours (linked title, and the *draft*, *major*, or *manual procedure* labels when
-  applicable), plus the total of open update PRs. If there are no new PRs, **it sends nothing**. If the run
-  fails (e.g., due to an expired token), a red message arrives with the link to the log. A simulation (*dry run*)
-  notification is not sent.
-- **GitHub:** the *Product Updates (Renovate)* issue (*Dependency Dashboard*) lists what was detected, what's
-  waiting, and open PRs. From there you can request a PR that Renovate hasn't opened yet, due to the simultaneous PR
-  limit (3).
+  the last 26 hours (linked title, and the *draft*, *major*, or *manual procedure* badges when applicable), plus the
+  total of open update PRs. If there are no new PRs, **it sends nothing**. If the run fails (e.g., due to an expired
+  token), a red message arrives with a link to the log. A simulation (*dry run*) notification is not sent.
+- **GitHub:** the *Product Updates (Renovate)* issue (*Dependency Dashboard*) lists what was detected, what's waiting,
+  and open PRs. From there you can request a PR that Renovate hasn't opened yet, due to the simultaneous PR limit (3).
 
-## What to do when receiving an update PR
+## What to do when you receive an update PR
 
-1. **Read the PR.** It brings the version notes (*Release notes*) and the version jump. If it's Calico or Longhorn (draft,
+1. **Read the PR.** It brings the *Release notes* and the version jump. If it's Calico or Longhorn (draft,
    `procedimiento-manual`), go to its guide first: [Calico](actualizar-calico.md).
-2. **Check the pipeline.** It must be green, and in the `argocd-diff` job summary check which resources change
+2. **Check the pipeline.** It must be green, and in the `argocd-diff` job summary review which resources change
    ([GitOps pipeline](pipeline-gitops.md)).
 3. **Decide when.** A storage or network update isn't done under load or on a Friday afternoon.
 4. **Merge**. Argo CD syncs; Calico Applications don't, those
@@ -239,7 +239,7 @@ Without this secret the workflow works the same, but it doesn't notify in Discor
 
     === "🖱️ From the UI"
 
-        If it's a draft, click **Ready for review** first; then the PR's merge button.
+        If it's a draft, click **Ready for review** first; then, the PR's merge button.
 
     === "⌨️ From the console"
 
@@ -251,12 +251,12 @@ Without this secret the workflow works the same, but it doesn't notify in Discor
         gh pr merge <número> --repo maceosoft/gitops --squash
         ```
 
-5. **Verify** in Argo CD that the Application becomes `Synced` and `Healthy`, and that monitoring alerts don't
-   fire. To roll back, revert the PR.
+5. **Verify** in Argo CD that the Application ends up `Synced` and `Healthy`, and that monitoring alerts
+   don't fire. To roll back, revert the PR.
 
     === "🖱️ From the UI"
 
-        In the Argo CD UI, the Application card shows the two states.
+        In the Argo CD UI, the Application card shows both statuses.
 
     === "⌨️ From the console"
 
@@ -266,8 +266,8 @@ Without this secret the workflow works the same, but it doesn't notify in Discor
 
         The `SYNC STATUS` and `HEALTH STATUS` columns must say `Synced` and `Healthy`.
 
-6. **If you don't want it:** close the PR without merging. Renovate won't reopen that version (it will the next one). If you
-   close it by mistake, mark it in the *Dependency Dashboard*. With the console:
+6. **If you don't want it:** close the PR without merging. Renovate won't reopen that version (it will the next one).
+   If you closed it by mistake, mark it in the *Dependency Dashboard*. With the CLI:
    `gh pr close <número> --repo maceosoft/gitops`.
 
 !!! tip "Ranges"
@@ -276,7 +276,7 @@ Without this secret the workflow works the same, but it doesn't notify in Discor
 
 ## Test without creating PRs
 
-A simulation (*dry run*): Renovate goes through everything and only writes to the log what it would do.
+A simulation (*dry run*): Renovate walks through everything and only writes to the log what it would do.
 
 === "🖱️ From the UI"
 
@@ -293,14 +293,14 @@ A simulation (*dry run*): Renovate goes through everything and only writes to th
 
     For the log level, add `-f log_level=debug`.
 
-With `debug` in the log level, each detected dependency is shown.
+With `debug` at the log level you see every detected dependency.
 
 If the workflow fails at the *GitHub App Token* step, one of the two secrets is missing or wrong, or the App isn't
 installed in `gitops`.
 
 ## Change the configuration
 
-The configuration is in
+Configuration lives in
 [`renovate.json5`](https://github.com/maceosoft/gitops/blob/main/renovate.json5) (which managers it uses, what only notifies,
 limits, groupings) and the program in
 [`.github/workflows/renovate.yml`](https://github.com/maceosoft/gitops/blob/main/.github/workflows/renovate.yml).
@@ -310,14 +310,25 @@ The Renovate version is pinned in the workflow: bump the version manually from t
 
 | What | How |
 |---|---|
-| Pause | `gitops` → *Actions → renovate* → **⋯** → **Disable workflow** (with the CLI: `gh workflow disable renovate.yml --repo maceosoft/gitops`) |
-| Remove Discord notifications | Delete the secret `DISCORD_WEBHOOK_UPDATES` in `gitops` → **Settings → Secrets and variables → Actions** (or `gh secret delete DISCORD_WEBHOOK_UPDATES --repo maceosoft/gitops`), and the webhook in Discord (*Edit Channel → Integrations → Webhooks*) |
+| Pause | `gitops` → *Actions → renovate* → **⋯** → **Disable workflow** (with CLI: `gh workflow disable renovate.yml --repo maceosoft/gitops`) |
+| Remove Discord notifications | Delete the `DISCORD_WEBHOOK_UPDATES` secret in `gitops` → **Settings → Secrets and variables → Actions** (or `gh secret delete DISCORD_WEBHOOK_UPDATES --repo maceosoft/gitops`), and the webhook in Discord (*Edit Channel → Integrations → Webhooks*) |
 | Remove entirely | Delete `renovate.json5` and `.github/workflows/renovate.yml` in a PR, the two Actions secrets, the App (*maceosoft → Settings → Developer settings → GitHub Apps → Edit → Advanced → Delete GitHub App*) and the 1Password items |
 
-Closing open Renovate PRs and deleting their branches `renovate/*` is manual (with the CLI: `gh pr list --repo maceosoft/gitops --search "head:renovate/" --json number --jq '.[].number'` to list them and `gh pr close <número> --delete-branch --repo maceosoft/gitops` to close each one).
+Closing open Renovate PRs and deleting their branches `renovate/*` is manual (with CLI: `gh pr list --repo maceosoft/gitops --search "head:renovate/" --json number --jq '.[].number'` to list them and `gh pr close <número> --delete-branch --repo maceosoft/gitops` to close each one).
 
-## And Dependabot of `homelab`
+## And Dependabot from `homelab`
 
-`homelab` has Dependabot enabled on pip (PRs for `black` and `certifi`). Renovate here only watches `gitops`, so
-**it doesn't replace it**: they coexist without stepping on each other. If later you prefer a single system, `homelab` can be added to Renovate
-(install the App in that repo too and add it to `RENOVATE_REPOSITORIES`) and then remove Dependabot.
+In `homelab` and `core-pipelines`, Dependabot watches the versions. Renovate only watches `gitops`, so it **does not replace it**: they coexist without stepping on each other. The configuration is in `.github/dependabot.yml` of each repo:
+
+| Repo | What it watches | How PRs arrive |
+|---|---|---|
+| `homelab` | Python (`requirements.txt`, which includes `requirements-docs.txt`), GitHub Actions, and the OpenTofu provider (`lxc/incus`) | Mondays at 08:00. Ansible and MkDocs arrive in one PR per group; other minor and patch versions in a single PR; major versions in separate PRs |
+| `core-pipelines` | GitHub Actions of reusable workflows (own `maceosoft/*@main` are ignored) | Mondays at 08:00. Minors and patches in a single PR; majors in separate PRs |
+
+- Dependabot waits **7 days** after a version is published before proposing it (`cooldown`). Versions that are yanked or turn out compromised (supply-chain attacks) are usually caught in those first days.
+- No automerge: every PR goes through the repo's CI and is reviewed by a person. In `core-pipelines` a change affects the pipelines of all repos that call its workflows.
+- Dependabot does not see versions of tools that `core-pipelines` receives as inputs with default values (`helm-version`, `kustomize-version`, `kubeconform-version`, etc. in `gitops.yml`): those are updated manually.
+
+`gitops` **does not have** `dependabot.yml`: Renovate already covers its GitHub Actions, and Dependabot does not understand Argo CD Applications or Calico and Gateway API URLs. With both active, duplicate PRs would arrive.
+
+If you later prefer a single system, `homelab` can be added to Renovate (install the App in that repo too and add it to `RENOVATE_REPOSITORIES`) and then retire Dependabot.

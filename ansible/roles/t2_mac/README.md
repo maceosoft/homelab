@@ -30,6 +30,10 @@ El hostname no lo toca: se pone a mano (`hostnamectl set-hostname` y `/etc/hosts
    suspensión funciona a medias. Además, para que se comporte como servidor:
    - arranca en `multi-user.target` (sin modo gráfico);
    - limita la carga de la batería a `t2_mac_battery_charge_limit` (80 %) con una regla udev, porque vive enchufada;
+   - muestra el estado de energía al inicio del prompt de bash (`t2_mac_power_prompt`): `[AC 80%]` en verde con
+     cargador, `[BAT 74%]` en amarillo a batería y en rojo bajo `t2_mac_power_prompt_low` (20 %). Va en
+     `/etc/profile.d/t2-mac-power-prompt.sh` por `PROMPT_COMMAND`, así respeta el `PS1` de cada usuario; solo en
+     shells de login (SSH, consola);
    - instala y arranca `thermald` (control térmico de Intel);
    - apaga Bluetooth (`t2_mac_disable_bluetooth`);
    - trackpad en la consola con `gpm` (`t2_mac_console_mouse`): mueve el cursor y arrastrar con el clic selecciona
@@ -55,6 +59,10 @@ El hostname no lo toca: se pone a mano (`hostnamectl set-hostname` y `/etc/hosts
    `vga_switcheroo`. Probado en `eve`: el consumo baja de 15 a 12 W y la temperatura unos 4 °C. La wiki de t2linux
    se contradice sobre si funciona en todos los modelos: en otra Mac, pruébalo a mano primero
    (`echo OFF | sudo tee /sys/kernel/debug/vgaswitcheroo/switch`).
+   Además fija el orden de carga con `/etc/modprobe.d/t2-mac-gpu-order.conf` (`softdep i915 pre: amdgpu`): si
+   `amdgpu` carga después de `i915`, le quita la consola al framebuffer de Intel y la deja en `dummy` (pantalla
+   negra desde el arranque, y `consoleblank` ya no la apaga). Se ve con
+   `cat /sys/class/vtconsole/vtcon*/name`: la que está en uso lleva `(S)` y tiene que ser `frame buffer device`.
 7. Arranca `t2fanrd` (ventiladores; necesita el kernel T2).
 8. Touch Bar: instala las librerías que `tiny-dfr` necesita y su paquete no declara (`t2_mac_tinydfr_libs`). Además
    instala el servicio `t2-mac-touchbar-fix`: al arrancar, el driver de la pantalla (`appletbdrm`) a veces falla con

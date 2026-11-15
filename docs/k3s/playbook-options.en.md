@@ -1,4 +1,4 @@
-# K3s Playbook Options (bootstrap)
+# K3s playbook options (bootstrap)
 
 Appendix to **[Phase 3 — K3s](../implementacion/fase-3-k3s.md)**.
 
@@ -13,7 +13,7 @@ cd ansible
 ansible-playbook -i inventory.ini playbook-k3s.yml
 ```
 
-## Table A — Playbook Options
+## Table A — Playbook options
 
 | Option | Variable | Tag | Default | When to enable |
 |---|---|---|---|---|
@@ -66,7 +66,7 @@ ansible-playbook -i inventory.ini playbook-k3s.yml
 
 | Field | Default | Description |
 |---|---|---|
-| `version` | `v1.36.5+k3s1` | K3s version (stable channel) |
+| `version` | `v1.37.2+k3s1` | K3s version (stable channel) |
 | `disable_components` | traefik, servicelb | `--disable` on server |
 | `cluster_cidr` | `10.42.0.0/16` | Pod CIDR |
 | `service_cidr` | `10.43.0.0/16` | Service CIDR |
@@ -77,13 +77,13 @@ ansible-playbook -i inventory.ini playbook-k3s.yml
 
 ## CNI
 
-K3s ships with **embedded Flannel**. Canal, Calico and Cilium require
+K3s ships with **Flannel** embedded. Canal, Calico and Cilium require
 `--flannel-backend=none` and `--disable-network-policy` (role [`k3s_cni`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/k3s_cni/README.md),
 tag `cni`, **after** server and **before** agents).
 
 | CNI | `k3s_install.core.cni` | Installation |
 |---|---|---|
-| [Flannel](https://github.com/flannel-io/flannel) | `flannel` (default) | Embedded; adjust `flannel_backend` |
+| [Flannel](https://github.com/flannel-io/flannel) | `flannel` (default) | Embedded; adjusts `flannel_backend` |
 | [Canal](https://docs.tigera.io/calico/latest/getting-started/kubernetes/flannel/flannel) | `canal` | Canal manifest (Ansible or Application `canal`) |
 | [Calico](https://docs.tigera.io/calico/latest/about/) | `calico` | Tigera operator + custom resources |
 | [Cilium](https://docs.cilium.io/) | `cilium` | Official Helm chart |
@@ -98,7 +98,7 @@ ansible-playbook -i inventory.ini playbook-k3s.yml
 !!! warning "`-e k3s_install.x.y=valor` does not work"
     Ansible does not merge dotted keys into an existing dict — it creates a
     separate new variable (literally named `"k3s_install.x.y"`) and
-    `k3s_install` remains untouched: **the default CNI was installed silently**. A `-e` with
+    `k3s_install` remains untouched: **the default CNI was installed without warning**. A `-e` with
     JSON doesn't help either: it **replaces** the entire dict, so `core.version`,
     `cluster_cidr`, etc. are lost. The playbook now detects both cases and **fails** before touching the nodes.
 
@@ -122,8 +122,7 @@ The CNI is chosen **before creating the cluster**: changing it later on a runnin
 Calico is managed by Argo CD after bootstrap (Applications `calico-operator` + `calico-config`, manual sync; see
 [Calico with Argo CD](../operacion/actualizar-calico.md)). GitOps alternatives (manual sync):
 `canal` or `cilium` in [`gitops/argocd/apps/`](https://github.com/maceosoft/gitops/tree/main/argocd/apps) —
-only if you installed K3s with `cni` different from `flannel` via Ansible **or** you apply the
-manifest after `--flannel-backend=none`. **Do not** enable more than one CNI (Container Network Interface) app at a time.
+only if you installed K3s with `cni` different from `flannel` via Ansible **or** you apply the manifest after `--flannel-backend=none`. **Do not** enable more than one CNI (Container Network Interface) app at a time.
 
 ### Trade-off Analysis — CNI
 
@@ -152,7 +151,7 @@ The `cni` play is skipped if `k3s_install.core.cni` is `flannel` (default).
 
 ### kube-vip
 
-Control plane **VIP** (virtual IP) only (`cp_enable=true`, `svc_enable=false`). Does not
+Control-plane **VIP** (virtual IP) only (`cp_enable=true`, `svc_enable=false`). Does not
 replace MetalLB or K3s ServiceLB.
 
 | Field | Default | Description |
@@ -198,7 +197,7 @@ Full catalog and step-by-step guide in [Phase 4 — GitOps](../implementacion/fa
 | K3s upgrades | `k3s-upgrade` | auto (wave 3) |
 | vCluster Platform | `vcluster-platform` | manual |
 | CAPN demo | `capn-demo` | manual |
-| CNI Calico | `calico-operator`, `calico-config` | manual (enabled) |
+| CNI Calico | `calico-operator`, `calico-config` | manual (active) |
 | Alternative CNIs (optional) | `canal`, `cilium` | manual |
 
 ### Trade-off Analysis — kube-vip vs MetalLB
@@ -214,7 +213,7 @@ Full catalog and step-by-step guide in [Phase 4 — GitOps](../implementacion/fa
 
 Continue in [Phase 4 — GitOps](../implementacion/fase-4-gitops.md).
 
-## Dex OAuth Playbook (Phase 4)
+## OAuth Dex Playbook (Phase 4)
 
 [`playbook-dex-oauth-secrets.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-dex-oauth-secrets.yml) —
 generates `VCLUSTER_CLIENT_SECRET` in 1Password if missing,
@@ -257,8 +256,8 @@ kubectl apply -f gitops/bootstrap/root-appset.yaml
 
 For VIP + Argo CD controller: enable `kube_vip.enabled: true` and
 `gitops_argocd.enabled: true` in `group_vars/incus_cluster/k3s_install.yml`
-before running the playbook (see the warning above about why `-e` does not
-work for this).
+before running the playbook (see the warning above about why `-e` does
+not work for this).
 
 ## kube-vip vs MetalLB
 

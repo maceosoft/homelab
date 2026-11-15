@@ -1,4 +1,4 @@
-site_name: HomeLab — K3s + Incus + CAPN
+site_name: HomeLab — K8s + Incus
 site_description: Documentación de un HomeLab híbrido x86_64 + ARM64 (Incus, K3s, CAPN, Argo CD)
 site_url: https://homelab.maceo.cl/
 repo_url: https://github.com/maceosoft/homelab
@@ -139,8 +139,8 @@ plugins:
         - locale: en
           name: English
           build: true
-          site_name: HomeLab — K3s + Incus + CAPN
-          site_description: Documentation for a hybrid x86_64 + ARM64 HomeLab (Incus, K3s, CAPN, Argo CD)
+          site_name: HomeLab — K8s + Incus
+          site_description: Documentation for a hybrid x86_64 + ARM64 HomeLab (Incus, K8s, CAPN, Argo CD)
           copyright: <a href="/en/privacidad/">Privacy policy</a> · <a href="#__consent">Change cookie preferences</a>
           theme:
             palette:
@@ -161,6 +161,7 @@ plugins:
           nav_translations:
             Empieza aquí: Start here
             Inicio: Home
+            Novedades: News
             Aprende con IA (gratis): Learn with AI (free)
             Implementación: Implementation
             Visión general: Overview
@@ -283,6 +284,7 @@ watch:
 nav:
   - Empieza aquí:
       - Inicio: index.md
+      - Novedades: novedades.md
       - Aprende con IA (gratis): aprende.md
   - Implementación:
       - Visión general: implementacion/index.md

@@ -78,7 +78,7 @@ flowchart TB
 
 - **[Ansible](https://docs.ansible.com/)** — Automatización idempotente de SO, red, Incus y K3s (distribución ligera de Kubernetes); Fases 0–3.
 - **[Netplan](https://netplan.io/)** — IP estática en `br0`; Fase 1; identidad de nodo para Incus/K3s/CAPN (Cluster API Provider for Incus).
-- **[Debian](https://www.debian.org/)** — SO base en los 3 nodos; prerrequisito global.
+- **[Debian](https://www.debian.org/)** — SO base en los 4 nodos; prerrequisito global.
 
 ## Capa 1 — Virtualización
 
@@ -171,7 +171,7 @@ bloque «Esta decisión en otros entornos» de la página enlazada.
 
 === "🏠 En casa"
 
-    Todo corre en tres equipos con software libre: el stack de las capas de arriba. Sin licencias y con control total;
+    Todo corre en cuatro equipos, casi todo con software libre: el stack de las capas de arriba. Casi sin licencias y con control total;
     a cambio, la operación, las actualizaciones y los respaldos son tuyos.
 
 === "🏢 En la empresa"

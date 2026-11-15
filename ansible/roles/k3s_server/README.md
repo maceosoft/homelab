@@ -26,7 +26,7 @@ Desde [`group_vars/incus_cluster/k3s_install.yml`](../../group_vars/incus_cluste
 
 | Variable | Default | Descripción |
 |---|---|---|
-| `k3s_install.core.version` | `v1.36.5+k3s1` | Versión K3s (canal stable) |
+| `k3s_install.core.version` | `v1.37.2+k3s1` | Versión K3s (canal stable) |
 | `k3s_install.core.disable_components` | traefik, servicelb | `--disable` en install |
 | `k3s_install.core.cluster_cidr` | `10.42.0.0/16` | Pod CIDR |
 | `k3s_install.core.service_cidr` | `10.43.0.0/16` | Service CIDR |

@@ -115,6 +115,34 @@
     - host_hardening_unattended_upgrades
     - not (ansible_check_mode and host_hardening_uu_pkg is changed)
 
+# --- RAM de Orange Pi (zram y ramlog) -----------------------------------------------------
+# Solo en las imágenes que los traen (/etc/default/orangepi-*). Se desactivan para el próximo arranque: sin stop.
+- name: Detectar zram y ramlog de Orange Pi
+  ansible.builtin.stat:
+    path: "/etc/default/{{ item }}"
+  loop: [orangepi-zram-config, orangepi-ramlog]
+  register: host_hardening_orangepi_defaults
+
+- name: Activar o desactivar zram y ramlog de Orange Pi (ENABLED en /etc/default)
+  ansible.builtin.lineinfile:
+    path: "/etc/default/{{ item.item }}"
+    regexp: '^ENABLED='
+    line: "ENABLED={{ 'true' if (host_hardening_orangepi_zram if item.item == 'orangepi-zram-config' else host_hardening_orangepi_ramlog) else 'false' }}"
+  loop: "{{ host_hardening_orangepi_defaults.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: item.stat.exists
+  notify: Avisar que falta reiniciar por zram o ramlog
+
+- name: Habilitar o deshabilitar los servicios de zram y ramlog (sin detenerlos)
+  ansible.builtin.systemd_service:
+    name: "{{ item.item }}.service"
+    enabled: "{{ host_hardening_orangepi_zram if item.item == 'orangepi-zram-config' else host_hardening_orangepi_ramlog }}"
+  loop: "{{ host_hardening_orangepi_defaults.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: item.stat.exists
+
 # --- journald ----------------------------------------------------------------------------
 - name: Detectar si /var/log es tmpfs (ramlog)
   ansible.builtin.command: findmnt -no FSTYPE /var/log

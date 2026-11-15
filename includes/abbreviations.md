@@ -80,6 +80,7 @@
 *[NFS]: Network File System — Protocolo de carpetas compartidas por red en Linux.
 *[nftables]: nftables — Firewall del kernel de Linux que usa el rol `host_firewall` en cada nodo.
 *[NIC]: tarjeta de red — Network Interface Card.
+*[NRPT]: Name Resolution Policy Table — Tabla de Windows que manda las consultas de una zona DNS a un servidor concreto.
 *[NTP]: Network Time Protocol — Protocolo que sincroniza el reloj de los equipos; sin él los certificados TLS pueden parecer "aún no válidos".
 *[NVMe]: disco SSD por PCIe — Non-Volatile Memory Express: discos SSD de alta velocidad.
 *[NXDOMAIN]: Non-Existent Domain — Respuesta de un DNS que dice que el nombre no existe.
@@ -94,6 +95,7 @@
 *[OVS]: Open vSwitch — Switch virtual que usa OVN para conectar las instancias de Incus.
 *[PAT]: Personal Access Token — Token personal de GitHub que reemplaza la contraseña en la API y en la CLI.
 *[PDB]: PodDisruptionBudget — Límite de Kubernetes sobre cuántos pods de una aplicación pueden estar caídos a la vez durante un vaciado de nodo.
+*[PHP]: PHP: Hypertext Preprocessor — Lenguaje de programación para aplicaciones web; el scale set arc-php-84 lo trae preinstalado.
 *[PKCE]: Proof Key for Code Exchange — Extensión de OAuth para clientes públicos (sin secreto), como incus-ui y opkssh en Dex.
 *[PR]: pull request — Solicitud de cambios en GitHub.
 *[PRs]: pull request — Solicitud de cambios en GitHub.

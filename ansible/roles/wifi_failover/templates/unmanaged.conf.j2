@@ -1,2 +1,5 @@
+# NetworkManager solo gestiona la interfaz WiFi. El resto es de netplan/systemd-networkd (br0 y la
+# NIC física), de Calico (cali*, vxlan.calico), de OVN/Open vSwitch (incusovn*, br-int, genev_sys_*)
+# o de Incus (veth*, tap*): si NetworkManager las toma, les pide IP por DHCP y rompe esas redes.
 [keyfile]
-unmanaged-devices=interface-name:br0;interface-name:{{ bridge_iface }}
+unmanaged-devices=*,except:interface-name:{{ wifi_iface }}

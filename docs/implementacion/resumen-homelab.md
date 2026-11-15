@@ -66,6 +66,7 @@ curl -kI https://incus.homelab.local:8443
 | invincible | 192.168.20.6 | Leader + UI | agent | 15.5 GB; Longhorn disk; nodo de Ollama |
 | oliver | 192.168.20.7 | Quorum, scheduler manual | agent | 7.7 GB: RAM ajustada; sin instancias automáticas; nodo de Ollama |
 | deborah | 192.168.20.5 | arm64-nodes | **server** (CP) | 31 GB RAM; DNS (BIND); nodo de Ollama |
+| eve | 192.168.20.8 | Reserva de la base de datos (`database-standby`) | agent | 31 GB; MacBook Pro con chip T2; `br0` sobre adaptador USB; nodo de Ollama |
 
 El control plane está en `deborah`. Si algún día hiciera falta pasarlo a otro nodo, el procedimiento está en
 [Mover el control plane](../operacion/mover-control-plane.md).
@@ -122,7 +123,7 @@ Repo: [`gitops`](https://github.com/maceosoft/gitops) · [`bootstrap/root-appset
 
 Sobre la plataforma de la Fase 4 se agregan (cada uno con su guía):
 
-- **IA local**: Ollama en los tres nodos (y un Mac opcional) detrás de un router con registro automático; Open WebUI
+- **IA local**: Ollama en los cuatro nodos (y, opcionalmente, un Mac aparte) detrás de un router con registro automático; Open WebUI
   con Dex y Open Terminal. [Asistente de IA local](../operacion/ia-ollama.md) ·
   [Agregar un nodo de Ollama](../operacion/agregar-nodo-ollama.md).
 - **Logs y reportes**: Vector → VictoriaLogs → Grafana, con un resumen diario y un reporte semanal con IA en el canal

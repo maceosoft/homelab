@@ -24,7 +24,7 @@ al elegir roles (control plane, Longhorn, etc.).
     - **Modo simulación (`-C`):** muestra qué cambiaría sin tocar nada.
     - **SSH (Secure Shell):** el canal cifrado con el que Ansible entra a cada nodo.
 
-    **Reto práctico (seguro, solo lectura):** comprueba que Ansible llega a los tres nodos y ve qué cambiaría
+    **Reto práctico (seguro, solo lectura):** comprueba que Ansible llega a todos los nodos y ve qué cambiaría
     un playbook sin aplicarlo.
 
     ```bash
@@ -57,15 +57,33 @@ flowchart LR
 ```
 
 - **[Ansible](https://docs.ansible.com/)** — Orquestador de bootstrap; Fase 0–3.
-- **[Debian](https://www.debian.org/)** — SO en invincible, oliver y deborah.
+- **[Debian](https://www.debian.org/)** — SO en los cuatro nodos (deborah, invincible, oliver y eve).
 
 Profundización: [Discovery de hardware](../hardware/discovery.md) · [Inventario](../hardware/inventory.md)
 
 ## Antes de empezar
 
-- [x] Tres nodos accesibles por SSH (aunque aún con DHCP está bien).
+!!! tip "¿No tienes varios equipos?"
+    Esta guía sigue mi HomeLab, pero puedes practicar con lo que tengas. No hay un paso a paso para cada caso; esto
+    es lo que cambia:
+
+    - **Fases 1 a 3 (red, Incus y K3s):** piden equipos o máquinas virtuales con Linux (Debian en esta guía). Incus,
+      en particular, necesita Linux en el equipo donde corre. Con un solo servidor o una máquina virtual puedes
+      seguirlas a menor escala; en tu computador con kind (Kubernetes dentro de contenedores Docker) o en un
+      clúster administrado en la nube, te las saltas y creas el clúster a tu manera.
+    - **Fases 4 y 5 (GitOps y vCluster):** Argo CD y casi todo lo que instala corren sobre cualquier Kubernetes. Lo
+      que depende de mi red o de mis discos, como el rango de direcciones IP de MetalLB o el almacenamiento replicado de
+      Longhorn, lo adaptas o lo reemplazas por lo que ofrezca tu entorno (la pestaña **☁️ En la nube** te muestra
+      el equivalente de cada proveedor).
+    - **Fase 6:** CAPN (Cluster API Provider for Incus) crea clústeres sobre Incus, así que necesita la Fase 2.
+
+- [x] Tus nodos accesibles por SSH, aunque todavía tengan IP por DHCP. Yo uso cuatro, pero para practicar basta
+      con uno.
 - [x] Python 3.11+ en tu estación.
 - [x] Clave SSH configurada hacia los nodos.
+- [x] Tu estación resuelve las zonas `homelab.local` y `mco.local` con el BIND de `deborah` (macOS, Linux o
+      Windows: [Resolver los nombres del HomeLab desde tu equipo](../networking/index.md#resolver-los-nombres-del-homelab-desde-tu-equipo)).
+      Hace falta desde la Fase 3 (`kubectl` usa `k3s.homelab.local`).
 - [x] **GitHub:** la organización **`maceosoft`** creada, con un team
       **`devops`** (sus miembros son quienes pueden entrar a Argo CD) y una
       cuenta que sea **owner** de la organización para crear las Apps.
@@ -153,7 +171,7 @@ playbook se detiene si no) y solo admite minúsculas, dígitos, `_` y `-`.
 Detalle completo (por qué conecta como `root` y dónde encaja en el resto
 del bootstrap) en
 [`ansible/bootstrap/README.md`](https://github.com/maceosoft/homelab/blob/main/ansible/bootstrap/README.md).
-Si tus 3 nodos ya tienen un usuario admin con sudo funcionando, omite
+Si tus nodos ya tienen un usuario admin con sudo funcionando, omite
 este paso.
 
 ### Validar inventario

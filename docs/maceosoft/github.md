@@ -77,6 +77,7 @@ export ONEPASSWORD_ACCOUNT_NAME="Mi Cuenta"
 | `discord-webhooks` | Nota segura | `critical`, `warnings`: URL de un webhook de Discord por canal; `deployments` *(opcional)*: el del canal `despliegues` para las notificaciones de Argo CD *(opcional: monitoreo)* | Alertmanager envía las alertas ([4.13](../implementacion/fase-4-gitops.md#413-monitoreo-y-alertas-opcional)). Cómo crearlos: [Discord y healthchecks.io](discord-healthchecks.md#parte-1-discord) |
 | `healthchecks-ping` | Nota segura | `url`: ping URL del check de healthchecks.io *(opcional: monitoreo)* | Alertmanager le manda un ping cada 5 minutos para avisar que el monitoreo sigue vivo. Cómo crearla: [Discord y healthchecks.io](discord-healthchecks.md#parte-2-healthchecksio) |
 | `grafana-admin` | Nota segura | `password` y, si quieres, `username` (por defecto `admin`) *(opcional: monitoreo)* | Administrador de Grafana |
+| `wifi-homelab` | Nota segura | `ssid` (texto), `psk` (contraseña) | WiFi de respaldo del cable en los nodos con WiFi (`playbook-wifi-failover.yml`) |
 | `ftp-<repo>` | Nota segura | `dev_host`, `dev_user`, `dev_password`, `dev_remote_dir`, `prod_host`, `prod_user`, `prod_password`, `prod_remote_dir` | OpenTofu → secrets FTP de `<repo>` (`TF_VAR_ftp`) |
 
 ### Cómo crear un item con campos propios

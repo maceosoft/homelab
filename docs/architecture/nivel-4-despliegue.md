@@ -1,6 +1,6 @@
 # C4 Nivel 4 — Despliegue
 
-Mapa **físico** de la plataforma: los 3 nodos en la LAN (red local), SO Debian con
+Mapa **físico** de la plataforma: los 4 nodos en la LAN (red local), SO Debian con
 `br0`, daemon Incus y rol K3s (distribución ligera de Kubernetes) en cada uno. Complementa el zoom lógico del
 [Nivel 3 — Componentes](nivel-3-componentes.md).
 
@@ -10,12 +10,17 @@ Volver a [Overview (Nivel 1–2)](overview.md).
 
 | Nodo | Hardware | RAM | IP `br0` | Incus | K3s |
 |---|---|---|---|---|---|
-| `invincible` | Lenovo M920q x86_64 | 15.5 GB | 192.168.20.6 | Leader + UI `:8443` | agent; disco Longhorn |
+| `invincible` | Lenovo M920q x86_64 | 15.5 GB | 192.168.20.6 | Leader + UI `:8443` | agent |
 | `oliver` | Lenovo M700 x86_64 | 7.7 GB | 192.168.20.7 | Quorum; scheduler **manual** | agent |
 | `deborah` | Orange Pi 5 Plus ARM64 | 31 GB | 192.168.20.5 | Miembro `arm64-nodes` | **server** (CP) `:6443` |
+| `eve` | MacBook Pro 16" 2019 x86_64 | 31 GB | 192.168.20.8 | Reserva de la base de datos (`database-standby`, no vota) | agent |
 
-Los tres nodos ejecutan además Ollama bajo demanda (grupo `llm_nodes`, ver [IA local](../operacion/ia-ollama.md)) y
-`deborah` sirve el DNS de la LAN (BIND, zona `homelab.local`).
+Los cuatro nodos ejecutan además Ollama bajo demanda (grupo `llm_nodes`, ver [IA local](../operacion/ia-ollama.md)),
+aportan disco a Longhorn; además, `deborah` sirve el DNS de la LAN (BIND, zona `homelab.local`).
+
+En la base de datos de Incus (dqlite) votan tres miembros: `invincible`, `oliver` y `deborah`. `eve` queda de reserva
+(`database-standby`): recibe una copia de la base y, si cae un miembro que vota, Incus la promueve para mantener
+tres votos. El líder de la base (hoy `invincible`) puede cambiar de nodo.
 
 !!! note "Presupuesto RAM"
     `oliver` tiene scheduler manual porque no debe alojar instancias Incus de
@@ -35,7 +40,7 @@ config:
     wrappingWidth: 280
 ---
 flowchart TB
-    subgraph lan["Red LAN &nbsp;[192.168.20.0/22 · br0] · Debian + netplan en los 3 nodos"]
+    subgraph lan["Red LAN &nbsp;[192.168.20.0/22 · br0] · Debian + netplan en los 4 nodos"]
         direction TB
         subgraph deborah["deborah · Orange Pi 5 Plus ARM64 · 31 GB · .5"]
             direction LR
@@ -46,7 +51,7 @@ flowchart TB
         end
         subgraph invincible["invincible · M920q x86_64 · 15.5 GB · .6"]
             direction LR
-            k3s_inv["<span style='color:#fff'><b>K3s</b><br/><small>[Container]</small><br/>agent + Longhorn disk</span>"]
+            k3s_inv["<span style='color:#fff'><b>K3s</b><br/><small>[Container]</small><br/>agent</span>"]
             incus_inv["<span style='color:#fff'><b>Incus</b><br/><small>[Container]</small><br/>leader + UI :8443</span>"]
             oll_inv["<span style='color:#fff'><b>Ollama</b><br/><small>[Container]</small><br/>bajo demanda :11434</span>"]
         end
@@ -56,24 +61,33 @@ flowchart TB
             k3s_nol["<span style='color:#fff'><b>K3s</b><br/><small>[Container]</small><br/>agent</span>"]
             oll_nol["<span style='color:#fff'><b>Ollama</b><br/><small>[Container]</small><br/>bajo demanda :11434</span>"]
         end
+        subgraph eve["eve · MacBook Pro x86_64 · 31 GB · .8"]
+            direction LR
+            incus_eve["<span style='color:#fff'><b>Incus</b><br/><small>[Container]</small><br/>reserva (database-standby)</span>"]
+            k3s_eve["<span style='color:#fff'><b>K3s</b><br/><small>[Container]</small><br/>agent</span>"]
+            oll_eve["<span style='color:#fff'><b>Ollama</b><br/><small>[Container]</small><br/>bajo demanda :11434</span>"]
+        end
     end
 
     k3s_deb -->|"Cluster<br/><small>[K3s agent]</small>"| k3s_inv
     k3s_deb -->|"Cluster<br/><small>[K3s agent]</small>"| k3s_nol
+    k3s_deb -->|"Cluster<br/><small>[K3s agent]</small>"| k3s_eve
     incus_deb <-.->|"Quorum<br/><small>[dqlite]</small>"| incus_inv
     incus_deb <-.->|"Quorum<br/><small>[dqlite]</small>"| incus_nol
     incus_inv <-.->|"Quorum<br/><small>[dqlite]</small>"| incus_nol
+    incus_inv -.->|"Copia de reserva<br/><small>[dqlite standby]</small>"| incus_eve
 
     classDef person fill:#08427B,stroke:#073B6F,color:#fff
     classDef system fill:#1168BD,stroke:#0B4884,color:#fff
     classDef container fill:#438DD5,stroke:#3C7FC0,color:#fff
     classDef component fill:#85BBF0,stroke:#78A8D8,color:#000
     classDef external fill:#999999,stroke:#8A8A8A,color:#fff
-    class incus_inv,k3s_inv,k3s_deb,incus_deb,incus_nol,k3s_nol,bind_deb,oll_deb,oll_inv,oll_nol container
+    class incus_inv,k3s_inv,k3s_deb,incus_deb,incus_nol,k3s_nol,bind_deb,oll_deb,oll_inv,oll_nol,incus_eve,k3s_eve,oll_eve container
     style lan fill:none,stroke:#888,stroke-dasharray:6 4
     style invincible fill:none,stroke:#888,stroke-dasharray:6 4
     style deborah fill:none,stroke:#888,stroke-dasharray:6 4
     style oliver fill:none,stroke:#888,stroke-dasharray:6 4
+    style eve fill:none,stroke:#888,stroke-dasharray:6 4
 ```
 
 

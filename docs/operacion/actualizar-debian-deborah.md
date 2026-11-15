@@ -29,14 +29,14 @@ documenta la actualización para sistemas «puros», no para imágenes de fabric
 
 ## Antes de empezar
 
-- [ ] **Incus alineado en los tres nodos.** El clúster exige la misma versión en todos los miembros. Si `deborah`
-  tiene una versión de Incus distinta de la que ofrece el repositorio, actualiza primero Incus en los tres nodos con
+- [ ] **Incus alineado en todos los nodos.** El clúster exige la misma versión en todos los miembros. Si `deborah`
+  tiene una versión de Incus distinta de la que ofrece el repositorio, actualiza primero Incus en todos los nodos con
   [`playbook-upgrade-incus.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-upgrade-incus.yml)
   (`-e incus_upgrade_confirm=true`; ver [Actualizar o desinstalar Incus](../incus/cluster-setup.md#actualizar-o-desinstalar-incus)).
   El playbook se detiene si no coincide (`upgrade_skip_incus_check=true` lo salta, solo para ensayar).
 - [ ] **Acceso físico** a `deborah` (HDMI o consola serie) y, si puedes, una **imagen de la eMMC** (`dd` desde otro
   equipo). Es la única vuelta atrás completa.
-- [ ] K3s sano: `kubectl get nodes` con los tres `Ready`, e `incus cluster list` con los tres `ONLINE`.
+- [ ] K3s sano: `kubectl get nodes` con todos `Ready`, e `incus cluster list` con todos `ONLINE`.
 - [ ] Nadie va a necesitar el DNS ni la API de Kubernetes durante ~30–60 minutos.
 
 ## Paso 1 — Preflight y simulación (no cambia nada)

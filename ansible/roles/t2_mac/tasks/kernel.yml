@@ -137,6 +137,19 @@
     - t2_mac_dgpu_off | bool
     - not ansible_check_mode
 
+# Si amdgpu carga después de i915, le quita la consola al framebuffer de Intel y la deja en
+# "dummy": la pantalla queda negra desde el arranque y consoleblank no la apaga (pasó en eve).
+# i915 y amdgpu no van en el initramfs: alcanza con modprobe.d, se aplica en el próximo arranque.
+- name: Cargar i915 después de amdgpu (consola en la pantalla interna)
+  ansible.builtin.copy:
+    dest: /etc/modprobe.d/t2-mac-gpu-order.conf
+    content: |
+      # Gestionado por Ansible (rol t2_mac).
+      softdep i915 pre: amdgpu
+    owner: root
+    group: root
+    mode: "0644"
+
 # Los ventiladores dependen de applesmc del kernel T2: se arrancan después del reinicio.
 - name: Habilitar y arrancar t2fanrd
   ansible.builtin.systemd_service:

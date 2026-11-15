@@ -14,6 +14,9 @@ incus   IN      A       {{ hostvars[incus_cluster_leader].static_ip }}
 ; Cada servidor con su propio registro
 {% for host in groups['incus_cluster'] %}
 {{ host }}     IN      A       {{ hostvars[host].static_ip }}
+{% if hostvars[host].wifi_ip is defined %}
+{{ host }}-wifi     IN      A       {{ hostvars[host].wifi_ip }}
+{% endif %}
 {% endfor %}
 
 ; Endpoint estable del API de K3s (k3s_api_endpoint). Apunta al control-plane

@@ -11,4 +11,7 @@
 {% set ip = hostvars[host].static_ip %}
 {% set ptr_name = 'ns.mco.local.' if ip == dns_primary else host + '.mco.local.' %}
 {{ ip.split('.')[-1] }}       IN      PTR     {{ ptr_name }}
+{% if hostvars[host].wifi_ip is defined %}
+{{ hostvars[host].wifi_ip.split('.')[-1] }}       IN      PTR     {{ host }}-wifi.mco.local.
+{% endif %}
 {% endfor %}

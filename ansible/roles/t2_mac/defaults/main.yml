@@ -42,6 +42,11 @@ t2_mac_kernel_params:
 t2_mac_console_mouse: true
 t2_mac_gpm_append: "-a 6 -d 2"
 
+# Prompt de bash con el estado de energía: [AC 80%] con cargador, [BAT 74%] a batería
+# (rojo bajo t2_mac_power_prompt_low). Solo en shells de login (SSH, consola).
+t2_mac_power_prompt: true
+t2_mac_power_prompt_low: 20
+
 # Luz de la pantalla que se apaga al cerrar la tapa (gmux en las MacBook Pro con dos GPU).
 t2_mac_lid_backlight: gmux_backlight
 

@@ -95,6 +95,15 @@ host_hardening_journald_retention: 30day
 host_hardening_journald_persist_on_ramlog: false
 host_hardening_journald_ramlog_max_use: 64M
 
+# --- RAM de las imágenes de Orange Pi (deborah) ----------------------------------
+# orangepi-zram-config crea un swap comprimido en RAM (zram) y orangepi-ramlog monta /var/log en tmpfs y lo copia
+# al eMMC de vez en cuando. false = se desactivan (efecto al REINICIAR: apagarlos en caliente dejaría procesos
+# escribiendo en el tmpfs desmontado). Con 31 GB de RAM el swap no hace falta, y los logs en RAM se pierden en un
+# reinicio brusco y llenaban los 200 MB; el eMMC aguanta los logs (casi todo lo que escribe es la base de K3s).
+# Tras reiniciar, volver a correr este rol: journald detecta /var/log en disco y pasa a persistente.
+host_hardening_orangepi_zram: false
+host_hardening_orangepi_ramlog: false
+
 # --- Sincronizacion horaria ---------------------------------------------
 host_hardening_enable_time_sync: true
 

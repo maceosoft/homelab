@@ -1,0 +1,11 @@
+# Scriptlet de autorización de Incus (Starlark). Gestionado por Ansible: playbook-dex-oauth-secrets.yml.
+# Solo se usa para los clientes OIDC (authorization.client.oidc=scriptlet). Permite todo a quien traiga en el
+# claim groups de Dex alguno de estos grupos, y nada al resto.
+ALLOWED_GROUPS = {{ dex_oauth.incus_oidc.allowed_groups | to_json }}
+
+def authorize(details, object, entitlement):
+    groups = details.Claims.get("groups", [])
+    for group in ALLOWED_GROUPS:
+        if group in groups:
+            return True
+    return False

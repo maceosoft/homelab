@@ -2,23 +2,24 @@
 
 ## Objetivo
 
-Clúster **Incus** de 3 nodos con quórum, cluster groups por arquitectura y
+Clúster **Incus** de 4 nodos con quórum, cluster groups por arquitectura y
 `oliver` en scheduler manual.
 
 ## Qué aprendes
 
-Incus como **hipervisor compartido**: quórum dqlite en 3 miembros, cluster
+Incus como **hipervisor compartido**: quórum dqlite con 3 miembros que votan y 1 de reserva, cluster
 groups para dirigir cargas x86 vs ARM64 (arquitectura ARM de 64 bits), y scheduler manual para proteger RAM.
 
 !!! abstract "Aprende esta fase"
     **En simple:** Incus es un edificio de departamentos. Cada departamento es una **instancia**:
     un contenedor (un cuarto ligero que comparte las instalaciones del edificio) o una máquina virtual
-    (un departamento completo, con su propia cocina). Con tres edificios coordinados, si uno cierra los otros dos siguen funcionando.
+    (un departamento completo, con su propia cocina). Con cuatro edificios coordinados, si uno cierra los demás siguen funcionando.
 
     **Conceptos clave**
 
     - **Contenedor y máquina virtual:** el contenedor es más ligero; la VM (Virtual Machine) aísla más.
-    - **Clúster y quórum:** con 3 miembros, el clúster decide por mayoría y tolera la caída de uno.
+    - **Clúster y quórum:** en la base de datos votan 3 miembros: deciden por mayoría y toleran la caída de uno. El
+      cuarto (`eve`) queda de reserva y toma el lugar del que cae.
     - **Cluster group:** una etiqueta para dirigir cargas a un tipo de nodo (por ejemplo, solo ARM64).
     - **x86_64 y ARM64:** dos arquitecturas de procesador distintas; no se mezclan en una misma instancia.
     - **Scheduler manual:** el nodo `oliver` no recibe instancias automáticamente; protege su memoria.
@@ -32,7 +33,8 @@ groups para dirigir cargas x86 vs ARM64 (arquitectura ARM de 64 bits), y schedul
 
     ??? question "¿Por qué un clúster de tres miembros y no de dos?"
         Con dos, si uno cae no hay mayoría y el clúster se bloquea. Con tres, la mayoría son dos y
-        puede seguir funcionando.
+        puede seguir funcionando. Con cuatro, como hoy, Incus deja votar solo a tres y el cuarto (`eve`) queda de
+        reserva: si cae un votante, la reserva toma su lugar y siguen siendo tres votos.
 
     ??? question "¿Cuándo prefieres un contenedor y cuándo una VM?"
         Contenedor para cargas Linux ligeras y rápidas; VM cuando necesitas otro kernel o más aislamiento.
@@ -46,14 +48,16 @@ groups para dirigir cargas x86 vs ARM64 (arquitectura ARM de 64 bits), y schedul
 
 ```mermaid
 flowchart TB
-  subgraph cluster [Incus_cluster_3_nodos]
+  subgraph cluster [Incus_cluster_4_nodos]
     INV[invincible_x86]
     NOL[oliver_x86_quorum]
     DEB[deborah_arm64]
+    EVE[eve_x86_reserva]
   end
   INV --> CGx86[x86_nodes]
   DEB --> CGarm[arm64_nodes]
   NOL --> CGx86
+  EVE --> CGx86
 ```
 
 - **[Incus](https://linuxcontainers.org/incus/docs/main/)** — Virtualización LXC (contenedores de sistema de Linux)/VM; Fase 2.
@@ -69,8 +73,9 @@ Profundización: [Clúster Incus](../incus/cluster-setup.md)
 
 === "🏠 En casa"
 
-    Un clúster de Incus con 3 miembros (quórum con dqlite) sobre equipos que ya tenías, gratis y con contenedores y VMs
-    en la misma herramienta. Si un miembro cae, los otros dos siguen decidiendo; `oliver` solo vota y no recibe cargas.
+    Un clúster de Incus con 4 miembros (3 votan en el quórum de dqlite y 1 queda de reserva) sobre equipos que ya
+    tenías, gratis y con contenedores y VMs en la misma herramienta. Si un miembro cae, los demás siguen decidiendo;
+    `oliver` solo vota y no recibe cargas.
 
 === "🏢 En la empresa"
 
@@ -104,7 +109,7 @@ Profundización: [Clúster Incus](../incus/cluster-setup.md)
 ## Antes de empezar
 
 - [X] [Fase 1 — Red](fase-1-red.md) completada (IPs fijas en `br0`).
-- [X] `br0` operativo en los 3 nodos.
+- [X] `br0` operativo en los 4 nodos.
 - [X] ≥ **20 GB libres** en cada nodo (ver requisitos de almacenamiento).
 
 ## Requisitos de almacenamiento
@@ -125,9 +130,10 @@ dedicado). Variables en [`group_vars/incus_cluster/vars.yml`](https://github.com
 
 | Nodo | Disco | Implicación |
 |---|---|---|
-| `invincible` | Kingston 224 GB SSD | Leader + UI; el pool más grande de los nodos x86 |
+| `invincible` | Kingston 224 GB SSD | Leader + UI |
 | `oliver` | TECLAST 120 GB SSD | Quorum; pool local obligatorio aunque no reciba instancias; evitar llenar el disco con imágenes CAPN |
-| `deborah` | eMMC 233 GB (NVMe 250 GB no detectado hoy) | Si eMMC justo: `incus_storage_path: /srv/incus/storage-pools/local` en host_vars |
+| `eve` | NVMe 1 TB | Reserva de la base de datos (`database-standby`); el disco más grande |
+| `deborah` | eMMC 233 GB (NVMe 256 GB montado en `/srv/nvme`, sin uso hasta tener disipador) | Si eMMC justo: `incus_storage_path: /srv/incus/storage-pools/local` en host_vars |
 
 ### Limitaciones de `dir`
 
@@ -140,7 +146,7 @@ Profundización: [Clúster Incus — Almacenamiento](../incus/cluster-setup.md#a
 
 ## Ejecutar
 
-### Paso 1 — Instalar paquete Incus en los 3 nodos
+### Paso 1 — Instalar paquete Incus en los 4 nodos
 
 === "Recomendado (Ansible)"
 
@@ -161,7 +167,7 @@ Profundización: [Clúster Incus — Almacenamiento](../incus/cluster-setup.md#a
 
 === "Recomendado (Ansible)"
 
-    Un solo playbook: bootstrap en **invincible**, join en **oliver** y **deborah**,
+    Un solo playbook: bootstrap en **invincible**, join en **oliver**, **deborah** y **eve**,
     cluster groups, scheduler manual y UI.
 
     ```bash
@@ -185,9 +191,10 @@ Profundización: [Clúster Incus — Almacenamiento](../incus/cluster-setup.md#a
     ```bash
     incus cluster add oliver
     incus cluster add deborah
+    incus cluster add eve
     ```
 
-    En **oliver** y **deborah**: `incus admin init` → unirse con el token.
+    En **oliver**, **deborah** y **eve**: `incus admin init` → unirse con el token.
 
     Cluster groups y scheduler:
 
@@ -197,6 +204,7 @@ Profundización: [Clúster Incus — Almacenamiento](../incus/cluster-setup.md#a
     incus cluster group assign invincible x86-nodes,default
     incus cluster group assign oliver x86-nodes,default
     incus cluster group assign deborah arm64-nodes,default
+    incus cluster group assign eve x86-nodes,default
     incus cluster set oliver scheduler.instance manual
     ```
 
@@ -214,7 +222,7 @@ lo hacen solos, en ningún camino de los dos de arriba. Sin esto, las
 instancias de Incus quedan en la red NAT (Network Address Translation) privada por defecto, no en tu LAN (red local).
 
 En **invincible** (los perfiles son compartidos por todo el clúster, no
-hace falta repetirlo en oliver/deborah):
+hace falta repetirlo en los demás miembros):
 
 ```bash
 incus profile device add default eth0 nic nictype=bridged parent=br0
@@ -270,7 +278,7 @@ alternativas, en [Backup y snapshots](../incus/cluster-setup.md#backup-y-snapsho
     <div class="card-col">
       <div class="card-title">Ansible (<code>playbook-incus-cluster.yml</code>)</div>
       <div class="text-muted">Preseed idempotente, tokens y UI en un paso</div>
-      <div class="text-muted">Requiere Ansible y SSH a los 3 nodos</div>
+      <div class="text-muted">Requiere Ansible y SSH a los 4 nodos</div>
     </div>
     <div class="card-col">
       <div class="card-title">Manual (<code>incus admin init</code>)</div>
@@ -304,7 +312,7 @@ alternativas, en [Backup y snapshots](../incus/cluster-setup.md#backup-y-snapsho
 
 ```bash
 incus cluster list
-# 3 miembros ONLINE
+# 4 miembros ONLINE (3 database y 1 database-standby)
 incus cluster group list
 incus storage list
 # eth0 → parent br0
@@ -317,7 +325,7 @@ curl -kI https://incus.homelab.local:8443
 | Síntoma | Revisar |
 |---|---|
 | Join rechazado | Token de un solo uso; IP estable en `br0` |
-| Quorum roto | Versiones Incus alineadas en los 3 nodos |
+| Quorum roto | Versiones Incus alineadas en todos los nodos |
 | Espacio insuficiente | `df -h`; mínimo 20 GB (`incus_storage_min_free_gb`) |
 | Playbook no idempotente | Nodo ya clusterizado; revisar `incus cluster list` |
 

@@ -1,18 +1,17 @@
 # Appendix — Uninstall K3s
 
-Outside the normal [implementation](index.md) path. Use it for a full reset
-of the management cluster before reinstalling Phase 3.
+Outside the normal [deployment](index.md) path. Use to completely reset the management cluster before reinstalling Phase 3.
 
-## Goal
+## Objective
 
-Remove the K3s (lightweight Kubernetes distribution) server and agents on the 3 nodes in an orderly way.
+Remove K3s (lightweight Kubernetes distribution) server and agents from all nodes in an orderly manner.
 
 ## Stack
 
-- **[K3s](https://docs.k3s.io/)** — Uninstall scripts in `/usr/local/bin/k3s-uninstall.sh` and `k3s-agent-uninstall.sh`.
+- **[K3s](https://docs.k3s.io/)** — Uninstallation scripts in `/usr/local/bin/k3s-uninstall.sh` and `k3s-agent-uninstall.sh`.
 - **[Ansible](https://docs.ansible.com/)** — `playbook-k3s-uninstall.yml`.
 
-## Run
+## Execute
 
 ```bash
 cd ansible

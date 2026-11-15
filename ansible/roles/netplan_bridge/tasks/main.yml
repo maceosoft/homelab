@@ -211,3 +211,32 @@
   ansible.builtin.debug:
     msg: "{{ inventory_hostname }} br0: {{ netplan_bridge_br0_addr.stdout }}"
   when: not ansible_check_mode
+
+# En Debian 13, ifupdown levanta el DHCP con dhcpcd, que no es un unit de systemd: detener
+# networking no lo mata. Sigue en la NIC física (ya puerto de br0) pidiendo IPs al router,
+# deja una ruta por defecto que compite con la de br0 y reescribe /etc/resolv.conf.
+- name: Detener el dhcpcd de ifupdown en la NIC física
+  ansible.builtin.shell: |
+    set -o pipefail
+    if pgrep -f "^dhcpcd: {{ bridge_iface }} " >/dev/null; then
+      dhcpcd -x {{ bridge_iface }}
+      ip -4 addr flush dev {{ bridge_iface }}
+      ip route flush dev {{ bridge_iface }} proto dhcp
+      echo detenido
+    fi
+  args:
+    executable: /bin/bash
+  register: netplan_bridge_dhcpcd
+  changed_when: "'detenido' in netplan_bridge_dhcpcd.stdout"
+  when: not ansible_check_mode
+
+- name: Reescribir /etc/resolv.conf estatico (dhcpcd lo pisa al soltar la NIC)
+  ansible.builtin.copy:
+    dest: /etc/resolv.conf
+    content: |
+      search {{ dns_search_domains | join(' ') }}
+      nameserver {{ dns_primary }}
+      nameserver {{ gateway }}
+    owner: root
+    group: root
+    mode: "0644"

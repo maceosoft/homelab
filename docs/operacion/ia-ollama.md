@@ -1,9 +1,31 @@
 # Asistente de IA local (Ollama + Open WebUI)
 
+!!! warning "Ollama está pausado desde noviembre de 2026"
+    Los modelos locales calentaban y cargaban demasiado los nodos (sobre todo `deborah`, el único control plane), así
+    que **Ollama está apagado en todos los nodos**. No se borró nada: los manifiestos siguen en el repo `gitops` con
+    `replicas: 0` y un comentario `APAGADO`, y los modelos siguen en el disco de cada nodo.
+
+    Mientras tanto la IA usa **proveedores en internet**, que cobran por uso:
+
+    | Qué | Proveedor | Cómo |
+    |---|---|---|
+    | Resumen de cada alerta en Discord (`alert-triage`) | Claude Haiku 5.5 (Anthropic) | SDK oficial de Anthropic ([`ai/alert-triage`](https://github.com/maceosoft/gitops/tree/main/ai/alert-triage)) |
+    | Chat en Open WebUI | Claude Sonnet, Opus y Haiku 5.5, y modelos abiertos de NVIDIA (Mistral Large 4, Nemotron) | Dos conexiones tipo OpenAI ([`argocd/apps/open-webui.yaml`](https://github.com/maceosoft/gitops/blob/main/argocd/apps/open-webui.yaml)) |
+    | Traducción de la documentación y reporte semanal de logs | Pausados (dependían de Ollama) | Pendientes de pasar a Claude |
+
+    Las claves viven en 1Password (items `Anthropic-apikey`, campo `api-key`, y `Nvidia-Apikey`, campo `password`) y
+    las carga al clúster [`playbook-platform-secrets.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-platform-secrets.yml),
+    como el resto de los secretos. Lo que sale hacia los proveedores es el texto de las alertas (saneado y acotado) y
+    lo que escribas en el chat. Ponle un tope de gasto mensual a la clave en la consola de cada proveedor.
+
+    **Para volver a Ollama:** encender el servicio en los nodos que lo tengan (`playbook-ollama.yml`) y devolver
+    `replicas: 1` a lo que tiene el comentario `APAGADO` en `gitops` (`ai/ollama-router`, `ai/tools`, la línea de
+    `open-terminal` en `bootstrap/root-appset.yaml`). El resto de esta página describe ese modo.
+
 El HomeLab tiene su propia inteligencia artificial, gratis y sin salir de la casa: modelos de lenguaje (LLM,
 *Large Language Model*) que corren en los equipos de la casa y se usan desde una página web (Open WebUI) para
-preguntarle por el HomeLab, y desde el pipeline que traduce esta documentación al inglés. Nada se envía a
-servicios de pago ni a internet.
+preguntarle por el HomeLab, y desde el pipeline que traduce esta documentación al inglés. En este modo nada se
+envía a servicios de pago ni a internet.
 
 Hay **varios equipos que ejecutan modelos** (se llaman *nodos de Ollama*) y **una sola puerta de entrada**: un
 router que sabe qué modelos tiene cada nodo y manda cada petición al que corresponde. Los nodos se anuncian solos,

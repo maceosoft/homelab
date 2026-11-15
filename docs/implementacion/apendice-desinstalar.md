@@ -5,7 +5,7 @@ del management cluster antes de reinstalar Fase 3.
 
 ## Objetivo
 
-Eliminar K3s (distribución ligera de Kubernetes) server y agents en los 3 nodos de forma ordenada.
+Eliminar K3s (distribución ligera de Kubernetes) server y agents en todos los nodos de forma ordenada.
 
 ## Stack
 

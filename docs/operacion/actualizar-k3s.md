@@ -44,7 +44,7 @@ menor), cambia `channel` por `version` en los **dos** planes de
 ```yaml
 spec:
   # channel: https://update.k3s.io/v1-release/channels/stable
-  version: v1.36.5+k3s1
+  version: v1.37.2+k3s1
 ```
 
 Mergea el cambio: Argo CD lo aplica y el SUC deja los nodos en esa versión.

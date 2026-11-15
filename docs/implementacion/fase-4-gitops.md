@@ -817,7 +817,7 @@ tenga la persona vale hasta que caduque (24 horas).
 
 !!! warning "Cuenta compartida con `sudo`"
     Todos entran como `devops`, con `sudo` sin contraseña (`opkssh_login_user_sudo_nopasswd`): quien está en el
-    team es administrador de los tres nodos y el registro de sesiones no distingue personas por el usuario Linux.
+    team es administrador de todos los nodos y el registro de sesiones no distingue personas por el usuario Linux.
     Para exigir contraseña de `sudo`, pon esa variable en `false` y asigna una contraseña a la cuenta.
 
 ### Análisis de trade-offs — cómo entrar por SSH
@@ -828,7 +828,7 @@ tenga la persona vale hasta que caduque (24 horas).
 | CA SSH con certificados efímeros (step-ca) | Muy madura | Otro componente con su propia llave raíz que operar. Plan B |
 | Llaves públicas de GitHub filtradas por team | Simple | No usa Dex; las llaves no caducan |
 | `authorized_keys` por Ansible | Sin piezas nuevas | Cada alta o baja es un cambio manual |
-| Teleport / Boundary | Auditoría y grabación de sesiones | Pesado para tres nodos; Teleport Community no ofrece OIDC genérico |
+| Teleport / Boundary | Auditoría y grabación de sesiones | Pesado para cuatro nodos; Teleport Community no ofrece OIDC genérico |
 
 ### Deshacer
 
@@ -856,7 +856,7 @@ No toca `authorized_keys` ni el hardening. La CA del HomeLab se conserva; para q
 
 ## 4.13 — Monitoreo y alertas (opcional)
 
-Da visibilidad de los tres nodos (temperatura, memoria, disco, estado de Kubernetes y de la plataforma) y avisa por
+Da visibilidad de los cuatro nodos (temperatura, memoria, disco, estado de Kubernetes y de la plataforma) y avisa por
 Discord solo de lo que requiere atención. Usa [VictoriaMetrics](https://docs.victoriametrics.com/) para las métricas y
 las alertas, Alertmanager para enrutarlas y [Grafana](https://grafana.com/docs/grafana/latest/) para los paneles. Qué
 significa cada alerta y qué hacer: [Monitoreo y alertas](../operacion/monitoreo.md).
@@ -873,7 +873,7 @@ significa cada alerta y qué hacer: [Monitoreo y alertas](../operacion/monitoreo
 ```mermaid
 flowchart LR
   subgraph fuentes [Fuentes]
-    NE[node-exporter\nen los 3 nodos]
+    NE[node-exporter\nen los 4 nodos]
     KS[kube-state-metrics]
     PL[cert-manager\nLonghorn · ArgoCD]
   end
@@ -961,7 +961,7 @@ Haz los pasos 1 a 5 **antes** de activar la app en GitOps (paso 6): Argo CD nece
     ```
 
     El consumo esperado es de **~1 a 1,5 GB** en total (estimación; confírmalo con `kubectl top`). `vmsingle`, `vmagent`,
-    `vmalert`, Alertmanager y Grafana prefieren `invincible` y nunca van a `oliver` (el nodo ligero); `node-exporter` corre en los tres.
+    `vmalert`, Alertmanager y Grafana prefieren `invincible` y nunca van a `oliver` (el nodo ligero); `node-exporter` corre en todos.
 
 7. **Probar de punta a punta.** Entra a [`https://grafana.homelab.local`](https://grafana.homelab.local) con **Sign in with SSO
    (GitHub)** (ver [Grafana con SSO](#grafana-con-sso-de-dex)), o con `admin` y la contraseña de 1Password, y comprueba que el

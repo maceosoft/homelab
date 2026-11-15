@@ -1,6 +1,6 @@
 # Discovery de hardware (Ansible)
 
-Playbook que escanea los 3 nodos y genera una ficha Markdown por nodo, para
+Playbook que escanea todos los nodos y genera una ficha Markdown por nodo, para
 confirmar (o contradecir) con datos medidos los roles asignados en el
 [Inventario de hardware](inventory.md) — en particular, si `deborah`
 sigue siendo el mejor candidato a control plane K3s (distribución ligera de Kubernetes).
@@ -52,10 +52,11 @@ ansible/reports/            (gitignored -- datos de un escaneo en vivo)
 ├── invincible.md
 ├── oliver.md
 ├── deborah.md
+├── eve.md
 └── summary.md
 ```
 
-`summary.md` pone los 3 nodos lado a lado y lista los 4 criterios usados
+`summary.md` pone todos los nodos lado a lado y lista los 4 criterios usados
 para decidir el rol de control plane:
 
 1. Menor latencia de escritura (fsync) — el factor decisivo para etcd.

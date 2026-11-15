@@ -6,6 +6,8 @@ por Discord igual que los demás del monitoreo.
 | Qué | Dónde | Cómo se lee |
 |---|---|---|
 | Autodiagnóstico SMART (Self-Monitoring, Analysis and Reporting Technology), sectores dañados, temperatura y vida restante de los SSD | `invincible`, `oliver` (SSD SATA, Serial ATA) | `smartctl` (paquete `smartmontools`) |
+| Lo mismo en los NVMe (disco SSD por PCIe), más todos sus sensores de temperatura, los umbrales que declara el propio disco, su aviso crítico y los errores de datos | `deborah` (SK hynix BC501) | `smartctl` (registro de salud NVMe) |
+| Temperatura del NVMe de Apple (detrás del chip T2, `smartctl` no lo lee) | `eve` | hwmon del kernel (`/sys/class/nvme/nvme0/hwmon*`) |
 | Desgaste y aviso de fin de vida de la eMMC (embedded MultiMediaCard) | `deborah` | Archivos de `/sys/block/mmcblk*/device/` |
 | BIND (Berkeley Internet Name Domain, el DNS de la LAN) activo y respondiendo | `deborah` | Una consulta de prueba cada minuto |
 
@@ -58,7 +60,21 @@ Los avisos de **fallo inminente** (`critical`) piden actuar el mismo día; los `
 | `DiscoSectoresInestables` | Sectores pendientes o no corregibles mayores que 0 durante 1 h | El disco no lee algunas zonas de forma fiable. Comprueba backups y planifica el reemplazo |
 | `DiscoSectoresReasignadosCreciendo` | Los sectores reasignados aumentaron en los últimos 3 días | Un valor fijo no es problema; que crezca sí. Planifica el reemplazo y vigila la tendencia |
 | `SsdVidaBaja` | Vida restante menor que 20 % durante 1 h | Compra el reemplazo antes de que llegue a 0 |
-| `DiscoTemperaturaAlta` | 60 °C o más durante 15 min | El máximo habitual de un SSD SATA es 70 °C. Revisa ventilación y polvo del nodo |
+| `DiscoTemperaturaAlta` | Un SSD SATA a 60 °C o más durante 15 min | El máximo habitual de un SSD SATA es 70 °C. Revisa ventilación y polvo del nodo |
+
+### NVMe
+
+Los NVMe (discos SSD por PCIe) trabajan más calientes que los SATA, así que tienen sus propias alertas y se mira el sensor más caliente (el
+de `deborah` tiene tres: la temperatura compuesta y dos sensores). El 8 nov 2026 el NVMe de `deborah`, sin disipador,
+se cayó del bus PCIe con escritura sostenida ([Agregar un disco](agregar-disco.md#mover-datos-a-otro-disco)).
+
+| Alerta | Cuándo salta | Qué hacer |
+|---|---|---|
+| `NvmeTemperaturaAlta` | El sensor más caliente a 75 °C o más durante 10 min | Sácale escrituras (desaloja su disco de Longhorn) y revisa el disipador o la ventilación. `ansible/scripts/temperaturas.sh <nodo>` muestra todos los sensores |
+| `NvmeTemperaturaCritica` (crítica) | A 3 °C del umbral crítico que declara el disco (79 °C en `deborah`), u 80 °C si no lo declara, durante 2 min | Para las escrituras ya: cerca de ese punto el disco baja su velocidad o se cae del bus |
+| `NvmeAvisoCritico` (crítica) | El disco publica un aviso crítico (`Critical Warning` distinto de 0) | `sudo smartctl -a /dev/nvme0` dice cuál (poca reserva, temperatura, fiabilidad, solo lectura). Respalda los datos |
+| `NvmeErroresDeDatos` | Aparecen o crecen los errores de datos no corregibles en 3 días | El disco se está degradando: revisa backups y planifica el reemplazo |
+| `DiscoDesaparecido` (crítica) | Un disco que se vio en las últimas 24 h ya no aparece, con el nodo vivo | Si es un NVMe, casi seguro se cayó del bus: `dmesg` en el nodo; vuelve solo apagando y encendiendo |
 
 ### eMMC de `deborah`
 
@@ -118,7 +134,8 @@ ansible-playbook -i inventory.ini playbook-bind-metrics.yml --check --diff
 ansible-playbook -i inventory.ini playbook-bind-metrics.yml
 ```
 
-Instalan `smartmontools` solo donde hay discos SATA (`invincible` y `oliver`), crean la carpeta y los temporizadores, y no
+Instalan `smartmontools` solo donde hay discos SATA o NVMe (`invincible`, `oliver` y `deborah`; en `eve` está apagado en
+`host_vars` porque su SSD de Apple se lee por hwmon), crean la carpeta y los temporizadores, y no
 reinician nada. Verifica en cada nodo con `cat /var/lib/node_exporter/textfile/smart.prom` (o `bind.prom` en `deborah`).
 
 !!! warning "Vida restante del SSD"

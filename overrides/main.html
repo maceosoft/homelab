@@ -50,7 +50,7 @@
     {% set site_root = (config.site_url.split('/')[:3] | join('/')) ~ '/' %}
     {% set lang = config.theme.language or 'es' %}
     {% set image = site_root ~ 'assets/social/card-' ~ ('en' if lang == 'en' else 'es') ~ '.jpg' %}
-    {% set image_alt = 'HomeLab — K3s + Incus + CAPN: ' ~ ('home mini-cloud with Kubernetes' if lang == 'en' else 'mini nube con Kubernetes en casa') %}
+    {% set image_alt = 'HomeLab — K8s + Incus: ' ~ ('home mini-cloud with Kubernetes' if lang == 'en' else 'mini nube con Kubernetes en casa') %}
     {# Con mkdocs-static-i18n la portada no queda marcada como is_homepage: se reconoce por su URL (es y en). #}
     {% set is_home = page.is_homepage or page.url in ['', './', 'en/'] %}
 

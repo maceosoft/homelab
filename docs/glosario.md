@@ -85,6 +85,7 @@ paréntesis.
 | **NFS** | Network File System | Protocolo de carpetas compartidas por red en Linux. |
 | **nftables** | [nftables](https://wiki.nftables.org/) | Firewall del kernel de Linux que usa el rol `host_firewall` en cada nodo. |
 | **NIC** | tarjeta de red | Network Interface Card. |
+| **NRPT** | [Name Resolution Policy Table](https://learn.microsoft.com/en-us/powershell/module/dnsclient/add-dnsclientnrptrule) | Tabla de Windows que manda las consultas de una zona DNS a un servidor concreto; así se resuelve `homelab.local` con el BIND de `deborah` sin cambiar el DNS de todo el equipo. |
 | **NTP** | [Network Time Protocol](https://www.ntp.org/) | Protocolo que sincroniza el reloj de los equipos; sin él los certificados TLS pueden parecer "aún no válidos". |
 | **NVMe** | disco SSD por PCIe | Non-Volatile Memory Express: discos SSD de alta velocidad. |
 | **NXDOMAIN** | [Non-Existent Domain](https://www.rfc-editor.org/rfc/rfc8020) | Respuesta de un servidor DNS que dice que el nombre no existe; el router la da para `homelab.local`, por eso los pods usan solo el BIND. |
@@ -99,6 +100,7 @@ paréntesis.
 | **OVS** | [Open vSwitch](https://www.openvswitch.org/) | Switch virtual que usa OVN para conectar las instancias de Incus. |
 | **PAT** | [Personal Access Token](https://docs.github.com/es/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) | Token personal de GitHub que reemplaza la contraseña en la API y en la CLI. |
 | **PDB** | [PodDisruptionBudget](https://kubernetes.io/docs/tasks/run-application/configure-pdb/) | Límite de Kubernetes sobre cuántos pods de una aplicación pueden estar caídos a la vez durante un vaciado de nodo. |
+| **PHP** | [PHP: Hypertext Preprocessor](https://www.php.net/) | Lenguaje de programación para aplicaciones web; el scale set `arc-php-84` de ARC lo trae preinstalado (versión 8.4). |
 | **PKCE** | [Proof Key for Code Exchange](https://oauth.net/2/pkce/) | Extensión de OAuth para clientes públicos (sin secreto), como `incus-ui` y `opkssh` en Dex. |
 | **PR** / PRs | pull request | Solicitud de cambios en GitHub. |
 | **PSA** | [Pod Security Admission](https://kubernetes.io/docs/concepts/security/pod-security-admission/) | Control de Kubernetes que aplica los niveles de Pod Security Standards a cada namespace (`warn`, `audit` o `enforce`). |
@@ -164,7 +166,7 @@ operación. Si una palabra te frena al leer, búscala aquí.
 | **[Calico](https://docs.tigera.io/calico/)** | El CNI del clúster: conecta los pods entre nodos y hace cumplir las NetworkPolicy. |
 | **[cert-manager](https://cert-manager.io/)** | Emite y renueva solo los certificados TLS dentro de Kubernetes. Aquí los firma la CA propia del HomeLab para los dominios `*.homelab.local`. |
 | **[Cilium](https://cilium.io/)** | CNI basado en eBPF. En la guía aparece como alternativa a Calico. |
-| **Clúster** | Grupo de máquinas que trabajan juntas como si fueran un solo sistema. En este HomeLab hay dos sobre los mismos 3 nodos: el de Incus y el de K3s. |
+| **Clúster** | Grupo de máquinas que trabajan juntas como si fueran un solo sistema. En este HomeLab hay dos sobre los mismos 4 nodos: el de Incus y el de K3s. |
 | **Contenedor** | Proceso aislado que trae todo lo que necesita para funcionar pero comparte el kernel del equipo anfitrión; por eso es más liviano que una VM. Incus corre contenedores de sistema (LXC) y Kubernetes corre contenedores de aplicación dentro de los pods. |
 | **Control plane** / **worker** | El control plane es el «cerebro» del clúster: guarda el estado y decide en qué nodo corre cada cosa (aquí está en deborah). Los workers solo ejecutan las aplicaciones; K3s los llama *agents* y al control plane, *server*. |
 | **Controlador** / **operador** | Un controlador es un programa del clúster que vigila recursos y actúa hasta que el estado real coincide con el deseado. Un operador es un controlador que administra una aplicación concreta con sus propios CRD (p. ej. el de VictoriaMetrics). En la guía «operador» también es, a veces, la persona que administra el HomeLab. |
@@ -173,9 +175,10 @@ operación. Si una palabra te frena al leer, búscala aquí.
 | **CronJob** | Tarea de Kubernetes que se ejecuta sola en un horario fijo, como un cron de Linux. |
 | **DaemonSet** | Recurso de Kubernetes que pone una copia de un pod en cada nodo. Vector, que recoge los logs, corre así. |
 | **Dashboard** | Panel de Grafana con varios gráficos sobre un tema, p. ej. «HomeLab / Ollama». |
-| **[Debian](https://www.debian.org/)** | La distribución de Linux instalada en los tres nodos. |
+| **[Debian](https://www.debian.org/)** | La distribución de Linux instalada en los cuatro nodos. |
 | **Deployment** | Recurso de Kubernetes que mantiene corriendo N copias (réplicas) de un pod y las reemplaza si fallan. |
-| **[dqlite](https://dqlite.io/)** | Base de datos SQLite distribuida donde Incus guarda el estado del clúster, replicada entre los 3 nodos. |
+| **[dqlite](https://dqlite.io/)** | Base de datos SQLite distribuida donde Incus guarda el estado del clúster, replicada entre los miembros: 3 votan y 1 queda de reserva. |
+| **Docker** | Herramienta para crear y correr contenedores en un computador ([docker.com](https://www.docker.com/)). En el HomeLab la usan los runners de ARC para construir imágenes. |
 | **Drift** / **self-heal** | Drift es la diferencia entre lo que dice Git y lo que hay de verdad en el clúster. Con self-heal, Argo CD la corrige solo. |
 | **Exporter** | Programa pequeño que publica métricas para que vmagent las recoja: node-exporter da las del sistema de cada nodo y blackbox-exporter prueba URLs y DNS desde afuera. |
 | **Firewall** | Filtro que decide qué tráfico de red se permite y cuál se bloquea (en Linux, ufw o nftables). |
@@ -197,6 +200,7 @@ operación. Si una palabra te frena al leer, búscala aquí.
 | **Inventario** | Lista de las máquinas que gestiona Ansible, con sus grupos y variables. |
 | **[K8sGPT](https://k8sgpt.ai/)** | Herramienta que analiza problemas del clúster y los explica en lenguaje natural con un LLM (aquí, de Ollama). |
 | **Kernel** | El núcleo del sistema operativo, el que habla directamente con el hardware. Los contenedores comparten el kernel del equipo anfitrión. |
+| **kind** | Kubernetes IN Docker ([kind.sigs.k8s.io](https://kind.sigs.k8s.io/)): levanta un clúster de Kubernetes en tu computador usando contenedores de Docker como nodos. Sirve para practicar la guía sin varios equipos. |
 | **[Kong](https://developer.konghq.com/kubernetes-ingress-controller/)** | La puerta de entrada HTTP/HTTPS del clúster: implementa Gateway API (con KIC), recibe el tráfico y lo reparte entre los servicios. |
 | **[kube-vip](https://kube-vip.io/)** | Pone una IP virtual (VIP) delante de la API de Kubernetes para que no dependa de un solo nodo. Aquí es opcional; no confundir con MetalLB. |
 | **[kubeconfig](https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/)** | Archivo con la dirección del clúster y tus credenciales; kubectl lo usa para saber a qué clúster conectarse y como quién (aquí, `~/.kube/homelab-k3s.yaml`). |
@@ -222,7 +226,7 @@ operación. Si una palabra te frena al leer, búscala aquí.
 | **Playbook** | Archivo YAML de Ansible con la lista ordenada de tareas que se aplican a un grupo de máquinas (p. ej. `playbook-k3s.yml` instala K3s). |
 | **Pod** | La unidad mínima que ejecuta Kubernetes: uno o varios contenedores que comparten red y almacenamiento. Si un pod muere, Kubernetes crea otro. |
 | **port-forward** | `kubectl port-forward` abre un túnel temporal desde tu computador a un servicio interno del clúster; por eso algunas URLs son `http://127.0.0.1:<puerto>`. |
-| **Quórum** | Mayoría mínima de miembros de un clúster que deben estar vivos y de acuerdo para seguir tomando decisiones. Con 3 nodos, 2 tienen que seguir arriba; por eso Incus y K3s usan tres. |
+| **Quórum** | Mayoría mínima de miembros de un clúster que deben estar vivos y de acuerdo para seguir tomando decisiones. Con 3 votantes, 2 tienen que seguir arriba. Por eso Incus, con 4 miembros, deja votar solo a 3 en su base de datos: el cuarto (`eve`) queda de reserva y reemplaza al votante que cae. |
 | **Regla de alerta** | Condición sobre las métricas (p. ej. «disco sobre 90 % durante 10 min») que, si se cumple, dispara una alerta. Las evalúa vmalert. |
 | **[Renovate](https://docs.renovatebot.com/)** | Bot que revisa si hay versiones nuevas de los componentes y abre un PR para actualizarlos. |
 | **Réplica** | Copia idéntica de un pod o de un volumen que se mantiene a la vez que el original, para tolerar fallos. |
