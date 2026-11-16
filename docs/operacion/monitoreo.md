@@ -176,7 +176,8 @@ reduce velocidad a 75 °C y otra vez a 85 °C; `invincible` y `oliver` tienen co
 | 🟡 `ActualizacionK3sFallida` | Falló un job de actualización de K3s del SUC (*System Upgrade Controller*) | [Actualizar K3s](actualizar-k3s.md) |
 | 🟡 `SondasSinDatos` | No llegan métricas de las sondas externas: la web podría estar rota sin que nada avise | `kubectl -n monitoring get pods` (blackbox-exporter) |
 | 🟡 `RafagaDeErroresEnLogs` | Un namespace escribió más de 200 errores en 5 minutos | Dashboard *HomeLab / Logs*; consulta de ejemplo en [Logs](logs.md) |
-| 🟡 `OOMKillerEnNodo` | El kernel mató procesos por falta de memoria | Logs del kernel del nodo ([Logs](logs.md)) y qué consume memoria (`kubectl top pods -A`); si es Ollama, baja su `MemoryMax` |
+| 🟡 `OOMKillerEnNodo` | El **nodo** se quedó sin memoria y el kernel mató procesos | Qué consume memoria (`kubectl top pods -A`) y los logs del kernel del nodo ([Logs](logs.md)); si es Ollama, baja su `MemoryMax`. No salta cuando un contenedor choca con su propio límite: eso es `ContenedorSinMemoria` |
+| 🟡 `ContenedorSinMemoria` | Un contenedor superó **su** límite de memoria y Kubernetes lo reinició (OOMKilled) | Su consumo (`kubectl top pod -n <ns> <pod>`) y su límite en `gitops`. Si se repite, súbele el límite o revisa por qué crece (le pasó a Vector en `eve`, que pasó a 1Gi) |
 | 🟡 `LogsSinIngestaEnNodo` / `VectorCaido` | Vector no envía logs desde un nodo, o no se leen sus métricas | `kubectl -n monitoring get pods -o wide` (el pod de Vector de ese nodo) y [Logs](logs.md) |
 | 🟡 `OllamaRouterCaido` / `OllamaRouterSinNodos` | El router de Ollama no responde, o no tiene ningún nodo con latido | `kubectl -n ai get pods` y [Asistente de IA local](ia-ollama.md); para los nodos, [Agregar un nodo de Ollama](agregar-nodo-ollama.md) |
 
