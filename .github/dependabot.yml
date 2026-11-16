@@ -34,10 +34,14 @@ updates:
     cooldown:
       default-days: 7
     ignore:
-      # mdformat_tables 1.0.0 (la última) exige mdformat<0.8: mdformat 1.x rompe la instalación de requirements-docs.txt.
-      # Quitar cuando salga un mdformat_tables compatible.
+      # Cadena que traba el plugin mkdocs-llmstxt (genera llms.txt): llmstxt 0.5.1 pide mdformat-tables, cuya última
+      # versión (1.0.0) exige mdformat<0.8, y mdformat 0.7.22 exige markdown-it-py<4. Subir cualquiera de los dos rompe
+      # la instalación de requirements-docs.txt (PR #46). Quitar ambas líneas cuando salga un mdformat-tables compatible
+      # con mdformat 1.x.
       - dependency-name: "mdformat"
         versions: [">=0.8"]
+      - dependency-name: "markdown-it-py"
+        versions: [">=4"]
       # ansible-core lo fija el paquete ansible (ansible 14.6.0 pide ansible-core~=2.21.6): si Dependabot sube el core
       # a la menor siguiente por su cuenta, pip no puede instalar el grupo (PR #34). Solo parches del core; la menor
       # nueva llega cuando sube ansible y hay que alinearla a mano con lo que pide.
