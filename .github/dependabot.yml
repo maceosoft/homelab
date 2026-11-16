@@ -1,29 +1,38 @@
 # Dependabot: avisos de versiones nuevas de las dependencias de este repo (homelab).
 # Renovate solo vigila maceosoft/gitops; aquí manda Dependabot y conviven sin pisarse
 # (docs/operacion/actualizaciones-de-productos.md, «Y Dependabot de homelab»).
-# Sin automerge: cada PR pasa por docs-lint.yml (build estricta de MkDocs, ruff, ansible-lint) y lo revisa una persona.
+# Sin automerge: el PR pasa por docs-lint.yml (build estricta de MkDocs, ruff, ansible-lint) y lo revisa una persona.
 #
-# Comunes a todos los bloques:
-# - Lunes 08:00 (Chile): los PRs llegan juntos al empezar la semana, no de a uno cada día.
+# UN SOLO PR por semana con todo: Python, GitHub Actions y OpenTofu, versiones menores y mayores, en el grupo
+# multi-ecosistema "todas" (docs.github.com: configuring-multi-ecosystem-updates). Si una versión mayor rompe la CI, el
+# PR completo queda en rojo: se arregla en el mismo PR o se agrega esa dependencia a "ignore" hasta resolverla.
+# Las actualizaciones de seguridad siguen llegando en PRs propios (no esperan al lunes).
+#
+# - Lunes 08:00 (Chile): el PR llega al empezar la semana.
 # - cooldown de 7 días: no propone una versión hasta que lleve una semana publicada. Las versiones que se retiran o
 #   salen comprometidas (ataques a la cadena de suministro) suelen detectarse en esos primeros días.
 version: 2
+
+multi-ecosystem-groups:
+  todas:
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+      timezone: "America/Santiago"
+    # En los grupos multi-ecosistema el prefijo del commit va aquí (en cada ecosistema da error de configuración).
+    commit-message:
+      prefix: "deps"
 
 updates:
   # Python: requirements.txt (Ansible, lint, 1Password) incluye a requirements-docs.txt (MkDocs) con -r.
   # Ojo: los workflows fijan Python 3.14; si una versión nueva no lo soporta, la CI del PR lo muestra.
   - package-ecosystem: "pip"
     directory: "/"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "08:00"
-      timezone: "America/Santiago"
+    multi-ecosystem-group: "todas"
+    patterns: ["*"]
     cooldown:
       default-days: 7
-    commit-message:
-      prefix: "deps"
-    open-pull-requests-limit: 5
     ignore:
       # mdformat_tables 1.0.0 (la última) exige mdformat<0.8: mdformat 1.x rompe la instalación de requirements-docs.txt.
       # Quitar cuando salga un mdformat_tables compatible.
@@ -34,55 +43,19 @@ updates:
       # nueva llega cuando sube ansible y hay que alinearla a mano con lo que pide.
       - dependency-name: "ansible-core"
         update-types: ["version-update:semver-minor", "version-update:semver-major"]
-    groups:
-      # Ansible y su lint se prueban juntos (ansible, ansible-core, ansible-lint, ansible-compat).
-      ansible:
-        patterns:
-          - "ansible"
-          - "ansible-*"
-      # El sitio: MkDocs, Material y sus plugins.
-      mkdocs:
-        patterns:
-          - "mkdocs"
-          - "mkdocs-*"
-          - "pymdown-extensions"
-      # El resto: versiones menores y parches juntos en un PR por semana. Las mayores llegan en PRs separados.
-      menores:
-        patterns:
-          - "*"
-        update-types:
-          - "minor"
-          - "patch"
 
   # GitHub Actions de .github/workflows (checkout, setup-python, Pages, lychee, markdownlint).
   - package-ecosystem: "github-actions"
     directory: "/"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "08:00"
-      timezone: "America/Santiago"
+    multi-ecosystem-group: "todas"
+    patterns: ["*"]
     cooldown:
       default-days: 7
-    commit-message:
-      prefix: "CI"
-    groups:
-      actions-menores:
-        patterns:
-          - "*"
-        update-types:
-          - "minor"
-          - "patch"
 
   # OpenTofu: provider lxc/incus (opentofu/main.tf y su .terraform.lock.hcl, del registro de OpenTofu).
   - package-ecosystem: "opentofu"
     directory: "/opentofu"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "08:00"
-      timezone: "America/Santiago"
+    multi-ecosystem-group: "todas"
+    patterns: ["*"]
     cooldown:
       default-days: 7
-    commit-message:
-      prefix: "OpenTofu"
