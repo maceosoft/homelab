@@ -29,6 +29,11 @@ updates:
       # Quitar cuando salga un mdformat_tables compatible.
       - dependency-name: "mdformat"
         versions: [">=0.8"]
+      # ansible-core lo fija el paquete ansible (ansible 14.6.0 pide ansible-core~=2.21.6): si Dependabot sube el core
+      # a la menor siguiente por su cuenta, pip no puede instalar el grupo (PR #34). Solo parches del core; la menor
+      # nueva llega cuando sube ansible y hay que alinearla a mano con lo que pide.
+      - dependency-name: "ansible-core"
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
     groups:
       # Ansible y su lint se prueban juntos (ansible, ansible-core, ansible-lint, ansible-compat).
       ansible:
