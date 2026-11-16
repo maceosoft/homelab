@@ -1,0 +1,29 @@
+# {{ ansible_managed }}
+# Antepone al prompt de bash si el nodo está con cargador ([AC 80%], verde) o con batería
+# ([BAT 74%], amarillo; rojo bajo {{ t2_mac_power_prompt_low }}%). Va por PROMPT_COMMAND porque ~/.bashrc
+# redefine PS1 después de /etc/profile.d: se guarda el PS1 que dejó el usuario y se le antepone el estado.
+[ -n "${BASH_VERSION-}" ] || return 0
+case $- in *i*) ;; *) return 0 ;; esac
+
+__t2_power_prompt() {
+  local ac=0 cap="" p c
+  for p in /sys/class/power_supply/*; do
+    case "$(cat "$p/type" 2>/dev/null)" in
+      Mains) [ "$(cat "$p/online" 2>/dev/null)" = 1 ] && ac=1 ;;
+      Battery) cap=$(cat "$p/capacity" 2>/dev/null) ;;
+    esac
+  done
+  [ -n "${__t2_ps1_base+x}" ] || __t2_ps1_base=$PS1
+  if [ "$ac" = 1 ]; then
+    PS1="\[\033[01;32m\][AC${cap:+ $cap%}]\[\033[00m\] $__t2_ps1_base"
+  else
+    c=33
+    [ -n "$cap" ] && [ "$cap" -lt {{ t2_mac_power_prompt_low }} ] && c=31
+    PS1="\[\033[01;${c}m\][BAT${cap:+ $cap%}]\[\033[00m\] $__t2_ps1_base"
+  fi
+}
+
+case ";${PROMPT_COMMAND-};" in
+  *";__t2_power_prompt;"*) ;;
+  *) PROMPT_COMMAND="__t2_power_prompt${PROMPT_COMMAND:+;$PROMPT_COMMAND}" ;;
+esac

@@ -41,7 +41,7 @@ flowchart LR
     </div>
     <div class="card stepper-card">
       <div class="card-title"><a href="fase-1-red/">Red</a> <span class="tag tag-accent">Completada</span></div>
-      <div class="card-body">IP fija en <code>br0</code> en los 3 nodos.</div>
+      <div class="card-body">IP fija en <code>br0</code> en los 4 nodos.</div>
       <div class="card-meta"><code>playbook-set-static-ip.yml</code></div>
     </div>
   </div>
@@ -180,7 +180,7 @@ Vista arquitectónica complementaria: [Arquitectura C4](../architecture/overview
     </div>
     <div class="card-col">
       <div class="card-title">Solo OpenEBS</div>
-      <div class="text-muted">LocalPV en 3 nodos; simple</div>
+      <div class="text-muted">LocalPV en todos los nodos; simple</div>
       <div class="text-muted">Sin HA entre nodos</div>
     </div>
   </div>

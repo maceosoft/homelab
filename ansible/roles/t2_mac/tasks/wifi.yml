@@ -1,0 +1,45 @@
+---
+# El firmware WiFi/Bluetooth de Apple solo viene con macOS. Sin macOS en el
+# disco hay que bajarlo de una imagen de recuperación de Apple con el script
+# interactivo get-apple-firmware (paquete apple-firmware-script), a mano:
+#   ssh -t <nodo> sudo get-apple-firmware
+# y volver a correr el playbook.
+
+- name: Buscar el firmware WiFi de Apple
+  ansible.builtin.find:
+    paths: /lib/firmware/brcm
+    patterns: "{{ t2_mac_wifi_firmware_pattern }}"
+  register: t2_mac_wifi_firmware
+
+- name: Pedir el paso manual del firmware
+  ansible.builtin.debug:
+    msg: >-
+      Falta el firmware WiFi en {{ inventory_hostname }}. Corre `ssh -t {{ ansible_host }} sudo get-apple-firmware`,
+      elige "Download a macOS Recovery Image from Apple" y Sonoma (no Tahoe: ver README del rol) y vuelve a correr este playbook.
+  when: t2_mac_wifi_firmware.matched == 0
+
+- name: Terminar aquí hasta tener el firmware
+  ansible.builtin.meta: end_host
+  when: t2_mac_wifi_firmware.matched == 0
+
+- name: Buscar interfaces WiFi
+  ansible.builtin.set_fact:
+    t2_mac_wifi_ifaces: "{{ ansible_facts['interfaces'] | select('match', '^wl') | list }}"
+
+# Si el firmware llegó después de que el driver cargó, la interfaz no existe
+# hasta recargar brcmfmac.
+- name: Recargar brcmfmac para que tome el firmware
+  ansible.builtin.shell: modprobe -r brcmfmac_wcc brcmfmac; modprobe brcmfmac && sleep 5
+  changed_when: true
+  when: t2_mac_wifi_ifaces | length == 0
+
+- name: Releer las interfaces
+  ansible.builtin.setup:
+    gather_subset: [network]
+  when: t2_mac_wifi_ifaces | length == 0
+
+- name: Comprobar la interfaz WiFi
+  ansible.builtin.assert:
+    that: ansible_facts['interfaces'] | select('match', '^wl') | list | length > 0
+    fail_msg: "No apareció la interfaz WiFi. Revisa: sudo journalctl -k --grep=brcmfmac"
+    success_msg: "Interfaz WiFi: {{ ansible_facts['interfaces'] | select('match', '^wl') | list | join(', ') }}"

@@ -1,0 +1,15 @@
+---
+# Carpetas que se mueven a otro disco y quedan en su ruta original con un bind mount (ver README).
+# Cada item:
+#   name:    nombre corto para los mensajes
+#   src:     carpeta original (queda como punto de montaje)
+#   dest:    carpeta destino, en un disco ya montado (storage_provision)
+#   stop:    servicios que se paran antes de la copia final
+#   start:   servicios que se arrancan al terminar (los activados por socket arrancan solos)
+#   guard:   servicios que no deben arrancar sin el disco (RequiresMountsFor)
+#   killall: true para K3s: k3s-killall.sh detiene los contenedores y suelta sus montajes
+#   drain:   true para K3s: cordon + drain del nodo antes y uncordon al final
+data_relocation_items: []
+
+# La carpeta original se renombra con este sufijo (rollback) en vez de borrarse.
+data_relocation_old_suffix: .pre-relocation

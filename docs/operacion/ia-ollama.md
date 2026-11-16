@@ -1,9 +1,31 @@
 # Asistente de IA local (Ollama + Open WebUI)
 
+!!! warning "Ollama está pausado desde noviembre de 2026"
+    Los modelos locales calentaban y cargaban demasiado los nodos (sobre todo `deborah`, el único control plane), así
+    que **Ollama está apagado en todos los nodos**. No se borró nada: los manifiestos siguen en el repo `gitops` con
+    `replicas: 0` y un comentario `APAGADO`, y los modelos siguen en el disco de cada nodo.
+
+    Mientras tanto la IA usa **proveedores en internet**, que cobran por uso:
+
+    | Qué | Proveedor | Cómo |
+    |---|---|---|
+    | Resumen de cada alerta en Discord (`alert-triage`) | Claude Haiku 5.5 (Anthropic) | SDK oficial de Anthropic ([`ai/alert-triage`](https://github.com/maceosoft/gitops/tree/main/ai/alert-triage)) |
+    | Chat en Open WebUI | Claude Sonnet, Opus y Haiku 5.5, y modelos abiertos de NVIDIA (Mistral Large 4, Nemotron) | Dos conexiones tipo OpenAI ([`argocd/apps/open-webui.yaml`](https://github.com/maceosoft/gitops/blob/main/argocd/apps/open-webui.yaml)) |
+    | Traducción de la documentación y reporte semanal de logs | Pausados (dependían de Ollama) | Pendientes de pasar a Claude |
+
+    Las claves viven en 1Password (items `Anthropic-apikey`, campo `api-key`, y `Nvidia-Apikey`, campo `password`) y
+    las carga al clúster [`playbook-platform-secrets.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-platform-secrets.yml),
+    como el resto de los secretos. Lo que sale hacia los proveedores es el texto de las alertas (saneado y acotado) y
+    lo que escribas en el chat. Ponle un tope de gasto mensual a la clave en la consola de cada proveedor.
+
+    **Para volver a Ollama:** encender el servicio en los nodos que lo tengan (`playbook-ollama.yml`) y devolver
+    `replicas: 1` a lo que tiene el comentario `APAGADO` en `gitops` (`ai/ollama-router`, `ai/tools`, la línea de
+    `open-terminal` en `bootstrap/root-appset.yaml`). El resto de esta página describe ese modo.
+
 El HomeLab tiene su propia inteligencia artificial, gratis y sin salir de la casa: modelos de lenguaje (LLM,
 *Large Language Model*) que corren en los equipos de la casa y se usan desde una página web (Open WebUI) para
-preguntarle por el HomeLab, y desde el pipeline que traduce esta documentación al inglés. Nada se envía a
-servicios de pago ni a internet.
+preguntarle por el HomeLab, y desde el pipeline que traduce esta documentación al inglés. En este modo nada se
+envía a servicios de pago ni a internet.
 
 Hay **varios equipos que ejecutan modelos** (se llaman *nodos de Ollama*) y **una sola puerta de entrada**: un
 router que sabe qué modelos tiene cada nodo y manda cada petición al que corresponde. Los nodos se anuncian solos,
@@ -50,7 +72,7 @@ escribe: el resto del tiempo Ollama (el programa que ejecuta el modelo) está ap
 
 | Pieza | Qué hace | Dónde vive |
 |---|---|---|
-| **Ollama** | Ejecuta los modelos de lenguaje | En cada nodo (`deborah`, `invincible`, `oliver` y, cuando se enciende, el Mac), fuera de Kubernetes |
+| **Ollama** | Ejecuta los modelos de lenguaje | En cada nodo (`deborah`, `invincible`, `oliver`, `eve` y, cuando se enciende, el Mac), fuera de Kubernetes |
 | **Socket y proxy** | Escuchan en el puerto `11434` del nodo y despiertan a Ollama solo cuando llega una petición | Cada nodo (systemd en Linux, `launchd` en el Mac) |
 | **Agente de registro** | Cada 60 segundos avisa al router que el nodo está vivo y qué modelos tiene | Cada nodo |
 | **Router de Ollama** (`ollama-router`) | Única puerta de entrada: valida el token, elige el nodo según el modelo y publica métricas | Clúster, namespace `ai` |
@@ -75,6 +97,7 @@ flowchart LR
         D["deborah"]
         I["invincible"]
         O["oliver"]
+        E["eve"]
         M["Mac (si está en on)"]
     end
     OW -->|"Bearer"| R
@@ -84,10 +107,12 @@ flowchart LR
     R -->|"según el modelo"| D
     R --> I
     R --> O
+    R --> E
     R -.-> M
     D -. "registro cada 60 s" .-> R
     I -. "registro" .-> R
     O -. "registro" .-> R
+    E -. "registro" .-> R
     M -. "registro" .-> R
 ```
 
@@ -159,8 +184,9 @@ es (se ajusta midiendo tokens por segundo y memoria en cada nodo):
 
 | Nodo | Modelos | Para qué |
 |---|---|---|
-| `deborah` | `qwen2.5:7b-instruct` de respaldo (y un 14B opcional) | Modelo por defecto cuando `invincible` no responde: chat con el asistente y traducción de la documentación |
-| `invincible` | `qwen2.5-coder:7b` y `qwen2.5:7b-instruct` (nodo preferido para el 7B, prioridad 80 contra 60 de `deborah`) | Ayuda con código (Ansible, YAML y manifiestos de Kubernetes) y el modelo por defecto |
+| `deborah` | `qwen2.5:7b-instruct` de respaldo (y un 14B opcional) | Modelo por defecto cuando `eve` e `invincible` no responden: chat con el asistente y traducción de la documentación |
+| `eve` | `qwen2.5-coder:7b` y `qwen2.5:7b-instruct` (nodo preferido para el 7B, prioridad 90: i9 de 8 núcleos) | Ayuda con código (Ansible, YAML y manifiestos de Kubernetes) y el modelo por defecto |
+| `invincible` | `qwen2.5-coder:7b` y `qwen2.5:7b-instruct` (prioridad 80, contra 60 de `deborah`) | Lo mismo que `eve` cuando ella está ocupada o apagada |
 | `oliver` | `nomic-embed-text` y modelos de hasta 3B | *Embeddings* (convertir textos en números para buscar en la documentación) y tareas livianas |
 | Mac | Modelos grandes | Tareas pesadas, solo mientras el interruptor esté en `on` |
 

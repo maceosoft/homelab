@@ -1,0 +1,15 @@
+---
+# SSID y clave del WiFi: se leen de 1Password en la estación del operador (op://HomeLab/<item>/<campo>)
+# y nunca quedan en el repo. Para probar sin 1Password: -e wifi_ssid=... -e wifi_psk=... (la clave
+# queda en el historial de la shell: mejor no).
+wifi_failover_op_item: wifi-homelab
+wifi_failover_op_ssid_field: ssid
+wifi_failover_op_psk_field: psk
+
+# Perfil de NetworkManager y métrica: mayor que la del cable (~100), así el WiFi solo lleva tráfico si
+# se cae el cable.
+wifi_failover_connection: homelab-backup
+wifi_failover_route_metric: 700
+
+# Prefijo de la LAN para wifi_ip (192.168.20.0/22).
+wifi_failover_prefix: 22

@@ -13,8 +13,7 @@ k3s_node_labels:
   workload-tier: light
   node.longhorn.io/create-default-disk: "false"
 ansible_python_interpreter: /usr/bin/python3
-has_wifi: true
-wifi_iface: wlo1
+# Sin WiFi: solo tiene la Ethernet I219-V (lspci).
 
 # --- Ollama (rol ollama_ondemand) ---
 # i3-6100T, 7,7 GB (~5 GB libres): embeddings y modelos de hasta 3B.

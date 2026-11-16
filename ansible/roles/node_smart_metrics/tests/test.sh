@@ -71,10 +71,42 @@ cat > "$TMP/apagado.txt" <<'EOT'
 Device Model:     DISCO SIN SMART
 SMART support is: Disabled
 EOT
+# NVMe (salida real del SK hynix de deborah, sin el número de serie): con -c trae los umbrales de temperatura.
+cat > "$TMP/nvme.txt" <<'EOT'
+smartctl 7.4 2023-08-01 r5530 [aarch64-linux-5.10.160-rockchip-rk3588] (local build)
+
+=== START OF INFORMATION SECTION ===
+Model Number:                       SK hynix BC501 HFM256GDJTNG-8310A
+Firmware Version:                   80002C00
+Warning  Comp. Temp. Threshold:     81 Celsius
+Critical Comp. Temp. Threshold:     82 Celsius
+
+Supported Power States
+St Op     Max   Active     Idle   RL RT WL WT  Ent_Lat  Ex_Lat
+ 0 +   3.5000W       -        -    0  0  0  0        5       5
+ 4 -   0.0050W       -        -    3  3  3  3     1000    5000
+
+=== START OF SMART DATA SECTION ===
+SMART overall-health self-assessment test result: PASSED
+
+SMART/Health Information (NVMe Log 0x02)
+Critical Warning:                   0x04
+Temperature:                        68 Celsius
+Available Spare:                    100%
+Percentage Used:                    1%
+Data Units Written:                 2,058,465 [1.05 TB]
+Power On Hours:                     1,072
+Media and Data Integrity Errors:    0
+Temperature Sensor 1:               68 Celsius
+Temperature Sensor 2:               76 Celsius
+EOT
+: > "$TMP/vacio.txt"   # smartctl que no imprime nada (el SSD de Apple detrás del T2)
 mkdir -p "$TMP/sys/block/mmcblk1/device" "$TMP/sys/block/mmcblk0/device"   # mmcblk0 sin life_time (p. ej. tarjeta SD)
 printf '0x01 0x00\n' > "$TMP/sys/block/mmcblk1/device/life_time"
 printf '0x01\n' > "$TMP/sys/block/mmcblk1/device/pre_eol_info"
 printf 'A3A564\n' > "$TMP/sys/block/mmcblk1/device/name"
+mkdir -p "$TMP/sys/class/nvme/nvme0/hwmon0"
+printf '36850\n' > "$TMP/sys/class/nvme/nvme0/hwmon0/temp1_input"
 
 run() {  # LSBLK_OUT  archivo_smart  [sysfs=con|sin]  [smartctl=con|sin]  -> imprime smart.prom
   local sysdir=/nada; [ "${3:-sin}" = con ] && sysdir=/t/sys
@@ -140,8 +172,33 @@ check c5 "$out" 'node_emmc_life_time_estimate{device="mmcblk1",area="A"}' 10
 check c5 "$out" 'node_emmc_life_time_estimate{device="mmcblk1",area="B"}' 11
 check c5 "$out" 'node_emmc_pre_eol_info{device="mmcblk1"}' 3
 
-echo "== caso 6: sin ningún disco con datos -> solo la marca de última ejecución, sin archivos temporales"
+echo "== caso 6: NVMe con SMART (temperatura, sensores, umbrales, desgaste, aviso crítico)"
+out="$(run 'nvme0n1 nvme\nmmcblk1 mmc\n' nvme.txt sin)"
+check c6 "$out" 'node_smart_collect_success{device="nvme0n1"}' 1
+check c6 "$out" 'node_smart_healthy{device="nvme0n1"}' 1
+check c6 "$out" 'node_smart_temperature_celsius{device="nvme0n1"}' 68
+check c6 "$out" 'node_smart_temperature_sensor_celsius{device="nvme0n1",sensor="1"}' 68
+check c6 "$out" 'node_smart_temperature_sensor_celsius{device="nvme0n1",sensor="2"}' 76
+check c6 "$out" 'node_smart_temperature_warning_celsius{device="nvme0n1"}' 81
+check c6 "$out" 'node_smart_temperature_critical_celsius{device="nvme0n1"}' 82
+check c6 "$out" 'node_smart_ssd_life_remaining_percent{device="nvme0n1"}' 99
+check c6 "$out" 'node_smart_power_on_seconds{device="nvme0n1"}' $((1072*3600))
+check c6 "$out" 'node_nvme_critical_warning{device="nvme0n1"}' 4
+check c6 "$out" 'node_nvme_media_errors_total{device="nvme0n1"}' 0
+printf '%s\n' "$out" | grep -q 'model="SK hynix BC501 HFM256GDJTNG-8310A"' && echo "  ✓ c6: modelo en la etiqueta"
+printf '%s\n' "$out" | grep -q 'node_smart_reallocated_sectors' && { echo "  ✗ c6: las filas de estados de energía no son atributos SATA"; exit 1; } || echo "  ✓ c6: la tabla de estados de energía no se confunde con atributos"
+promtool_ok "$out" c6
+
+echo "== caso 7: NVMe que smartctl no lee pero publica la temperatura en hwmon -> solo la temperatura"
+out="$(run 'nvme0n1 nvme\n' vacio.txt con)"
+check c7 "$out" 'node_smart_temperature_celsius{device="nvme0n1"}' 36
+printf '%s\n' "$out" | grep -q 'node_smart_collect_success' && { echo "  ✗ c7: no debía avisar de SMART ilegible"; exit 1; } || echo "  ✓ c7: sin collect_success"
+promtool_ok "$out" c7
+out="$(run 'nvme0n1 nvme\n' vacio.txt sin)"
+check c7b "$out" 'node_smart_collect_success{device="nvme0n1"}' 0
+
+echo "== caso 8: sin ningún disco con datos -> solo la marca de última ejecución, sin archivos temporales"
 out="$(run '' sano.txt sin)"
-printf '%s\n' "$out" | grep -q '^node_smart_metrics_last_run_timestamp_seconds ' && echo "  ✓ c6: hay marca de última ejecución"
-[ "$(printf '%s\n' "$out" | grep -c '^\.')" = 0 ] && echo "  ✓ c6: no quedan archivos temporales"
+printf '%s\n' "$out" | grep -q '^node_smart_metrics_last_run_timestamp_seconds ' && echo "  ✓ c8: hay marca de última ejecución"
+[ "$(printf '%s\n' "$out" | grep -c '^\.')" = 0 ] && echo "  ✓ c8: no quedan archivos temporales"
 echo "OK"

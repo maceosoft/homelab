@@ -71,7 +71,7 @@ flowchart LR
 
 ## 3.2 — Incus Cluster
 
-Internals del clúster HA (alta disponibilidad) Incus en los 3 nodos físicos: quórum dqlite, daemon
+Internals del clúster HA (alta disponibilidad) Incus en los 4 nodos físicos: quórum dqlite (3 miembros votan y `eve` queda de reserva), daemon
 por miembro, pool `local` (driver `dir`), cluster groups, scheduler manual en
 `oliver`, UI (interfaz de usuario) nativa en invincible y OIDC (OpenID Connect) Dex (Fase 4).
 
@@ -88,7 +88,7 @@ flowchart TB
     operador(["<span style='color:#fff'><b>Operador HomeLab</b><br/><small>[Person]</small><br/>incus CLI / UI</span>"])
     k3s_mgmt["<span style='color:#fff'><b>K3s Management</b><br/><small>[Container: Kubernetes]</small><br/>CAPN provider</span>"]
     subgraph incus["Incus Cluster"]
-        dqlite["<span style='color:#000'><b>dqlite</b><br/><small>[Component: DB cluster]</small><br/>Quorum 3 miembros</span>"]
+        dqlite["<span style='color:#000'><b>dqlite</b><br/><small>[Component: DB cluster]</small><br/>Quorum: 3 votan + 1 de reserva</span>"]
         incusd["<span style='color:#000'><b>incusd</b><br/><small>[Component: daemon]</small><br/>API REST en cada nodo</span>"]
         storage_pool["<span style='color:#000'><b>Pool local</b><br/><small>[Component: dir driver]</small><br/>Pool local por miembro</span>"]
         groups["<span style='color:#000'><b>Cluster groups</b><br/><small>[Component: Incus]</small><br/>x86-nodes / arm64-nodes</span>"]
@@ -168,7 +168,7 @@ flowchart TB
 
 ## 3.4 — Storage
 
-Componentes lógicos del tier híbrido **OpenEBS LocalPV** (default, 3 nodos) +
+Componentes lógicos del tier híbrido **OpenEBS LocalPV** (default, todos los nodos) +
 **Longhorn v1** (réplica cross-arch entre `invincible` y `deborah`; ver [Longhorn v1](../storage/index.md#longhorn-v1-ha-selectiva-cross-arch)). Los pods
 corren en K3s; aquí se modelan como contenedor de Nivel 2 de C4 separado por claridad.
 
@@ -186,7 +186,7 @@ flowchart TB
     k3s_mgmt["<span style='color:#fff'><b>K3s Management</b><br/><small>[Container: Kubernetes]</small><br/>Pods del management</span>"]
     subgraph storage["Storage tier"]
         sc["<span style='color:#000'><b>StorageClasses</b><br/><small>[Component: GitOps]</small><br/>openebs-hostpath + longhorn-mixto</span>"]
-        openebs_prov["<span style='color:#000'><b>OpenEBS LocalPV</b><br/><small>[Component: DaemonSet]</small><br/>Default 3 nodos</span>"]
+        openebs_prov["<span style='color:#000'><b>OpenEBS LocalPV</b><br/><small>[Component: DaemonSet]</small><br/>Default en todos los nodos</span>"]
         longhorn_mgr["<span style='color:#000'><b>Longhorn manager</b><br/><small>[Component: Deployment]</small><br/>Control de volúmenes</span>"]
         longhorn_eng["<span style='color:#000'><b>Longhorn engine</b><br/><small>[Component: DaemonSet]</small><br/>Réplicas v1 cross-arch</span>"]
         csi["<span style='color:#000'><b>CSI drivers</b><br/><small>[Component: CSI]</small><br/>OpenEBS + Longhorn</span>"]
@@ -291,7 +291,7 @@ flowchart LR
         alertmanager["<span style='color:#000'><b>Alertmanager</b><br/><small>[Component: notifier]</small><br/>Agrupa, enruta y repite avisos</span>"]
         grafana["<span style='color:#000'><b>Grafana</b><br/><small>[Component: UI]</small><br/>Paneles; SSO con Dex</span>"]
         blackbox["<span style='color:#000'><b>blackbox-exporter</b><br/><small>[Component: probes]</small><br/>Sondas HTTP, redirección y DNS (VMProbe)</span>"]
-        subgraph nodos["En cada nodo (invincible, oliver, deborah)"]
+        subgraph nodos["En cada nodo (invincible, oliver, eve, deborah)"]
             direction TB
             nodeexp["<span style='color:#000'><b>node-exporter</b><br/><small>[Component: DaemonSet]</small><br/>CPU, memoria, disco, temperaturas</span>"]
             textfile["<span style='color:#000'><b>Textfile collectors</b><br/><small>[Component: systemd timers]</small><br/>Parches de apt y estado del DNS (.prom)</span>"]
@@ -328,4 +328,4 @@ flowchart LR
 
 ## Siguiente
 
-**[→ Nivel 4 — Despliegue](nivel-4-despliegue.md)** — mapa físico de los 3 nodos.
+**[→ Nivel 4 — Despliegue](nivel-4-despliegue.md)** — mapa físico de los 4 nodos.

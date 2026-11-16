@@ -5,7 +5,7 @@
     `playbook-k3s.yml`. Esta página documenta pasos **manuales** (curl) como
     alternativa legacy.
 
-Clúster K3s (distribución ligera de Kubernetes) híbrido sobre los 3 nodos del HomeLab.
+Clúster K3s (distribución ligera de Kubernetes) híbrido sobre los 4 nodos del HomeLab.
 
 > Los hostnames del HomeLab siguen la serie *Invincible* — ver
 > [personajes](https://invincible.fandom.com/es/wiki/Categor%C3%ADa:Personajes).
@@ -17,6 +17,7 @@ Clúster K3s (distribución ligera de Kubernetes) híbrido sobre los 3 nodos del
 | deborah | 192.168.20.5 | server (control plane) |
 | invincible | 192.168.20.6 | agent (worker) |
 | oliver | 192.168.20.7 | agent (worker) |
+| eve | 192.168.20.8 | agent (worker) |
 
 Verificación desde un nodo con acceso al API (Application Programming Interface) server:
 
@@ -34,7 +35,7 @@ kubectl get pods -A
     Si `deborah` no expone `:6443` tras reinicio, verificar:
     `sudo systemctl enable --now k3s && sudo journalctl -u k3s -n 50`
 
-## 1. Prerrequisitos (los 3 nodos)
+## 1. Prerrequisitos (todos los nodos)
 
 ```bash
 # Deshabilitar swap (requerido por K3s)
@@ -162,13 +163,13 @@ kubectl apply -f https://github.com/rancher/system-upgrade-controller/releases/l
 kubectl apply -f gitops/k3s-upgrade/
 ```
 
-`concurrency: 1` es intencional en un clúster de 3 nodos: nunca deja el
+`concurrency: 1` es intencional en un clúster de 4 nodos: nunca deja el
 clúster sin capacidad de failover completa. El controlador revisa el
 canal `stable` periódicamente y, al detectar versión nueva, cordona y
 drena un nodo a la vez — `deborah` (control plane) primero, luego
-`invincible`/`oliver`.
+`invincible`/`oliver`/`eve`.
 
-### 6.2 Sistema operativo base (los 3 nodos)
+### 6.2 Sistema operativo base (todos los nodos)
 
 En este HomeLab los parches de Debian **no se instalan solos**: cada nodo publica cuántos tiene pendientes y
 el monitoreo avisa por Discord. El procedimiento está en [Parchear los nodos](../operacion/parchear-nodos.md).
@@ -181,8 +182,8 @@ Sigue el ciclo de paquetes del repo Zabbly:
 sudo apt update && sudo apt upgrade -y incus incus-client
 ```
 
-Si el clustering de Incus está activo, verificar que las 3 versiones
-mayores coincidan antes de actualizar — un desfase de versión mayor entre
+Si el clustering de Incus está activo, verificar que las versiones
+mayores de todos los miembros coincidan antes de actualizar — un desfase de versión mayor entre
 miembros del clúster Incus puede romper el quórum.
 
 ### 6.4 Resumen de cadencia
@@ -196,10 +197,10 @@ miembros del clúster Incus puede romper el quórum.
 ## 7. Checklist post-instalación
 
 - [x] K3s v1.36.5+k3s1 instalado (canal stable)
-- [x] Workers invincible/oliver unidos al API en `192.168.20.5:6443`
+- [x] Workers invincible/oliver/eve unidos al API en `192.168.20.5:6443`
 - [x] Módulos overlay/br_netfilter cargados en workers
 - [x] Argo CD desplegado (application-controller en invincible)
-- [ ] `kubectl get nodes` muestra 3 nodos en `Ready` (verificar CP tras reboot)
+- [ ] `kubectl get nodes` muestra 4 nodos en `Ready` (verificar CP tras reboot)
 - [ ] Etiquetas de arquitectura, tier y Longhorn aplicadas
 - [ ] Traefik svclb eliminado
 - [ ] `system-upgrade-controller` desplegado con ambos `Plan` aplicados

@@ -24,3 +24,27 @@ ollama_ondemand_models:
 ollama_ondemand_memory_max: 22G
 ollama_node_priority: 60
 ollama_node_tags: [arm64, general, always-on]
+
+# NVMe SK hynix BC501 256 GB (vino con Windows: wipe borra sus particiones). Un solo ext4 en /srv/nvme con una
+# carpeta por uso. El SO y la base de datos de K3s siguen en el eMMC. Ver docs/operacion/agregar-disco.md.
+# Medido con fio (2026-11-08), eMMC vs NVMe: 4k con fdatasync 1329 vs 775 IOPS (p99 2.9 vs 6.1 ms); 4k aleatoria
+# 20.6k vs 41.3k IOPS; 1 MB secuencial 250 vs 125 MB/s.
+#
+# 2026-11-08: copiando las imágenes de containerd (escritura sostenida) el NVMe dejó de responder y se cayó del bus
+# PCIe (D3cold, "controller is down"). deborah es el único control plane: en el NVMe va solo lo que aguanta perder
+# el disco. Longhorn sí (siempre hay otra réplica en otro nodo); la base de datos de K3s y containerd no (con el
+# seguro RequiresMountsFor de data_relocation, sin el disco K3s no arranca). nofail: deborah arranca aunque el
+# NVMe no aparezca.
+storage_provision_disks:
+  - device: /dev/nvme0n1
+    consumer: local
+    wipe: true
+    mount_path: /srv/nvme
+    mount_opts: noatime,nofail
+    filesystem: ext4
+    longhorn_disk_path: /srv/nvme/longhorn
+    longhorn_disk_name: nvme
+    longhorn_storage_reserved_gib: 20
+
+# Repos de Debian con contrib y non-free (node_patch, debian.sources): los tenía desde Debian 12.
+node_patch_debian_components: main contrib non-free non-free-firmware

@@ -1,0 +1,40 @@
+---
+# Fuentes de Debian en deb822 con Signed-By. Reemplaza el sources.list de una línea (la
+# instalación de Debian 13 lo sigue creando) y los .sources hechos a mano sin Signed-By (deborah,
+# que viene de una actualización desde Debian 12). Es lo mismo que haría `apt modernize-sources`,
+# pero declarado aquí para que todos los nodos queden iguales.
+- name: Respaldo del sources.list de una línea (una sola vez)
+  ansible.builtin.copy:
+    src: /etc/apt/sources.list
+    dest: /etc/apt/sources.list.bak
+    remote_src: true
+    force: false
+    owner: root
+    group: root
+    mode: "0644"
+  failed_when: false
+
+- name: Repos de Debian en /etc/apt/sources.list.d/debian.sources
+  ansible.builtin.template:
+    src: debian.sources.j2
+    dest: /etc/apt/sources.list.d/debian.sources
+    owner: root
+    group: root
+    mode: "0644"
+  register: node_patch_sources_file
+
+- name: Vaciar /etc/apt/sources.list (los repos pasan a debian.sources)
+  ansible.builtin.copy:
+    content: |
+      # Los repos de Debian están en /etc/apt/sources.list.d/debian.sources (formato deb822).
+      # Respaldo del contenido anterior: /etc/apt/sources.list.bak
+    dest: /etc/apt/sources.list
+    owner: root
+    group: root
+    mode: "0644"
+  register: node_patch_sources_list
+
+- name: Comprobar las fuentes nuevas (apt-get update)
+  ansible.builtin.apt:
+    update_cache: true
+  when: node_patch_sources_file is changed or node_patch_sources_list is changed

@@ -4,7 +4,7 @@ Qué se vigila en el HomeLab, dónde mirarlo y qué hacer cuando llega un aviso 
 ve a [4.13 — Monitoreo y alertas](../implementacion/fase-4-gitops.md#413-monitoreo-y-alertas-opcional).
 
 !!! info "En una línea"
-    Cada 60 segundos se leen las métricas de los tres nodos y de la plataforma. Si algo pasa de un umbral durante un rato,
+    Cada 60 segundos se leen las métricas de los cuatro nodos y de la plataforma. Si algo pasa de un umbral durante un rato,
     llega un mensaje a Discord: **🔴 críticas** en `alertas-criticas` (te llegan al móvil) y **🟡 avisos** en `alertas-avisos`.
     Cuando se resuelve, llega un **✅**.
 
@@ -13,7 +13,7 @@ ve a [4.13 — Monitoreo y alertas](../implementacion/fase-4-gitops.md#413-monit
 === "🏠 En casa"
 
     VictoriaMetrics guarda las métricas, vmagent las recoge, vmalert evalúa las reglas, Alertmanager avisa a Discord y
-    Grafana las muestra. Es **liviano a propósito**: lee cada 60 segundos y cabe en la poca memoria de tres nodos.
+    Grafana las muestra. Es **liviano a propósito**: lee cada 60 segundos y cabe en la poca memoria de cuatro nodos.
 
 === "🏢 En la empresa"
 

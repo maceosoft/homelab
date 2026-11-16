@@ -10,6 +10,14 @@
     regexp: '^([^#].*\sswap\s+)'
     replace: '# \1'
 
+# Comentar fstab no alcanza: systemd activa por su cuenta las particiones de tipo swap de la tabla GPT
+# (unidades dev-disk-by-diskseq-N-partM.swap, cuyo nombre cambia entre arranques). Enmascarar swap.target corta
+# todas esas activaciones automáticas. El zram de Orange Pi hace swapon por su cuenta: lo apaga host_hardening.
+- name: No activar swap al arrancar (swap.target enmascarado)
+  ansible.builtin.systemd_service:
+    name: swap.target
+    masked: true
+
 - name: Cargar modulos de kernel para K3s
   ansible.builtin.copy:
     dest: /etc/modules-load.d/k3s.conf
@@ -48,12 +56,15 @@
     state: present
     update_cache: true
     cache_valid_time: 3600
+  register: k3s_prereqs_longhorn_pkgs
 
+# En --check el paquete no se instala de verdad: el servicio todavía no existe.
 - name: Habilitar iscsid
   ansible.builtin.systemd:
     name: iscsid
     enabled: true
     state: started
+  when: not (ansible_check_mode and k3s_prereqs_longhorn_pkgs is changed)
 
 - name: Cargar el modulo iscsi_tcp al arrancar
   ansible.builtin.copy:

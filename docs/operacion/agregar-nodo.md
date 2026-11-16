@@ -10,9 +10,9 @@ Suma un equipo nuevo al HomeLab como miembro del clúster Incus y como
       durante la instalación (ver [qué usuario recibe `sudo`](../implementacion/fase-0-preparacion.md#dia-0-nodos-recien-instalados-solo-la-primera-vez-por-nodo)),
       y conectado a la LAN (red local).
     - Una IP fija libre en `192.168.20.0/22` para el nodo.
-    - El clúster actual funcionando: Incus y K3s con los 3 nodos sanos.
+    - El clúster actual funcionando: Incus y K3s con todos los nodos sanos.
     - Un nombre para el nodo (los actuales siguen la serie *Invincible*:
-      `invincible`, `oliver`, `deborah`). En los ejemplos: **`nolan`**.
+      `invincible`, `oliver`, `deborah`, `eve`). En los ejemplos: **`nolan`**.
 
 Todos los comandos se corren desde `ansible/`.
 
@@ -37,7 +37,7 @@ En `inventory.ini`, agrega el nodo a su grupo de arquitectura
 ```ini
 [x86_nodes]
 # ... nodos existentes ...
-nolan ansible_host=<ip-actual> static_ip=192.168.20.8 ip_static=false bridge_iface=eno1 ram_gb=16 cpu_model="..." k3s_role=agent
+nolan ansible_host=<ip-actual> static_ip=192.168.20.12 ip_static=false bridge_iface=eno1 ram_gb=16 cpu_model="..." k3s_role=agent
 
 [k3s_agent]
 invincible
@@ -154,6 +154,23 @@ configura el WiFi de respaldo:
 ansible-playbook -i inventory.ini playbook-wifi-failover.yml --limit nolan
 ```
 
+## Acceso por SSO y métricas del nodo
+
+Sin este paso el nodo funciona, pero nadie entra con `ssh devops@…` (no tiene opkssh ni el usuario `devops`) y el
+monitoreo avisa con `SinDatosDeServiciosDelHost` y `SinDatosDeDiscos`. Le pasó a `eve`.
+
+```bash
+# SSH con la identidad de Dex: opkssh, el usuario devops y la CA del HomeLab.
+# Lee la CA de cert-manager con kubectl desde tu equipo: necesita KUBECONFIG.
+export KUBECONFIG=~/.kube/homelab-k3s.yaml
+ansible-playbook -i inventory.ini playbook-opkssh.yml --limit nolan --check --diff
+ansible-playbook -i inventory.ini playbook-opkssh.yml --limit nolan
+# Métricas del nodo para el monitoreo: paquetes pendientes, servicios del host y salud de los discos
+ansible-playbook -i inventory.ini playbook-apt-metrics.yml --limit nolan
+ansible-playbook -i inventory.ini playbook-units-metrics.yml --limit nolan
+ansible-playbook -i inventory.ini playbook-smart-metrics.yml --limit nolan
+```
+
 ## Verificar
 
 Los `ssh` entran con el [acceso por SSO](acceso-ssh.md): corre `opkssh login` antes (requiere el paso
@@ -167,7 +184,7 @@ kubectl get node nolan --show-labels
 # nolan ONLINE
 ssh devops@deborah.homelab.local sudo incus cluster list
 ssh devops@deborah.homelab.local sudo incus cluster group show x86-nodes
-# 192.168.20.8
+# 192.168.20.12
 dig +short nolan.mco.local @192.168.20.5
 ```
 

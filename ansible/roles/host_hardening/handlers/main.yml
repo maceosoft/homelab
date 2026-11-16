@@ -16,3 +16,9 @@
   ansible.builtin.systemd:
     name: systemd-journald
     state: restarted
+
+- name: Avisar que falta reiniciar por zram o ramlog
+  ansible.builtin.debug:
+    msg: >-
+      zram/ramlog de Orange Pi cambiados: tiene efecto al reiniciar el nodo. Después del reinicio, volver a correr
+      playbook-hardening.yml para que journald pase a persistente en /var/log.

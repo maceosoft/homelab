@@ -1,13 +1,15 @@
 ---
 # WiFi de respaldo del cable en los nodos con hardware WiFi (has_wifi:
-# true en host_vars -- hoy: oliver, deborah). invincible no tiene WiFi
-# fisico, queda fuera.
+# true y wifi_iface en host_vars -- hoy: invincible, deborah, eve). oliver
+# no tiene WiFi fisico, queda fuera.
 #
-# Requiere:
-#   - wifi_ssid/wifi_psk cargados en group_vars/incus_cluster/vault.yml.
+# Requiere en la estacion: 1Password desbloqueado, el SDK
+# (pip install onepassword-sdk) y ONEPASSWORD_ACCOUNT_NAME exportado. El SSID
+# y la clave se leen de op://HomeLab/wifi-homelab/{ssid,psk}.
 #
 # Ejecutar:
-#   ansible-playbook -i inventory.ini playbook-wifi-failover.yml
+#   ansible-playbook -i inventory.ini playbook-wifi-failover.yml -l <nodo> --check --diff
+#   ansible-playbook -i inventory.ini playbook-wifi-failover.yml -l <nodo>
 
 - name: Configurar WiFi de respaldo
   hosts: incus_cluster

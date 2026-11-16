@@ -23,6 +23,21 @@
     incus_cluster_join_token: "{{ incus_cluster_add.stdout_lines[-1] | trim }}"
   when: incus_cluster_add is changed  # noqa: no-handler
 
+# Las redes physical (p. ej. UPLINK de OVN) piden su parent por miembro: sin él, el join falla
+# con 'option "parent": Required value'.
+- name: Redes physical del clúster (desde leader)
+  ansible.builtin.shell: |
+    set -o pipefail
+    incus network list --format csv -c ntm | awk -F, '$2 == "physical" && $3 == "YES" {print $1}'
+  args:
+    executable: /bin/bash
+  delegate_to: "{{ incus_cluster_leader }}"
+  register: incus_cluster_physical_networks
+  changed_when: false
+  when:
+    - not incus_cluster_node_clustered
+    - incus_cluster_join_token is defined
+
 - name: Renderizar preseed join
   ansible.builtin.template:
     src: preseed-join.yml.j2

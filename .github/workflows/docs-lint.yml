@@ -54,11 +54,23 @@ jobs:
             --scheme https --scheme http
             --accept '100..=103,200..=299,429'
             --exclude-path 'docs/.*\.en\.md'
+            --exclude 'github\.com/maceosoft/homelab/(blob|tree)/main/'
             'docs/**/*.md' README.md
           fail: true
         env:
           # Evita el límite de la API de GitHub para los enlaces a github.com.
           GITHUB_TOKEN: ${{ github.token }}
+
+      # Los enlaces a archivos de este mismo repo (…/homelab/blob|tree/main/<ruta>) se revisan contra los archivos del
+      # PR, no contra main: un archivo nuevo del PR todavía no existe en main y lychee lo daría por roto.
+      - name: Revisar enlaces a archivos del repo
+        run: |
+          rotos=0
+          while IFS= read -r ruta; do
+            [ -e "$ruta" ] || { echo "::error::No existe en el repo: $ruta"; rotos=1; }
+          done < <(grep -rhoE 'https://github\.com/maceosoft/homelab/(blob|tree)/main/[^ )">`#]+' docs README.md \
+                     --include='*.md' --exclude='*.en.md' | sed -E 's#^https://github\.com/maceosoft/homelab/(blob|tree)/main/##' | sort -u)
+          exit $rotos
 
   ansible:
     runs-on: arc-runners

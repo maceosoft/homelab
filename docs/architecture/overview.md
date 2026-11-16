@@ -8,8 +8,8 @@ Guía ejecutable: **[Implementación](../implementacion/index.md)**.
 
 ## Capas
 
-1. **Hardware** — 3 nodos físicos (2x x86_64, 1x ARM64). Ver [inventario](../hardware/inventory.md).
-2. **Incus Cluster** — sustrato de virtualización, 3 miembros con quórum dqlite.
+1. **Hardware** — 4 nodos físicos (3x x86_64, 1x ARM64). Ver [inventario](../hardware/inventory.md).
+2. **Incus Cluster** — sustrato de virtualización, 4 miembros: 3 votan en el quórum dqlite y 1 queda de reserva.
    Cluster groups `x86-nodes` / `arm64-nodes` para dirigir dónde corre cada instancia.
 3. **K3s (distribución ligera de Kubernetes) Management** — el clúster K3s bare-metal existente, que aloja:
     - Cluster API core + controller de CAPN (Cluster API Provider for Incus)
@@ -17,7 +17,7 @@ Guía ejecutable: **[Implementación](../implementacion/index.md)**.
     - Sealed Secrets controller
 4. **Workload Clusters** — clusters kubeadm efímeros provisionados por CAPN
    como instancias Incus (LXC o VM), para dev/test/aislamiento.
-5. **Storage** — OpenEBS LocalPV (default, en los 3 nodos) + Longhorn v1
+5. **Storage** — OpenEBS LocalPV (default, en todos los nodos) + Longhorn v1
    (replicado entre `invincible` y `deborah`; `oliver` queda fuera por RAM si se activa
    `createDefaultDiskLabeledNodes`, ver [Longhorn v1](../storage/index.md#longhorn-v1-ha-selectiva-cross-arch)).
 
@@ -50,7 +50,7 @@ flowchart TB
     git["<span style='color:#fff'><b>Git remoto</b><br/><small>[Software System]</small><br/>GitHub / GitLab: fuente de verdad de los manifiestos</span>"]
     registro["<span style='color:#fff'><b>Registro de imágenes</b><br/><small>[Software System]</small><br/>images.linuxcontainers.org (simplestreams Incus/CAPN)</span>"]
     omnitruck["<span style='color:#fff'><b>Omnitruck Cinc/Chef</b><br/><small>[Software System]</small><br/>Distribuye los paquetes de cinc-client/cinc-auditor</span>"]
-    lan["<span style='color:#fff'><b>Red LAN / Router</b><br/><small>[Software System]</small><br/>DHCP y asignación de IPs fijas para los 3 nodos</span>"]
+    lan["<span style='color:#fff'><b>Red LAN / Router</b><br/><small>[Software System]</small><br/>DHCP y asignación de IPs fijas para los 4 nodos</span>"]
     discord["<span style='color:#fff'><b>Discord</b><br/><small>[Software System]</small><br/>Canales de alertas críticas, avisos y despliegues</span>"]
     healthchecks["<span style='color:#fff'><b>healthchecks.io</b><br/><small>[Software System]</small><br/>Dead man's switch: avisa si el monitoreo deja de pingear</span>"]
 
@@ -91,13 +91,13 @@ flowchart TB
     operador(["<span style='color:#fff'><b>Operador HomeLab</b><br/><small>[Person]</small><br/>kubectl / SSH / ArgoCD UI</span>"])
     subgraph homelab["Plataforma HomeLab"]
         k3s_mgmt["<span style='color:#fff'><b>K3s Management</b><br/><small>[Container: Kubernetes bare-metal]</small><br/>Cluster API + CAPN controller + ArgoCD + Sealed Secrets</span>"]
-        incus["<span style='color:#fff'><b>Incus Cluster</b><br/><small>[Container: Incus, dqlite HA]</small><br/>3 miembros: grupo x86 (M920q+M700) y grupo arm64 (Orange Pi)</span>"]
+        incus["<span style='color:#fff'><b>Incus Cluster</b><br/><small>[Container: Incus, dqlite HA]</small><br/>4 miembros: grupo x86 (M920q+M700+MacBook Pro) y grupo arm64 (Orange Pi)</span>"]
         workload["<span style='color:#fff'><b>Workload Clusters</b><br/><small>[Container: kubeadm sobre LXCMachine]</small><br/>Clusters K8s efímeros provisionados por CAPN (LXC o VM)</span>"]
         storage["<span style='color:#fff'><b>Storage</b><br/><small>[Container: OpenEBS LocalPV + Longhorn v1]</small><br/>Persistencia local y replicada entre x86/arm64</span>"]
         monitoreo["<span style='color:#fff'><b>Monitoreo</b><br/><small>[Container: VictoriaMetrics + Grafana]</small><br/>Métricas, sondas, alertas y paneles (namespace monitoring)</span>"]
         cinclab["<span style='color:#fff'><b>Cinc Lab VMs</b><br/><small>[Container: Incus VM (Ubuntu 24.04)]</small><br/>Sandbox para probar cookbooks de Cinc/Chef</span>"]
         acceso["<span style='color:#fff'><b>Gateway y SSO</b><br/><small>[Container: Kong Gateway + Dex]</small><br/>Entrada HTTPS de *.homelab.local y login con GitHub (team devops)</span>"]
-        ia["<span style='color:#fff'><b>IA local</b><br/><small>[Container: Ollama router + Open WebUI]</small><br/>Chat y API de modelos; Ollama bajo demanda en los 3 nodos</span>"]
+        ia["<span style='color:#fff'><b>IA local</b><br/><small>[Container: Ollama router + Open WebUI]</small><br/>Chat y API de modelos; Ollama bajo demanda en los 4 nodos</span>"]
         logs["<span style='color:#fff'><b>Logs</b><br/><small>[Container: VictoriaLogs + Vector]</small><br/>Logs de pods y nodos (namespace monitoring)</span>"]
         dns["<span style='color:#fff'><b>DNS</b><br/><small>[Container: BIND en deborah]</small><br/>Zona homelab.local y reenvío al router</span>"]
     end
@@ -143,5 +143,5 @@ flowchart TB
 |---|---|---|
 | 1–2 | *(esta página)* | Contexto + contenedores lógicos |
 | 3 | **[Componentes](nivel-3-componentes.md)** | Zoom por contenedor (K3s, Incus, workload, storage, monitoreo, Cinc); IA, logs y acceso en [IA local](../operacion/ia-ollama.md), [Logs](../operacion/logs.md) y [Modelo de autenticación](../security/modelo-de-autenticacion.md) |
-| 4 | **[Despliegue](nivel-4-despliegue.md)** | 3 nodos físicos en la LAN |
+| 4 | **[Despliegue](nivel-4-despliegue.md)** | 4 nodos físicos en la LAN |
 

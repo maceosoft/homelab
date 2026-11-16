@@ -1,0 +1,19 @@
+---
+# Mueve carpetas de un nodo a otro disco ya montado (storage_provision) y las deja en su ruta original con un bind
+# mount: los servicios no cambian de configuración. Lo que se mueve está en data_relocation_items (host_vars).
+#
+# Corta servicios: cada item tiene una pausa antes del corte. Con drain: true (K3s), vacía el nodo y el API no
+# responde mientras dura la copia final. Ver docs/operacion/agregar-disco.md.
+#
+# Ejecutar (primero el --check):
+#   ansible-playbook -i inventory.ini playbook-data-relocation.yml --limit <host> --check
+#   ansible-playbook -i inventory.ini playbook-data-relocation.yml --limit <host>
+# Un solo item: -e '{"data_relocation_only": ["ollama"]}'
+
+- name: Mover datos a otro disco
+  hosts: incus_cluster
+  become: true
+  serial: 1
+  roles:
+    - role: data_relocation
+      when: data_relocation_items is defined

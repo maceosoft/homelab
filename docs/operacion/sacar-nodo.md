@@ -12,8 +12,9 @@ equipo, saca el viejo con este procedimiento y agrega el nuevo con
     - **`deborah`** además es el DNS (BIND) de la LAN: antes de sacarla hay que mover el DNS.
     - **`invincible`** es el *leader* de Incus y aloja la UI (interfaz de usuario) de Incus:
       antes hay que mover esos roles a otro nodo.
-    - **Quorum de Incus:** el clúster tiene 3 miembros. Con 2, sigue
-      funcionando pero ya no tolera otra caída. Agrega el reemplazo pronto.
+    - **Quorum de Incus:** el clúster tiene 4 miembros, pero en la base de datos (dqlite) votan 3; `eve` queda
+      de reserva (`database-standby`). Si sacas un miembro que vota, Incus promueve al de reserva: siguen siendo 3
+      votos y se tolera una caída, pero ya no queda reserva. Agrega el reemplazo pronto.
 
 En los ejemplos, el nodo a sacar es **`nolan`**.
 

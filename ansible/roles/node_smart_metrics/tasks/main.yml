@@ -3,17 +3,18 @@
 # con los tags smart_selftest / smart_selftest_result (tasks/selftest.yml).
 
 # Con "vendor == ATA" (SATA) o "SAS" en los datos de Ansible; la eMMC y los discos virtuales (iSCSI,
-# zram) no cuentan, porque no tienen SMART.
-- name: Detectar los discos con SMART (SATA/SAS)
+# zram) no cuentan, porque no tienen SMART. Los NVMe van aparte: no entran en el autotest (selftest.yml).
+- name: Detectar los discos con SMART (SATA/SAS y NVMe)
   ansible.builtin.set_fact:
     node_smart_metrics_smart_disks: >-
       {{ ansible_facts.devices | dict2items
          | selectattr('value.vendor', 'defined')
          | selectattr('value.vendor', 'in', ['ATA', 'SAS'])
          | map(attribute='key') | list }}
+    node_smart_metrics_nvme_disks: "{{ ansible_facts.devices.keys() | select('match', '^nvme[0-9]+n[0-9]+$') | list }}"
   tags: [always]
 
-- name: Instalar smartmontools (smartctl) donde hay discos SATA/SAS
+- name: Instalar smartmontools (smartctl) donde hay discos SATA/SAS o NVMe
   ansible.builtin.apt:
     name: smartmontools
     state: present
@@ -21,7 +22,7 @@
     cache_valid_time: 3600
   when:
     - node_smart_metrics_install_smartmontools
-    - node_smart_metrics_smart_disks | length > 0
+    - (node_smart_metrics_smart_disks + node_smart_metrics_nvme_disks) | length > 0
   notify: Escribir las métricas de discos ahora
 
 - name: Crear la carpeta del textfile collector de node-exporter

@@ -1,8 +1,9 @@
 ---
 # serial: 1 en el playbook. El primer nodo (el líder) crea la base de datos y los demás se unen.
+# Solo los de incus_ovn_db_hosts llevan ovn-central; el resto es chassis (ovn-host).
 - name: Instalar OVN y Open vSwitch
   ansible.builtin.apt:
-    name: [ovn-central, ovn-host, openvswitch-switch]
+    name: "{{ ['ovn-host', 'openvswitch-switch'] + (['ovn-central'] if inventory_hostname in incus_ovn_db_hosts else []) }}"
     state: present
     update_cache: true
   environment:
@@ -26,21 +27,27 @@
         --ovn-northd-nb-db={{ incus_ovn_nb_conn }} \
         --ovn-northd-sb-db={{ incus_ovn_sb_conn }}"
   register: incus_ovn_conf
-  when: incus_ovn_confirm | bool
+  when:
+    - incus_ovn_confirm | bool
+    - inventory_hostname in incus_ovn_db_hosts
 
 - name: Arrancar ovn-central (se reinicia solo si cambió la configuración)
   ansible.builtin.systemd_service:
     name: ovn-central
     state: "{{ 'restarted' if incus_ovn_conf is changed else 'started' }}"
     enabled: true
-  when: incus_ovn_confirm | bool
+  when:
+    - incus_ovn_confirm | bool
+    - inventory_hostname in incus_ovn_db_hosts
 
 - name: Esperar a que escuche la base de datos Northbound
   ansible.builtin.wait_for:
     host: "{{ static_ip }}"
     port: 6641
     timeout: 90
-  when: incus_ovn_confirm | bool
+  when:
+    - incus_ovn_confirm | bool
+    - inventory_hostname in incus_ovn_db_hosts
 
 - name: Apuntar ovn-controller a la base de datos Southbound (Geneve sobre la IP del nodo)
   ansible.builtin.command: >-

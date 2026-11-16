@@ -3,11 +3,12 @@
 # Guía: docs/operacion/parchear-nodos.md.
 #
 # Por nodo: (precheck) todos los nodos Ready y ningún volumen de Longhorn degradado o en
-# fallo, si no, aborta; (upgrade) apt-get update + dist-upgrade; (reboot) solo si existe
+# fallo, si no, aborta; (sources) repos de Debian en deb822 con Signed-By; (upgrade) apt-get
+# update + dist-upgrade; (reboot) solo si existe
 # /var/run/reboot-required: drain desde la estación, reinicio, esperar Ready, uncordon;
 # (postcheck) nodo Ready y Longhorn sano (reintenta hasta 15 min) antes del siguiente.
 #
-# ORDEN: oliver -> invincible -> deborah. Cada nodo es su propio play, así que el orden es
+# ORDEN: eve -> oliver -> invincible -> deborah. Cada nodo es su propio play, así que el orden es
 # el de node_patch_order y no el del inventario. Los nodos críticos (control-plane de K3s y
 # deborah, que tiene BIND, el DNS de toda la LAN) van SIEMPRE al final y piden
 # confirmación antes de actualizar y antes de reiniciar.
@@ -23,15 +24,16 @@
 #
 # --check no drena ni reinicia: muestra los paquetes pendientes (apt list --upgradable,
 # según las listas de apt ya descargadas) y si haría falta reiniciar.
-# Tags: precheck, upgrade, reboot, postcheck. Otro orden:
-#   -e '{"node_patch_order": ["invincible", "oliver", "deborah"]}'
-# Con un cuarto nodo, agregar otro play igual al final (node_patch_queue[3]).
+# Tags: precheck, sources, upgrade, reboot, postcheck. Otro orden:
+#   -e '{"node_patch_order": ["eve", "invincible", "oliver", "deborah"]}'
+# Con un quinto nodo, agregar otro play igual al final (node_patch_queue[4]).
 
 - name: Parches - nodo 1
   hosts: "{{ node_patch_queue[0] }}"
   become: true
   vars: &node_patch_vars
     node_patch_order:
+      - eve
       - oliver
       - invincible
       - deborah
@@ -53,6 +55,14 @@
 
 - name: Parches - nodo 3
   hosts: "{{ node_patch_queue[2] }}"
+  become: true
+  vars: *node_patch_vars
+  any_errors_fatal: true
+  roles:
+    - node_patch
+
+- name: Parches - nodo 4
+  hosts: "{{ node_patch_queue[3] }}"
   become: true
   vars: *node_patch_vars
   any_errors_fatal: true

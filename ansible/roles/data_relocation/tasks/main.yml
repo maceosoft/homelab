@@ -1,0 +1,18 @@
+---
+# Mueve carpetas a otro disco sin cambiar las rutas que usan los servicios: copia, renombra la original y monta la
+# copia encima con un bind mount en fstab. Ver README.
+
+- name: Instalar rsync
+  ansible.builtin.apt:
+    name: rsync
+    state: present
+
+- name: Mover cada carpeta
+  ansible.builtin.include_tasks: item.yml
+  # -e '{"data_relocation_only": ["ollama"]}' mueve solo esos items.
+  loop: >-
+    {{ data_relocation_items | selectattr('name', 'in', data_relocation_only) | list
+       if data_relocation_only is defined else data_relocation_items }}
+  loop_control:
+    loop_var: data_relocation_item
+    label: "{{ data_relocation_item.name }}"

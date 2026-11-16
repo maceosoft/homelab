@@ -128,8 +128,11 @@
           Vuelva a ejecutar el playbook y confirme antes de {{ host_firewall_revert_seconds }} s.
       when: host_firewall_claim.rc != 0
 
+    # Solo el timer: el .service transitorio no existe hasta que el timer vence, y
+    # `systemctl stop` de una unidad no cargada sale con rc 5 (lo que dispararía el rescue).
+    # Si el timer ya hubiera vencido, el mkdir de arriba habría fallado antes.
     - name: "CANCELAR la auto-reversión"
-      ansible.builtin.command: systemctl stop homelab-firewall-revert.timer homelab-firewall-revert.service  # noqa: command-instead-of-module
+      ansible.builtin.command: systemctl stop homelab-firewall-revert.timer  # noqa: command-instead-of-module
       changed_when: true
 
     - name: "Persistir: promover el candidato a reglas confirmadas"

@@ -15,8 +15,7 @@
     - name: Validar las variables pasadas con -e  # noqa: run-once[task]
       ansible.builtin.assert:
         that:
-          - >-
-            (vars.keys() | select('match', '^k3s_install\\.') | list | length) == 0
+          - (query('varnames', '^k3s_install\\.') | length) == 0
           - k3s_install.core.version is defined
           - k3s_install.core.cni in ['flannel', 'canal', 'calico', 'cilium']
         fail_msg: >-

@@ -69,7 +69,7 @@ ansible-playbook -i inventory.ini playbook-k3s.yml
 
 | Campo | Default | Descripción |
 |---|---|---|
-| `version` | `v1.36.5+k3s1` | Versión K3s (canal stable) |
+| `version` | `v1.37.2+k3s1` | Versión K3s (canal stable) |
 | `disable_components` | traefik, servicelb | `--disable` en server |
 | `cluster_cidr` | `10.42.0.0/16` | Pod CIDR |
 | `service_cidr` | `10.43.0.0/16` | Service CIDR |

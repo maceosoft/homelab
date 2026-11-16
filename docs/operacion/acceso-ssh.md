@@ -100,7 +100,7 @@ y entra con `ssh oliver`.
 
 !!! warning "Cuenta compartida con `sudo`"
     Todos entran como `devops`, con `sudo` sin contraseña. Quien está en el team es administrador de
-    los tres servidores.
+    todos los servidores.
 
 ## Si algo falla
 

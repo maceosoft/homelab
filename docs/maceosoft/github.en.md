@@ -1,14 +1,14 @@
 # maceosoft Platform — GitHub
 
-How the GitHub org **`maceosoft`** connects to the HomeLab cluster:
+How the **`maceosoft`** GitHub org connects to the HomeLab cluster:
 - **Argo CD** deploys from the private repo `maceosoft/gitops`.
 - **ARC (Actions Runner Controller)** runs a self-hosted GitHub Actions runner inside the cluster
-  (one scale set per organization: `arc-runners` for `maceosoft` and `arc-runners-symintel` for the legacy org; see
+  (one scale set per organization: `arc-runners` for `maceosoft` and `arc-runners-symintel` for the old org; see
   [Two organizations](#two-organizations-one-scale-set-per-org)).
 - **OpenTofu** manages the org from a pipeline that runs on one of those
   runners, and stores its state in the cluster.
 
-!!! tip "Where it runs in the implementation guide"
+!!! tip "Where this is run in the implementation guide"
     - **Steps 1 and 2 (manual):** [Phase 0 — GitHub and 1Password](../implementacion/fase-0-preparacion.md#github-and-1password-maceosoft-org-manual-one-time-only)
     - **Step 3 (platform secrets):** [Phase 4 — 4.2](../implementacion/fase-4-gitops.md#42-bootstrap-gitops-applicationset), before the bootstrap ApplicationSet
     - **Steps 4 and 5 (ARC and pipeline):** [Phase 4 — 4.11](../implementacion/fase-4-gitops.md#411-arc-and-opentofu-pipeline)
@@ -18,12 +18,12 @@ How the GitHub org **`maceosoft`** connects to the HomeLab cluster:
 !!! info "Repos involved"
     | Repo | What it contains |
     |---|---|
-    | [`maceosoft/homelab`](https://github.com/maceosoft/homelab) | This site. Ansible: k3s, Argo CD, and **platform secrets** (1Password → cluster) |
+    | [`maceosoft/homelab`](https://github.com/maceosoft/homelab) | This site. Ansible: k3s, Argo CD, and the **platform secrets** (1Password → cluster) |
     | [`maceosoft/gitops`](https://github.com/maceosoft/gitops) | Argo CD Applications, including ARC and the OpenTofu runner |
     | [`maceosoft/core-pipelines`](https://github.com/maceosoft/core-pipelines) | Reusable workflows (`tofu.yml`, CI, FTP deploy) |
-    | [`maceosoft/infra`](https://github.com/maceosoft/infra) | OpenTofu: org repos, environments, and secrets |
+    | [`maceosoft/infra`](https://github.com/maceosoft/infra) | OpenTofu: the org's repos, environments, and secrets |
 
-## How it fits
+## How it fits together
 
 ```mermaid
 flowchart LR
@@ -39,25 +39,26 @@ flowchart LR
 ```
 
 Some pieces **must exist before** Argo CD or the pipeline
-can work. Those are created **by hand, once**, and OpenTofu neither manages
-nor imports them:
+can work. These are created **by hand, just once**, and OpenTofu neither
+manages nor imports them:
 
-| What | Why manual |
+| What | Why by hand |
 |---|---|
-| Repos `gitops`, `infra`, `core-pipelines` | Without them there's nowhere to deploy from and no pipeline to run OpenTofu |
+| Repos `gitops`, `infra`, `core-pipelines` | Without them there is nothing to deploy from and no pipeline to run OpenTofu |
 | App `maceosoft-argocd` | Argo CD needs it to read the private repo that deploys everything else |
-| GitHub Apps and OAuth App | GitHub doesn't allow creating OAuth Apps via API, and GitHub Apps require browser confirmation |
+| GitHub Apps and OAuth App | GitHub doesn't allow creating OAuth Apps via API, and GitHub Apps require confirmation in the browser |
 
-Everything else (repo `api` and future repos) is created by the
+Everything else (the `api` repo and future repos) is created by the
 `infra` pipeline.
 
-## 1Password Items
+## Items in 1Password
 
-All in the **`HomeLab`** vault. Scripts read them through the 1Password
+All in the **`HomeLab`** vault. The scripts read them through the 1Password
 desktop app, which must be unlocked and have *Settings →
-Developer → Integrate with other apps* enabled. To indicate **which account**
-to use, define **`ONEPASSWORD_ACCOUNT_NAME`** with your account name as it appears
-in the top left of the app sidebar (for example `Mi Cuenta`; if not defined, it uses `Personal`):
+Developer → Integrate with other apps* enabled. To specify **which account**
+to use, set **`ONEPASSWORD_ACCOUNT_NAME`** to your account name exactly as
+it appears at the top left of the app's sidebar (for
+example `Mi Cuenta`; if you don't set it, it uses `Personal`):
 
 ```bash
 # tu cuenta
@@ -69,32 +70,42 @@ export ONEPASSWORD_ACCOUNT_NAME="Mi Cuenta"
 | `maceosoft-terraform` | Secure Note | `app_id`, `installation_id`, `private_key` | OpenTofu runner (`TF_VAR_github_app_*`) |
 | `maceosoft-arc-runners` | Secure Note | `app_id`, `installation_id`, `private_key` | ARC (runner registration) |
 | `maceosoft-argocd` | Secure Note | `app_id`, `installation_id`, `private_key` | Argo CD reads `maceosoft/gitops` (`argocd/repo-gitops`) |
-| `symintel-arc-runners` *(optional)* | Secure Note | `app_id`, `installation_id`, `private_key` | ARC for the **legacy org** (`symintel`): its scale set registration. See [Two organizations](#two-organizations-one-scale-set-per-org) |
-| `symintel-terraform` *(optional)* | Secure Note | `app_id`, `installation_id`, `private_key` | OpenTofu for the legacy org; without it, those runners lack OpenTofu credentials |
-| `sealed-secrets` | Secure Note | `certificate`, `private_key` *(optional until Phase 6)* | Sealed Secrets encryption key: survives K3s reinstall |
-| `maceosoft-dex` | Secure Note | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` (+ `VCLUSTER_CLIENT_SECRET`, generated by the playbook) | Dex (GitHub login) |
-| `discord-webhooks` | Secure Note | `critical`, `warnings`: Discord webhook URL per channel; `deployments` *(optional)*: the `despliegues` channel one for Argo CD notifications *(optional: monitoring)* | Alertmanager sends alerts ([4.13](../implementacion/fase-4-gitops.md#413-monitoring-and-alerts-optional)). How to create them: [Discord and healthchecks.io](discord-healthchecks.md#part-1-discord) |
-| `healthchecks-ping` | Secure Note | `url`: healthchecks.io check ping URL *(optional: monitoring)* | Alertmanager pings it every 5 minutes to signal monitoring is alive. How to create it: [Discord and healthchecks.io](discord-healthchecks.md#part-2-healthchecksio) |
-| `grafana-admin` | Secure Note | `password` and, optionally, `username` (default `admin`) *(optional: monitoring)* | Grafana admin |
-| `ftp-<repo>` | Secure Note | `dev_host`, `dev_user`, `dev_password`, `dev_remote_dir`, `prod_host`, `prod_user`, `prod_password`, `prod_remote_dir` | OpenTofu → `<repo>` FTP secrets (`TF_VAR_ftp`) |
+| `symintel-arc-runners` *(optional)* | Secure Note | `app_id`, `installation_id`, `private_key` | ARC for the **old org** (`symintel`): registration of its scale set. See [Two organizations](#two-organizations-one-scale-set-per-org) |
+| `symintel-terraform` *(optional)* | Secure Note | `app_id`, `installation_id`, `private_key` | OpenTofu for the old org; without it, those runners have no OpenTofu credentials |
+| `sealed-secrets` | Secure Note | `certificate`, `private_key` *(optional until Phase 6)* | Sealed Secrets encryption key: survives if you reinstall K3s |
+| `maceosoft-dex` | Secure Note | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` (+ `VCLUSTER_CLIENT_SECRET`, generated by the playbook) | Dex (login with GitHub) |
+| `discord-webhooks` | Secure Note | `critical`, `warnings`: Discord webhook URL per channel; `deployments` *(optional)*: the one for the `despliegues` channel for Argo CD notifications *(optional: monitoring)* | Alertmanager sends the alerts ([4.13](../implementacion/fase-4-gitops.md#413-monitoring-and-alerts-optional)). How to create them: [Discord and healthchecks.io](discord-healthchecks.md#part-1-discord) |
+| `healthchecks-ping` | Secure Note | `url`: ping URL of the healthchecks.io check *(optional: monitoring)* | Alertmanager pings it every 5 minutes to signal that monitoring is still alive. How to create it: [Discord and healthchecks.io](discord-healthchecks.md#part-2-healthchecksio) |
+| `grafana-admin` | Secure Note | `password` and, if you want, `username` (defaults to `admin`) *(optional: monitoring)* | Grafana administrator |
+| `wifi-homelab` | Secure Note | `ssid` (text), `psk` (password) | Backup WiFi for the wired connection on nodes with WiFi (`playbook-wifi-failover.yml`) |
+| `ftp-<repo>` | Secure Note | `dev_host`, `dev_user`, `dev_password`, `dev_remote_dir`, `prod_host`, `prod_user`, `prod_password`, `prod_remote_dir` | OpenTofu → FTP secrets for `<repo>` (`TF_VAR_ftp`) |
 
 ### How to create an item with custom fields
 
-The playbook looks up each value by its path `op://HomeLab/<item>/<campo>`, so **the item title and every field name must be exact** (lowercase, with underscores).
+The playbook looks up each value by its `op://HomeLab/<item>/<campo>` path, so
+**the item title and the name of each field must be exact**
+(lowercase, with underscores).
 
 === "🖱️ From the UI"
 
-    1. In 1Password open the **`HomeLab`** vault → **New Item** → **Secure Note**.
-    2. In **Title** type the item name, for example `maceosoft-terraform`.
-    3. For each field: **+ Add more** → choose the type (**Text** or **Password**) → in the field label type the exact name (for example `app_id`) → paste the value.
-    4. Add the fields directly on the item. **Do not create a section** to group them: with a section the path changes and the playbook won't find them.
+    1. In 1Password, open the **`HomeLab`** vault → **New Item** → **Secure
+       Note**.
+    2. In **Title**, enter the item name, for example `maceosoft-terraform`.
+    3. For each field: **+ Add More** → choose the type (**Text** or
+       **Password**) → in the field label, enter the exact name
+       (for example `app_id`) → paste the value.
+    4. Add the fields directly to the item. **Do not create a section** to
+       group them: with a section the path changes and the playbook can't find them.
     5. Save.
 
-    Use **Password** for secret values (they are hidden) and **Text** for the rest. Each table below tells which type each field uses.
+    Use **Password** for secret values (they are hidden) and **Text** for
+    the rest. Each table below says which type each field takes.
 
 === "⌨️ From the console"
 
-    You can also create the item with the 1Password CLI (`op`), with 1Password unlocked. Each field is written as `nombre[tipo]=valor`, where the type is `password` (secret value) or `text`; `op` creates loose fields, without a section. Secret values are not typed in the command: they are pasted without echo using `read -rs`:
+    You can also create the item with the 1Password CLI (`op`), with 1Password unlocked. Each field is written as
+    `nombre[tipo]=valor`, where the type is `password` (secret value) or `text`; `op` creates the fields standalone, without a section.
+    Secret values are not typed in the command: they are pasted without echo with `read -rs`:
 
     ```bash
     # pega la contraseña y Enter (no se ve)
@@ -104,11 +115,13 @@ The playbook looks up each value by its path `op://HomeLab/<item>/<campo>`, so *
     unset FTP_DEV_PASS
     ```
 
-    If you have more than one 1Password account, export `OP_ACCOUNT` with yours first. For a random value use `$(openssl rand -hex 32)`. Local AI items (router tokens, Open Terminal…) already have their commands in [Secrets Management](../secrets/index.md#local-ai-create-tokens-with-op).
+    If you have more than one 1Password account, first export `OP_ACCOUNT` with yours. For a random value use
+    `$(openssl rand -hex 32)`. The local AI items (router tokens, Open Terminal…) already have their commands in
+    [Secrets management](../secrets/index.md#local-ai-create-tokens-with-op).
 
 ## Step 1 — GitHub Apps and OAuth App (manual)
 
-Do this with an **organization owner** account `maceosoft`.
+Do this with an **organization owner** account of `maceosoft`.
 
 ### `maceosoft-terraform`
 
@@ -121,14 +134,15 @@ Do this with an **organization owner** account `maceosoft`.
 | Webhook → Active | unchecked |
 | Where can this GitHub App be installed? | Only on this account |
 
-The rest of the form (Callback URL, Setup URL, *Request user authorization*, events) is left empty or unchecked.
+The rest of the form (Callback URL, Setup URL, *Request user
+authorization*, events) is left empty or unchecked.
 
 | Repository permission | Access | Purpose |
 |---|---|---|
-| Actions | Read and write | Actions management in repos |
+| Actions | Read and write | Manage Actions in the repos |
 | Administration | Read and write | Create repos and branch protection |
 | Contents | Read and write | Repo files |
-| Environments | Read and write | Environments `dev` / `prod` |
+| Environments | Read and write | `dev` / `prod` environments |
 | Metadata | Read-only | Required |
 | Secrets | Read and write | FTP secrets per environment |
 | Variables | Read and write | `PROJECT_STACK`, `FTP_PROTOCOL` |
@@ -138,17 +152,19 @@ The rest of the form (Callback URL, Setup URL, *Request user authorization*, eve
 |---|---|---|
 | Administration | Read and write | Create repos in the org |
 
-All other permissions remain at *No access*.
+All other permissions stay at *No access*.
 
-After *Create GitHub App*, gather three pieces of data and save them in the **`maceosoft-terraform`** item in 1Password (Secure Note, see [how to create it](#como-crear-un-item-con-campos-propios)):
+After *Create GitHub App*, gather three pieces of data and store them in the
+**`maceosoft-terraform`** item in 1Password (Secure Note, see
+[how to create it](#como-crear-un-item-con-campos-propios)):
 
-| Field in 1Password | Type | Data | Where in GitHub |
+| Field in 1Password | Type | Data | Where to find it in GitHub |
 |---|---|---|---|
-| `app_id` | Text | App ID | App page, *General* tab: **App ID** line (a number, e.g. `1234567`) |
-| `private_key` | Password | Private key | Same page, bottom under *Private keys* → **Generate a private key**. A `maceosoft-terraform.<fecha>.private-key.pem` file downloads. Open it with a text editor and copy **everything**, including the `-----BEGIN RSA PRIVATE KEY-----` and `-----END RSA PRIVATE KEY-----` lines |
-| `installation_id` | Text | Installation ID | App left menu → **Install App** → *Install* next to `maceosoft` → **All repositories** → *Install*. GitHub takes you to `https://github.com/organizations/maceosoft/settings/installations/<número>`: that final number |
+| `app_id` | Text | App ID | App page, *General* tab: the **App ID** line (a number, for example `1234567`) |
+| `private_key` | Password | Private key | Same page, down in *Private keys* → **Generate a private key**. A `maceosoft-terraform.<fecha>.private-key.pem` file is downloaded. Open it with a text editor and copy **everything**, including the `-----BEGIN RSA PRIVATE KEY-----` and `-----END RSA PRIVATE KEY-----` lines |
+| `installation_id` | Text | Installation ID | App's left menu → **Install App** → *Install* next to `maceosoft` → **All repositories** → *Install*. GitHub takes you to `https://github.com/organizations/maceosoft/settings/installations/<número>`: that final number |
 
-The item looks like this:
+This is what the item looks like:
 
 ```text
 maceosoft-terraform        (Nota segura · bóveda HomeLab)
@@ -157,23 +173,29 @@ maceosoft-terraform        (Nota segura · bóveda HomeLab)
 └── private_key           ••••••••   (el .pem completo)
 ```
 
-**Done only from the web:** create the App, generate its private key (*Generate a private key*) and install it. GitHub offers no CLI or API for this (manifest-based App creation also requires browser confirmation). Saving the data in 1Password can be done either way:
+**These can only be done from the web:** creating the App, generating its private key (*Generate a private key*) and installing it. GitHub
+offers no CLI or API for that (creating Apps via manifest also requires confirmation in the browser). You can store the data
+in 1Password in either of two ways:
 
 === "🖱️ From the UI"
 
-    When pasting the `.pem` into a Password field, line breaks are lost. Doesn't matter: the playbook reconstructs the key. Once the item is saved, **delete the `.pem`** from Downloads.
+    When you paste the `.pem` into a Password field, the line breaks are lost. It
+    doesn't matter: the playbook rebuilds the key. Once the item is saved,
+    **delete the `.pem`** from Downloads.
 
 === "⌨️ From the console"
 
-    What *is* automated is reading the two numbers and saving the item.
+    What can be automated is reading the two numbers and saving the item.
 
-    1. List installed Apps in the org and extract `App ID` and `Installation ID` (needs the organization permission: `gh auth refresh -s admin:read:org` once):
+    1. List the Apps installed in the org and get `App ID` and `Installation ID` (requires the organization permission:
+       `gh auth refresh -s admin:read:org` only once):
 
         ```bash
         gh api orgs/maceosoft/installations --jq '.installations[] | [.app_slug, .app_id, .id, .repository_selection] | @tsv'
         ```
 
-    2. With the downloaded `.pem`, create the item (1Password unlocked; if you have more than one 1Password account, export `OP_ACCOUNT` first). The `.pem` value is read from the file and never typed in the command:
+    2. With the downloaded `.pem`, create the item (1Password unlocked; if you have more than one 1Password account, export
+       `OP_ACCOUNT` first). The value of `.pem` is read from the file and never typed in the command:
 
         ```bash
         APP=maceosoft-terraform
@@ -192,11 +214,14 @@ maceosoft-terraform        (Nota segura · bóveda HomeLab)
         shred -u ~/Downloads/$APP.*.private-key.pem
         ```
 
-    The same command works for the other Apps: just change `APP` (`maceosoft-arc-runners`, `maceosoft-argocd`, and `symintel-arc-runners` / `symintel-terraform` if using the old org, changing `orgs/maceosoft` to `orgs/symintel`).
+    The same command works for the other Apps: only change `APP` (`maceosoft-arc-runners`, `maceosoft-argocd`, and
+    `symintel-arc-runners` / `symintel-terraform` if you use the old org, changing `orgs/maceosoft` to `orgs/symintel`).
 
 ### `maceosoft-arc-runners`
 
-This is the App ARC uses to register the runner `arc-runners` in the org. It is created in the same form as `maceosoft-terraform`, but it is a **separate App**: its own name, permissions, and credentials.
+This is the App ARC uses to register the `arc-runners` runner in the org. It's
+created in the same form as `maceosoft-terraform`, but it is a **different App**:
+it has its own name, permissions, and credentials.
 
 [maceosoft → Settings → Developer settings → GitHub Apps → New GitHub App](https://github.com/organizations/maceosoft/settings/apps/new)
 
@@ -207,29 +232,32 @@ This is the App ARC uses to register the runner `arc-runners` in the org. It is 
 | Webhook → Active | unchecked |
 | Where can this GitHub App be installed? | Only on this account |
 
-The rest of the form (Callback URL, Setup URL, *Request user authorization*, events) is left empty or unchecked.
+Leave the rest of the form (Callback URL, Setup URL, *Request user
+authorization*, events) empty or unchecked.
 
 | Repository permission | Access | Purpose |
 |---|---|---|
-| Actions | Read-only | View queued jobs the runner must pick up |
-| Administration | Read and write | Register runners (requested by ARC) |
-| Metadata | Read-only | Required |
+| Actions | Read-only | See the queued jobs the runner has to pick up |
+| Administration | Read and write | Register runners (required by ARC) |
+| Metadata | Read-only | Mandatory |
 
 | Organization permission | Access | Purpose |
 |---|---|---|
-| Self-hosted runners | Read and write | Register and delete the runner `arc-runners` in the org |
+| Self-hosted runners | Read and write | Register and delete the `arc-runners` runner in the org |
 
-All other permissions remain at *No access*.
+All other permissions stay at *No access*.
 
-After *Create GitHub App*, save its three pieces of data in the **`maceosoft-arc-runners`** item in 1Password (Secure Note, see [how to create it](#como-crear-un-item-con-campos-propios)):
+After *Create GitHub App*, save its three values in the
+**`maceosoft-arc-runners`** item in 1Password (Secure Note, see
+[how to create it](#como-crear-un-item-con-campos-propios)):
 
-| 1Password field | Type | Data | Where in GitHub |
+| Field in 1Password | Type | Value | Where to find it in GitHub |
 |---|---|---|---|
 | `app_id` | Text | App ID | App page, *General* tab: **App ID** line |
-| `private_key` | Password | Private key | Same page, bottom under *Private keys* → **Generate a private key**. Downloads `maceosoft-arc-runners.<fecha>.private-key.pem`. Open with a text editor and copy **everything**, including the `-----BEGIN RSA PRIVATE KEY-----` and `-----END RSA PRIVATE KEY-----` lines |
-| `installation_id` | Text | Installation ID | App left menu → **Install App** → *Install* next to `maceosoft` → **All repositories** → *Install*. The number at the end of the URL `https://github.com/organizations/maceosoft/settings/installations/<número>` |
+| `private_key` | Password | Private key | Same page, at the bottom under *Private keys* → **Generate a private key**. `maceosoft-arc-runners.<fecha>.private-key.pem` is downloaded. Open it with a text editor and copy **everything**, including the `-----BEGIN RSA PRIVATE KEY-----` and `-----END RSA PRIVATE KEY-----` lines |
+| `installation_id` | Text | Installation ID | App's left menu → **Install App** → *Install* next to `maceosoft` → **All repositories** → *Install*. The number at the end of the URL `https://github.com/organizations/maceosoft/settings/installations/<número>` |
 
-The item looks like this:
+This is what the item looks like:
 
 ```text
 maceosoft-arc-runners      (Nota segura · bóveda HomeLab)
@@ -238,15 +266,18 @@ maceosoft-arc-runners      (Nota segura · bóveda HomeLab)
 └── private_key           ••••••••   (el .pem completo)
 ```
 
-Creating the App, its key, and installing it is **only done from the web**; saving the item can be done either way:
+Creating the App, generating its key, and installing it can **only be done from the web**; you can save the item either way:
 
 === "🖱️ From the UI"
 
-    The three values are **different** from those of `maceosoft-terraform`: each App has its own App ID, its own key, and its own installation. Do not copy the ones from the other App. Once the item is saved, **delete the `.pem`** from Downloads.
+    The three values are **different** from those of `maceosoft-terraform`: each App
+    has its own App ID, key, and installation. Don't copy the ones from the other App. Once
+    the item is saved, **delete the `.pem`** from Downloads.
 
 === "⌨️ From the console"
 
-    The same [`maceosoft-terraform`](#maceosoft-terraform) command with `APP=maceosoft-arc-runners`: `gh api` outputs this App's numbers, so they don't get mixed up with the other one.
+    The same command as in [`maceosoft-terraform`](#maceosoft-terraform) with `APP=maceosoft-arc-runners`: `gh api` pulls the
+    numbers for this App, so they don't get mixed up with those of the other one.
 
     ```bash
     APP=maceosoft-arc-runners
@@ -268,16 +299,20 @@ Creating the App, its key, and installing it is **only done from the web**; savi
 |---|---|
 | Application name | `Maceosoft Dex` |
 | Homepage URL | `https://argocd.homelab.local` |
-| Redirect URIs | `https://argocd.homelab.local/api/dex/callback` (only this one) |
+| Redirect URIs | `https://argocd.homelab.local/api/dex/callback` (this one only) |
 
-After *Register application*, create the **`maceosoft-dex`** item in the `HomeLab` vault (Secure Note, see [how to create it](#como-crear-un-item-con-campos-propios)) with these two fields:
+After *Register application*, create the **`maceosoft-dex`** item in the
+`HomeLab` vault (Secure Note, see [how to create it](#como-crear-un-item-con-campos-propios))
+with these two fields:
 
-| 1Password field | Type | Data | Where in GitHub |
+| Field in 1Password | Type | Value | Where to find it in GitHub |
 |---|---|---|---|
 | `GITHUB_CLIENT_ID` | Text | Client ID | OAuth App page: **Client ID** line |
-| `GITHUB_CLIENT_SECRET` | Password | Client secret | Same page → **Generate a new client secret**. GitHub shows it **only once**: copy it at that moment |
+| `GITHUB_CLIENT_SECRET` | Password | Client secret | Same page → **Generate a new client secret**. GitHub shows it **only once**: copy it right then |
 
-The item looks like this (the last field is added automatically by `playbook-dex-oauth-secrets.yml` the first time it runs: it's the vCluster Dex client secret, not from GitHub):
+This is what the item looks like (the last field is added automatically by
+`playbook-dex-oauth-secrets.yml` the first time it runs: it's the
+Dex vCluster client secret, it doesn't come from GitHub):
 
 ```text
 maceosoft-dex              (Nota segura · bóveda HomeLab)
@@ -286,15 +321,18 @@ maceosoft-dex              (Nota segura · bóveda HomeLab)
 └── VCLUSTER_CLIENT_SECRET ••••••••  (lo genera el playbook)
 ```
 
-**Creating the OAuth App and generating its client secret is only done from the web**: GitHub has no API for OAuth Apps. Saving the two values in 1Password can be done either way:
+**Creating the OAuth App and generating its client secret can only be done from the web**: GitHub has no API for OAuth Apps. You can save
+the two values in 1Password either way:
 
 === "🖱️ From the UI"
 
-    Create the Secure Note `maceosoft-dex` and paste each value from the table into its field ([how to create it](#como-crear-un-item-con-campos-propios)).
+    Create the Secure Note `maceosoft-dex` and paste each value from the table into its field
+    ([how to create it](#como-crear-un-item-con-campos-propios)).
 
 === "⌨️ From the console"
 
-    Once you have the two values, save them without displaying them on screen (if you have more than one 1Password account, export `OP_ACCOUNT` first):
+    Once you have both values, save them without showing them on screen (if you have more than one 1Password account,
+    export `OP_ACCOUNT` first):
 
     ```bash
     # pega el Client ID y Enter
@@ -306,18 +344,20 @@ maceosoft-dex              (Nota segura · bóveda HomeLab)
     unset GH_CID GH_CSEC
     ```
 
-To verify someone is in the team `devops` (or add them) from the console:
+To check that someone is in the `devops` team (or add them) from the console:
 `gh api orgs/maceosoft/teams/devops/memberships/<usuario>` (returns `"state": "active"`) and, to add them as a member,
 `gh api -X PUT orgs/maceosoft/teams/devops/memberships/<usuario> -f role=member`.
 
-Only the **`devops`** team from `maceosoft` can enter, and its members become Argo CD admins. This is applied in [Phase 4 step 4.7](../implementacion/fase-4-gitops.md#47-oauth-secrets-github-vcluster-incus-ui).
+Only the **`devops`** team from `maceosoft` can log in, and its members become
+Argo CD admins. This is applied in
+[step 4.7 of Phase 4](../implementacion/fase-4-gitops.md#47-oauth-secrets-github-vcluster-incus-ui).
 
-## Step 2 — Repos, Argo CD App & FTP (manual) {#step-2-repos-argocd-app-and-ftp-manual}
+## Step 2 — Repos, Argo CD App and FTP (manual) {#paso-2-repos-app-de-argocd-y-ftp-manual}
 
-1. **Repos** (private), created in `maceosoft` with their content pushed via git:
+1. **Repos** (private), created in `maceosoft` and with their content pushed with git:
     - `gitops`.
-    - `core-pipelines`: afterwards, make it accessible to the other repos in the org (below).
-      While testing, the other repos use it with `@main`; the tag `v1` is
+    - `core-pipelines`: afterwards you must make it accessible to the other repos in the org (below).
+      While you are testing, the other repos use it with `@main`; the `v1` tag is
       created once everything works (see the README of `core-pipelines`).
     - `infra`.
 
@@ -338,9 +378,10 @@ Only the **`devops`** team from `maceosoft` can enter, and its members become Ar
         # core-pipelines accesible desde los demás repos de la org
         gh api -X PUT repos/maceosoft/core-pipelines/actions/permissions/access -f access_level=organization
         ```
-2. **GitHub App `maceosoft-argocd`**, used by Argo CD to read the private repo
-   `gitops`. Comes after the repos because it is installed **only** on `gitops`.
-   (Deploy keys are disabled in the organization, so an App is used.)
+2. **GitHub App `maceosoft-argocd`**, which Argo CD uses to read the private repo
+   `gitops`. It comes after the repos because it is installed **only** on `gitops`.
+   (Deploy keys are disabled in the organization, which is why an App
+   is used.)
 
     [maceosoft → Settings → Developer settings → GitHub Apps → New GitHub App](https://github.com/organizations/maceosoft/settings/apps/new)
 
@@ -351,38 +392,38 @@ Only the **`devops`** team from `maceosoft` can enter, and its members become Ar
     | Webhook → Active | unchecked |
     | Where can this GitHub App be installed? | Only on this account |
 
-    The rest of the form is left empty or unchecked.
+    Leave the rest of the form empty or unchecked.
 
     | Repository permission | Access | Purpose |
     |---|---|---|
     | Contents | Read-only | Clone the repo |
     | Metadata | Read-only | Required |
 
-    No organization permissions. All others remain *No access*.
+    No organization permissions. All the others stay at *No access*.
 
-    After *Create GitHub App*, save its three pieces of data in the
+    After *Create GitHub App*, save its three values in the
     **`maceosoft-argocd`** item in 1Password (Secure Note, see
     [how to create it](#como-crear-un-item-con-campos-propios)):
 
-    | 1Password field | Type | Data | Where in GitHub |
+    | 1Password field | Type | Value | Where to find it in GitHub |
     |---|---|---|---|
     | `app_id` | Text | App ID | App page, *General* tab: **App ID** line |
-    | `private_key` | Password | Private key | Same page, bottom under *Private keys* → **Generate a private key**. Copy the **entire** downloaded `.pem`, including the `BEGIN`/`END` lines |
+    | `private_key` | Password | Private key | Same page, at the bottom under *Private keys* → **Generate a private key**. Copy the **entire** downloaded `.pem`, including the `BEGIN`/`END` lines |
     | `installation_id` | Text | Installation ID | Left menu → **Install App** → *Install* next to `maceosoft` → **Only select repositories** → choose **`gitops`** → *Install*. The number at the end of the URL `…/settings/installations/<número>` |
 
-    Install it **only on `gitops`**: with that key you can read the code of
-    all repos where it is installed. Delete the `.pem` when finished.
+    Install it **only on `gitops`**: that key can read the code of
+    every repo where it is installed. Delete the `.pem` when you are done.
 
-    Creating the App, its key, and installing it is **web-only**; saving the item can be done either way:
+    Creating the App, its key and installing it can **only be done from the web**; saving the item can be done either way:
 
     === "🖱️ From the UI"
 
-        Create the Secure Note `maceosoft-argocd` and paste each piece of data from the table into its field
+        Create the Secure Note `maceosoft-argocd` and paste each value from the table into its field
         ([how to create it](#como-crear-un-item-con-campos-propios)).
 
     === "⌨️ From the console"
 
-        The same command from [`maceosoft-terraform`](#maceosoft-terraform), with `APP=maceosoft-argocd`:
+        The same command as in [`maceosoft-terraform`](#maceosoft-terraform), with `APP=maceosoft-argocd`:
 
         ```bash
         APP=maceosoft-argocd
@@ -395,10 +436,10 @@ Only the **`devops`** team from `maceosoft` can enter, and its members become Ar
         shred -u ~/Downloads/$APP.*.private-key.pem
         ```
 
-3. **FTP (File Transfer Protocol) credentials for repo `api`**, the first
-   project in the map with `deploy = true`: title **`ftp-api`**, type Secure
-   Note. For each repo you add later, follow the
-   [procedure — Add a repo](../operacion/agregar-repo.md). Fields, [created the same way as the others](#como-crear-un-item-con-campos-propios):
+3. **FTP (File Transfer Protocol) credentials for the `api` repo**, the first
+   project on the map with `deploy = true`: title **`ftp-api`**, type Secure
+   Note. For each repo you add afterwards, follow the
+   [procedure — Adding a repo](../operacion/agregar-repo.md). Fields, [created the same way as the others](#como-crear-un-item-con-campos-propios):
 
     === "🖱️ From the UI"
 
@@ -415,7 +456,7 @@ Only the **`devops`** team from `maceosoft` can enter, and its members become Ar
 
     === "⌨️ From the console"
 
-        Change the hosts, users, and folders to yours; the two passwords are pasted without echo (if you have more than
+        Replace the hosts, users and folders with your own; the two passwords are pasted without echo (if you have more than
         one 1Password account, export `OP_ACCOUNT` first):
 
         ```bash
@@ -429,13 +470,13 @@ Only the **`devops`** team from `maceosoft` can enter, and its members become Ar
         unset FTP_DEV_PASS FTP_PROD_PASS
         ```
 
-4. **Sealed Secrets key** *(optional: needed when you start storing
-   `SealedSecret` in Git, e.g., in Phase 6)*. Sealed Secrets
+4. **Sealed Secrets key** *(optional: needed once you start
+   storing `SealedSecret` in Git, e.g. in Phase 6)*. Sealed Secrets
    encrypts secrets with a key pair that, by default, the controller
    generates inside the cluster: if you reinstall K3s it is lost, and the
-   `SealedSecret` already in Git can no longer be decrypted. That's why
-   it is generated **once**, saved in 1Password, and the secrets playbook
-   brings it to the cluster before the controller starts.
+   `SealedSecret` that were already in Git can no longer be decrypted. That is why
+   it is generated **only once**, stored in 1Password, and the secrets
+   playbook loads it into the cluster before the controller starts.
 
     Generate the pair in a temporary folder (`openssl` ships with macOS and Linux):
 
@@ -445,17 +486,17 @@ Only the **`devops`** team from `maceosoft` can enter, and its members become Ar
       -keyout tls.key -out tls.crt -subj "/CN=sealed-secret/O=sealed-secret"
     ```
 
-    Create in 1Password the item **`sealed-secrets`** (Secure Note,
+    Create the **`sealed-secrets`** item in 1Password (Secure Note,
     [created the same way as the others](#como-crear-un-item-con-campos-propios)):
 
     === "🖱️ From the UI"
 
         | Field | Type | Value |
         |---|---|---|
-        | `certificate` | Text | The full content of `tls.crt` (the **public** key), with the `-----BEGIN CERTIFICATE-----` and `-----END CERTIFICATE-----` lines |
-        | `private_key` | Password | The full content of `tls.key` (the **private** key), with its `BEGIN`/`END` lines |
+        | `certificate` | Text | The full contents of `tls.crt` (the **public** key), including the `-----BEGIN CERTIFICATE-----` and `-----END CERTIFICATE-----` lines |
+        | `private_key` | Password | The full contents of `tls.key` (the **private** key), including its `BEGIN`/`END` lines |
 
-        To copy a file: `pbcopy < tls.crt` (macOS) or open it with an editor
+        To copy a file: `pbcopy < tls.crt` (macOS) or open it in an editor
         and copy everything.
 
     === "⌨️ From the console"
@@ -475,20 +516,20 @@ Only the **`devops`** team from `maceosoft` can enter, and its members become Ar
     rm -f tls.key tls.crt
     ```
 
-    The certificate is valid for 10 years. The playbook verifies that the certificate
-    and key are a pair (if you copied files from different pairs, it stops
-    with a clear message) and creates the Secret
+    The certificate is valid for 10 years. The playbook checks that the certificate and
+    the key are a pair (if you copied files from different pairs, it
+    stops with a clear message) and creates the Secret
     `kube-system/sealed-secrets-key-homelab`, which the controller detects by its
     label `sealedsecrets.bitnami.com/sealed-secrets-key: active`. While
-    the item doesn't exist, the playbook warns and continues: Sealed Secrets would generate
-    its own key.
+    the item does not exist, the playbook warns and continues: Sealed Secrets would generate its
+    own key.
 
 ## Step 3 — Cluster and platform secrets
 
 With k3s installed ([Phase 3](../implementacion/fase-3-k3s.md), Argo CD included):
 
 ```bash
-# tu cuenta
+# tu cuenta y tu bóveda
 export ONEPASSWORD_ACCOUNT_NAME="Mi Cuenta"
 export ONEPASSWORD_VAULT="HomeLab"
 cd ansible
@@ -496,38 +537,38 @@ ansible-playbook -i inventory.ini playbook-platform-secrets.yml
 ```
 
 [`playbook-platform-secrets.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-platform-secrets.yml)
-creates the namespaces `argocd`, `arc-runners` (PSS `privileged`, for the `dind` sidecar) and `terraform`
-(only stores OpenTofu state), and these Secrets:
+creates the namespaces `argocd`, `arc-runners` (PSS `privileged`, because of the `dind` sidecar) and `terraform`
+(it only stores the OpenTofu state), and these Secrets:
 
-| Secret | Namespace | Content |
+| Secret | Namespace | Contents |
 |---|---|---|
-| `repo-gitops` | `argocd` | App `maceosoft-argocd`: Argo CD can clone `https://github.com/maceosoft/gitops.git` |
+| `repo-gitops` | `argocd` | `maceosoft-argocd` App: Argo CD can clone `https://github.com/maceosoft/gitops.git` |
 | `arc-runners-github-app` | `arc-runners` | ARC App |
 | `terraform-app` | `arc-runners` | `TF_VAR_github_app_id`, `TF_VAR_github_app_installation_id`, `TF_VAR_github_app_private_key` |
-| `tofu-vars` | `arc-runners` | `TF_VAR_ftp` (all `ftp-<repo>` items) |
-| `arc-runners-github-app`, `terraform-app` | `arc-runners-symintel` | Same for the old org, from `symintel-arc-runners` and `symintel-terraform` (only if they exist). The namespace is created with PSS `baseline` |
-| `sealed-secrets-key-homelab` | `kube-system` | Sealed Secrets key pair (item `sealed-secrets`, if exists) |
-| `discord-webhooks`, `healthchecks-ping`, `grafana-admin` | `monitoring` | Discord webhooks, healthchecks.io ping URL, and Grafana password (items with the same names; only if all three exist). The namespace is created with PSS `privileged`, because `node-exporter` uses the node's disk and network |
+| `tofu-vars` | `arc-runners` | `TF_VAR_ftp` (all the `ftp-<repo>` items) |
+| `arc-runners-github-app`, `terraform-app` | `arc-runners-symintel` | The same for the old org, from `symintel-arc-runners` and `symintel-terraform` (only if they exist). The namespace is created with PSS `baseline` |
+| `sealed-secrets-key-homelab` | `kube-system` | Sealed Secrets key pair (item `sealed-secrets`, if it exists) |
+| `discord-webhooks`, `healthchecks-ping`, `grafana-admin` | `monitoring` | Discord webhooks, healthchecks.io ping URL and Grafana password (the items with the same names; only if all three exist). The namespace is created with PSS `privileged`, because `node-exporter` uses the node's disk and network |
 
-!!! note "Single runner"
-    It's a HomeLab: the single scale set (`arc-runners`, Default group) runs CI (continuous integration),
-    deploys and OpenTofu, and has the OpenTofu credentials as environment
+!!! note "A single runner"
+    This is a HomeLab: the only scale set (`arc-runners`, Default group) runs CI (continuous integration),
+    deploys and OpenTofu, and it has the OpenTofu credentials as environment
     variables. Any `maceosoft` repo that runs a job there can
-    reach them. Keep the org with only your repos.
+    reach them. Keep the org limited to your own repos.
 
 !!! warning "Always against the HomeLab"
-    The playbook uses `~/.kube/homelab-k3s.yaml` (the one left by
-    `k3s_fetch_kubeconfig`), **not** the current `kubectl` context. This way it
-    doesn't write secrets to another cluster. For another kubeconfig:
+    The playbook uses `~/.kube/homelab-k3s.yaml` (the one that
+    `k3s_fetch_kubeconfig` leaves behind), **not** the current `kubectl` context. This way it doesn't
+    write secrets into another cluster. For a different kubeconfig:
     `-e platform_kubeconfig=/ruta`.
 
-It's idempotent: run it again whenever you rotate something in 1Password or add a
-`ftp-<repo>` item.
+It's idempotent: run it again every time you rotate something in 1Password or add
+an `ftp-<repo>` item.
 
 ## Two organizations: one scale set per org
 
-An ARC scale set registers with **a single** GitHub organization (`githubConfigUrl`). For the same runners to
-serve the new org (`maceosoft`) and the old org (`symintel`) there are **two scale sets**, with a single controller
+An ARC scale set registers with **only one** GitHub organization (`githubConfigUrl`). For the same runners to
+serve the new org (`maceosoft`) and the old one (`symintel`) there are **two scale sets**, with a single controller
 (`arc-controller`) serving both:
 
 | | Org `maceosoft` | Org `symintel` (old) |
@@ -536,20 +577,20 @@ serve the new org (`maceosoft`) and the old org (`symintel`) there are **two sca
 | Namespace | `arc-runners` | `arc-runners-symintel` |
 | ARC App (1Password item) | `maceosoft-arc-runners` | `symintel-arc-runners` |
 | Name in `runs-on:` | `arc-runners` | `arc-runners` (the same) |
-| Cache `/cache` (RWX, Longhorn) | 20 GiB | 10 GiB, separate |
-| Docker (`dind`) | Yes, with a privileged sidecar | Yes, the same |
-| OpenTofu and FTP | Yes (`terraform-app`, `tofu-vars`) | Only if item `symintel-terraform` exists |
+| `/cache` cache (RWX, Longhorn) | 20 GiB | 10 GiB, its own |
+| Docker (`dind`) | Yes, with a privileged sidecar | Yes, same |
+| OpenTofu and FTP | Yes (`terraform-app`, `tofu-vars`) | Only if the `symintel-terraform` item exists |
 
 Both use **the same runner template**
-([`values-scaleset.yaml`](https://github.com/maceosoft/gitops/blob/main/arc/values-scaleset.yaml)); the old org changes
+([`values-scaleset.yaml`](https://github.com/maceosoft/gitops/blob/main/arc/values-scaleset.yaml)); the old org overrides
 `githubConfigUrl` ([`values-scaleset-symintel.yaml`](https://github.com/maceosoft/gitops/blob/main/arc/values-scaleset-symintel.yaml)).
-Each namespace has its own Secrets, with **the same name**, so those of one org aren't visible to the other, and the cache isn't
+Each namespace has its own Secrets, with **the same name**, so one org's Secrets can't be seen by the other, and the cache isn't
 shared either (a poisoned cache in one org doesn't reach the other).
 
-To enable the old org: create the ARC App in `symintel` (same as [`maceosoft-arc-runners`](#maceosoft-arc-runners), but in that
-org) and save it in item `symintel-arc-runners`; then run `playbook-platform-secrets.yml`. If the item doesn't exist, the script doesn't
-create the namespace or the Secret and the old org's scale set doesn't start. To remove it, delete the Application
-`arc-runners-symintel` and the items.
+To enable the old org: create the ARC App in `symintel` (just like [`maceosoft-arc-runners`](#maceosoft-arc-runners), but in that
+org) and save it in the `symintel-arc-runners` item; then run `playbook-platform-secrets.yml`. If the item doesn't exist, the script doesn't
+create the namespace or the Secret and the old org's scale set doesn't start. To remove it, delete the
+`arc-runners-symintel` Application and the items.
 
 ## Step 4 — GitOps
 
@@ -561,21 +602,21 @@ Argo CD syncs, among others, these Applications:
 
 | Application | What it deploys |
 |---|---|
-| `arc-controller` | ARC Controller (`arc-systems`) |
-| `terraform-rbac` | ServiceAccount `tofu-runner` + Role (only Secrets/Leases from namespace `terraform`) |
-| `arc-runners` | The runner (up to 3 in parallel), with namespace Secrets as environment variables |
+| `arc-controller` | ARC controller (`arc-systems`) |
+| `terraform-rbac` | ServiceAccount `tofu-runner` + Role (only Secrets/Leases in the `terraform` namespace) |
+| `arc-runners` | The runner (up to 3 in parallel), with the namespace's Secrets as environment variables |
 
 ## Step 5 — First OpenTofu pipeline
 
 Push to `main` of `infra`, or trigger it from *Actions → tofu →
-Run workflow* (with the CLI: `gh workflow run tofu.yml --repo maceosoft/infra --ref main` and `gh run watch --repo maceosoft/infra`). The workflow
-[`tofu.yml`](https://github.com/maceosoft/core-pipelines/blob/main/.github/workflows/tofu.yml)
-runs on `arc-runners`: it does `plan` on PRs (pull requests) and `apply` on `main`. On the
+Run workflow* (with the CLI: `gh workflow run tofu.yml --repo maceosoft/infra --ref main` and `gh run watch --repo maceosoft/infra`). The
+[`tofu.yml`](https://github.com/maceosoft/core-pipelines/blob/main/.github/workflows/tofu.yml) workflow
+runs on `arc-runners`: it runs `plan` on PRs (pull requests) and `apply` on `main`. On the
 first run it creates `api`.
 
 ## Verify
 
-Before the cluster, ensure 1Password has everything (from the root of `homelab`):
+Before the cluster, check that 1Password has everything (from the root of `homelab`):
 
 ```bash
 # tu cuenta
@@ -607,8 +648,8 @@ Full step-by-step: [Operations — Rotate credentials](../operacion/rotar-creden
 
 | What | How |
 |---|---|
-| Private key of a GitHub App | Generate a new one in GitHub (web only), replace `private_key` in 1Password (`op item edit <item> "private_key[password]=$(cat llave.pem)"`), re-run `playbook-platform-secrets.yml` and delete the old one in GitHub |
-| Private key of `maceosoft-argocd` | Same as other Apps: new key in GitHub, replace `private_key`, re-run the playbook and delete the old one |
+| A GitHub App's private key | Generate a new one on GitHub (web only), replace `private_key` in 1Password (`op item edit <item> "private_key[password]=$(cat llave.pem)"`), re-run `playbook-platform-secrets.yml` and delete the old one on GitHub |
+| Private key of `maceosoft-argocd` | Same as the other Apps: new key on GitHub, replace `private_key`, re-run the playbook and delete the old one |
 | FTP credentials | Edit `ftp-<repo>` (`op item edit ftp-<repo> "prod_password[password]=..."`), re-run the playbook and trigger the `infra` pipeline (`gh workflow run tofu.yml --repo maceosoft/infra --ref main`) |
-| Discord webhook, healthchecks.io ping URL, or Grafana password | Change the field in its item, re-run `playbook-platform-secrets.yml` and follow [Operations — Rotate credentials](../operacion/rotar-credenciales.md#monitoring-discord-webhooks-healthchecksio-ping-and-grafana) |
+| Discord webhook, healthchecks.io ping URL or Grafana password | Change the field in its item, re-run `playbook-platform-secrets.yml` and follow [Operations — Rotate credentials](../operacion/rotar-credenciales.md#monitoring-discord-webhooks-healthchecksio-ping-and-grafana) |
 | Dex client secret | New secret in the OAuth App, update `GITHUB_CLIENT_SECRET` and run `playbook-dex-oauth-secrets.yml` |

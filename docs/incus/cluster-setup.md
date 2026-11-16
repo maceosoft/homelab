@@ -37,6 +37,7 @@ init (`incus_storage_min_free_gb` en
 |---|---|
 | invincible | 224 GB SSD; leader + UI |
 | oliver | 120 GB SSD; pool local obligatorio; scheduler manual |
+| eve | NVMe 1 TB; reserva de la base de datos (`database-standby`) |
 | deborah | eMMC boot; override opcional a NVMe: `incus_storage_path: /srv/incus/storage-pools/local` |
 
 ### Limitaciones de `dir`
@@ -117,6 +118,7 @@ incus cluster group create arm64-nodes
 incus cluster group assign invincible x86-nodes,default
 incus cluster group assign oliver x86-nodes,default
 incus cluster group assign deborah arm64-nodes,default
+incus cluster group assign eve x86-nodes,default
 ```
 
 ## Proteger la RAM de oliver (scheduler manual)
@@ -322,8 +324,8 @@ Qué exige OVN y qué implica para el HomeLab. Los segmentos y el despliegue est
 
 | Requisito de OVN | Estado en el HomeLab |
 |---|---|
-| Paquetes `ovn-central` (3 nodos, base de datos en alta disponibilidad), `ovn-host` y `openvswitch-switch` | Están en Debian en los tres nodos, con OVN 25.03 y Open vSwitch 3.5 en Debian 13 (`invincible`, `oliver`); `deborah` sigue en Debian 12 hasta [actualizarla](../operacion/actualizar-debian-deborah.md), y hasta entonces sus versiones no coinciden |
-| Red de capa 2 compartida entre los nodos | Sí: los tres están en la misma LAN por `br0` |
+| Paquetes `ovn-central` (3 nodos, base de datos en alta disponibilidad), `ovn-host` y `openvswitch-switch` | Están en Debian en los cuatro nodos, con OVN 25.03 y Open vSwitch 3.5 en Debian 13 (`invincible`, `oliver`, `eve`); `deborah` sigue en Debian 12 hasta [actualizarla](../operacion/actualizar-debian-deborah.md), y hasta entonces sus versiones no coinciden |
+| Red de capa 2 compartida entre los nodos | Sí: los cuatro están en la misma LAN por `br0` |
 | Uplink: un bridge sin administrar o una NIC sin usar | `br0` sirve; no haría falta rehacerlo |
 | Rango de IP reservado fuera del DHCP para el router de OVN y las IP virtuales | Definido: `192.168.23.224/28` (LB) y `192.168.23.240–.249` (OVN externo), fuera del DHCP y de MetalLB. Ver [Desplegar OVN y los segmentos](#desplegar-ovn-y-los-segmentos) |
 | Instancias dentro de una red OVN | Las instancias que cuelgan de `br0` (como `lb01`, `test` y `vm01`) tienen IP de la LAN: para usar OVN hay que conectarlas a `ovn-lan` |
@@ -338,8 +340,9 @@ Qué exige OVN y qué implica para el HomeLab. Los segmentos y el despliegue est
 ### Desplegar OVN y los segmentos
 
 El rol [`incus_ovn`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/incus_ovn/README.md), dentro de
-[`playbook-incus-cluster.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-incus-cluster.yml), instala OVN en los tres
-nodos (la base de datos en alta disponibilidad, con `invincible` creándola y los otros uniéndose), configura Incus y crea la red
+[`playbook-incus-cluster.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-incus-cluster.yml), instala OVN en todos los
+nodos: la base de datos en alta disponibilidad (`ovn-central`) va solo en los tres de `incus_ovn_db_hosts` (`invincible` la crea y
+`oliver` y `deborah` se unen) y el resto, como `eve`, lleva solo `ovn-host`. Además configura Incus y crea la red
 *uplink* sobre `br0` y una red OVN. Es **seguro por defecto**: sin `-e incus_ovn_confirm=true` solo hace el preflight (versión de Incus,
 paquetes, memoria libre, que `br0` exista y que las IP reservadas no respondan) y no instala nada. Con
 `incus_ovn_enabled: false` (el valor por defecto) el playbook del clúster ni siquiera lo toca.
@@ -377,7 +380,7 @@ ansible-playbook -i inventory.ini playbook-incus-cluster.yml --tags ovn --skip-t
 Después, un balanceador de red se crea con `incus network load-balancer create ovn-lan 192.168.23.225` y su configuración.
 La dirección de escucha debe estar en el `ipv4.routes` de la uplink y no solapar con otra red en uso.
 
-**Comprobar el despliegue:** `ovn-central`, `ovn-controller` y Open vSwitch activos en los tres nodos; la base de datos Northbound en clúster
+**Comprobar el despliegue:** `ovn-central` activo en los tres nodos de la base, `ovn-controller` y Open vSwitch en todos; la base de datos Northbound en clúster
 con líder (`ovn-appctl -t /var/run/ovn/ovnnb_db.ctl cluster/status OVN_Northbound`); un *chassis* Geneve por nodo (`ovn-sbctl show`); y
 `UPLINK` y `ovn-lan` en estado `Created` (`incus network list`).
 
@@ -394,11 +397,11 @@ Ambos playbooks son **seguros por defecto**: sin la variable de confirmación so
 
 | Qué | Playbook | Confirmación | Efecto |
 |---|---|---|---|
-| Actualizar Incus a la última versión del repositorio | [`playbook-upgrade-incus.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-upgrade-incus.yml) | `-e incus_upgrade_confirm=true` | Actualiza los paquetes `incus*` nodo por nodo y espera a que los tres miembros estén `ONLINE`. No borra instancias |
+| Actualizar Incus a la última versión del repositorio | [`playbook-upgrade-incus.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-upgrade-incus.yml) | `-e incus_upgrade_confirm=true` | Actualiza los paquetes `incus*` nodo por nodo y espera a que todos los miembros estén `ONLINE`. No borra instancias |
 | Desinstalar el clúster (para rehacerlo) | [`playbook-uninstall-incus.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-uninstall-incus.yml) | `-e incus_uninstall_confirm=true` | **Destructivo:** borra instancias, imágenes, redes gestionadas, el pool y los paquetes. No toca `br0`, K3s ni BIND |
 
 El clúster exige **la misma versión de Incus en todos los miembros**: mientras difieren, la API queda bloqueada en los
-ya actualizados hasta que los demás los alcanzan. Por eso el playbook de actualización recorre los tres nodos seguidos y
+ya actualizados hasta que los demás los alcanzan. Por eso el playbook de actualización recorre todos los nodos seguidos y
 verifica al final. Para rehacer el clúster después de desinstalar: `playbook-bootstrap.yml` y `playbook-incus-cluster.yml`.
 
 ## Backup y snapshots (opcional)

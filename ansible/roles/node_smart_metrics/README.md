@@ -5,6 +5,10 @@ un disco falle:
 
 - **SSD SATA** (`invincible`, `oliver`): autodiagnóstico SMART, sectores reasignados / pendientes / no corregibles,
   errores CRC, temperatura, horas encendido y vida restante (si el fabricante la publica).
+- **NVMe** (`deborah`): lo mismo desde el registro de salud NVMe (`smartctl -c` además trae los umbrales de
+  temperatura del propio disco), los sensores de temperatura extra, el aviso crítico (`Critical Warning`) y los errores
+  de datos. El SSD de Apple de `eve` está detrás del chip T2 y `smartctl` no lo lee: de él solo se publica la
+  temperatura, que el kernel expone en hwmon (`/sys/class/nvme/nvme0/hwmon*/temp1_input`).
 - **eMMC** (`deborah`): la eMMC **no tiene SMART** (`smartctl` responde «Unable to detect device type»). El kernel expone
   su desgaste en `/sys/block/mmcblk*/device/` (`life_time` y `pre_eol_info`, campos estándar JEDEC), y de ahí se lee.
 
@@ -24,18 +28,23 @@ ver la cabecera de `playbook-smart-metrics.yml`. Variables: `node_smart_metrics_
 
 ## Qué hace
 
-1. Instala `smartmontools` **solo en los nodos con discos SATA/SAS** (no en `deborah`).
+1. Instala `smartmontools` **solo en los nodos con discos SATA/SAS o NVMe** (en `eve` está apagado en `host_vars`).
 2. Crea `/var/lib/node_exporter/textfile` (la carpeta que lee el *textfile collector* de node-exporter).
 3. Instala `/usr/local/bin/node-smart-metrics` y un servicio + temporizador de systemd (cada 30 min) que escribe
    `smart.prom` de forma atómica.
 
+El autotest SMART (`selftest.yml`) sigue siendo solo para SATA/SAS.
+
 Métricas (etiqueta `device`): `node_smart_collect_success`, `node_smart_healthy`, `node_smart_attributes_failing`,
 `node_smart_reallocated_sectors`, `node_smart_pending_sectors`, `node_smart_offline_uncorrectable_sectors`,
 `node_smart_crc_errors_total`, `node_smart_power_on_seconds`, `node_smart_temperature_celsius`,
-`node_smart_ssd_life_remaining_percent`, `node_emmc_life_time_estimate` (etiqueta `area` A/B),
+`node_smart_ssd_life_remaining_percent` (en NVMe, 100 − `Percentage Used`); solo NVMe:
+`node_smart_temperature_sensor_celsius` (etiqueta `sensor`), `node_smart_temperature_warning_celsius`,
+`node_smart_temperature_critical_celsius`, `node_nvme_critical_warning` y `node_nvme_media_errors_total`; eMMC:
+`node_emmc_life_time_estimate` (etiqueta `area` A/B),
 `node_emmc_pre_eol_info` y `node_smart_metrics_last_run_timestamp_seconds`. No se publica el número de serie.
 
-Solo se leen los discos de bus `sata`, `ata` o `sas`: los discos virtuales (iSCSI de Longhorn, zram) se ignoran.
+Solo se leen los discos de bus `sata`, `ata`, `sas` o `nvme`: los discos virtuales (iSCSI de Longhorn, zram) se ignoran.
 
 ## Dependencia: textfile collector de node-exporter
 

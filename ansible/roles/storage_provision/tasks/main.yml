@@ -10,9 +10,31 @@
     prompt: >-
       Se van a formatear y montar estos discos en {{ inventory_hostname }}:
       {{ storage_provision_disks | map(attribute='device') | join(', ') }}.
-      Esto BORRA cualquier dato existente en esos dispositivos.
+      Esto BORRA cualquier dato existente en esos dispositivos
+      {{ '(con wipe: true se borran también sus particiones)'
+         if storage_provision_disks | selectattr('wipe', 'defined') | selectattr('wipe') | list else '' }}.
       Enter para seguir, Ctrl+C+A para abortar.
   when: not ansible_check_mode
+
+# wipe: true borra la tabla de particiones (p. ej. un disco que vino con Windows). Sin esto, blkid ve la tabla,
+# el role se salta el mkfs y despues no encuentra UUID para fstab. Nunca sobre un disco montado.
+- name: Verificar que los discos a limpiar no estén montados
+  ansible.builtin.command: "lsblk -n -o MOUNTPOINTS {{ item.device }}"
+  register: storage_provision_wipe_mounts
+  loop: "{{ storage_provision_disks | selectattr('wipe', 'defined') | selectattr('wipe') | list }}"
+  changed_when: false
+  failed_when: storage_provision_wipe_mounts.stdout | trim | length > 0
+
+- name: Borrar firmas y particiones (wipe)
+  ansible.builtin.command: "wipefs -a {{ item.device }}"
+  loop: "{{ storage_provision_disks | selectattr('wipe', 'defined') | selectattr('wipe') | list }}"
+  register: storage_provision_wipefs
+  # Sin firmas que borrar, wipefs no imprime nada: así el wipe de una segunda corrida no cuenta como cambio.
+  changed_when: storage_provision_wipefs.stdout | length > 0
+  when:
+    - not ansible_check_mode
+    # Solo si tiene particiones: un disco que este role ya formateó (ext4 sin particiones) no se vuelve a limpiar.
+    - (ansible_facts.devices[item.device | basename].partitions | default({})) | length > 0
 
 - name: Verificar si el disco ya tiene un filesystem (idempotencia)
   ansible.builtin.command: "blkid {{ item.device }}"
@@ -40,23 +62,56 @@
   register: storage_provision_disk_uuid
   loop: "{{ storage_provision_disks }}"
   changed_when: false
+  check_mode: false
+  # En --check el disco no se formatea y puede no tener UUID todavía; en una corrida real, sin UUID es que el
+  # disco tiene particiones u otra firma y falta wipe: true.
+  failed_when: storage_provision_disk_uuid.stdout | length == 0 and not ansible_check_mode
 
 - name: Montar y persistir en fstab
   ansible.posix.mount:
     path: "{{ item.item.mount_path }}"
     src: "UUID={{ item.stdout }}"
     fstype: "{{ item.item.filesystem }}"
+    opts: "{{ item.item.mount_opts | default('defaults') }}"
     state: mounted
   loop: "{{ storage_provision_disk_uuid.results }}"
+  when: item.stdout | length > 0
 
-- name: Wirear a Longhorn (anotar el nodo K8s)
-  ansible.builtin.command: >-
-    k3s kubectl annotate node {{ inventory_hostname }}
-    node.longhorn.io/default-disks-config='[{"path":"{{ item.mount_path }}","allowScheduling":true}]'
-    --overwrite
+# Disco de Longhorn: se agrega a nodes.longhorn.io, que es lo que Longhorn lee siempre. La anotacion
+# default-disks-config solo se aplica al crear el nodo y con createDefaultDiskLabeledNodes=true, asi que en un nodo
+# ya existente no hacia nada. consumer: longhorn usa todo el disco (mount_path); con consumer: local, un
+# longhorn_disk_path opcional usa una carpeta del disco y deja el resto para otros usos (ver data_relocation).
+- name: Crear la carpeta del disco de Longhorn
+  ansible.builtin.file:
+    path: "{{ item.longhorn_disk_path | default(item.mount_path) }}"
+    state: directory
+    mode: "0755"
   loop: "{{ storage_provision_disks }}"
-  when: item.consumer == 'longhorn'
-  changed_when: true
+  when: item.consumer == 'longhorn' or item.longhorn_disk_path is defined
+
+- name: Agregar el disco a Longhorn (nodes.longhorn.io)
+  ansible.builtin.command:
+    argv:
+      - k3s
+      - kubectl
+      - -n
+      - longhorn-system
+      - patch
+      - nodes.longhorn.io
+      - "{{ inventory_hostname }}"
+      - --type
+      - merge
+      - -p
+      - >-
+        {{ {'spec': {'disks': {item.longhorn_disk_name | default((item.longhorn_disk_path | default(item.mount_path)) | basename):
+        {'path': item.longhorn_disk_path | default(item.mount_path), 'allowScheduling': true, 'diskType': 'filesystem',
+        'storageReserved': (item.longhorn_storage_reserved_gib | default(0) | int) * 1073741824, 'tags': []}}}} | to_json }}
+  loop: "{{ storage_provision_disks }}"
+  when:
+    - item.consumer == 'longhorn' or item.longhorn_disk_path is defined
+    - not ansible_check_mode
+  register: storage_provision_longhorn_patch
+  changed_when: "'no change' not in storage_provision_longhorn_patch.stdout"
 
 - name: Wirear a Incus (crear pool nuevo)
   ansible.builtin.command: >-

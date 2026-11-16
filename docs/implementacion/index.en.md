@@ -1,9 +1,9 @@
 # Implementation — Step-by-Step Guide
 
-This section is the **main journey** of the HomeLab: from bare-metal nodes to full GitOps. Each phase is executable, verifiable, and links to the [tech stack](stack-tecnologico.md) and pages for deeper dives.
+This section is the **main journey** of the HomeLab: from bare-metal nodes to full GitOps. Each phase is executable, verifiable, and links to the [technology stack](stack-tecnologico.md) and pages for deeper dives.
 
 !!! tip "How to use this guide"
-    Follow the phases in order the first time. In subsequent deployments, you can skip to the phase you need if the prerequisites are already met. Where there are **multiple options**, each phase includes a brief **Trade-offs Analysis** (benefit vs cost/risk).
+    Follow the phases in order the first time. In subsequent deployments, you can skip to the phase you need if the prerequisites are already met. Where there are **multiple alternatives**, each phase includes a brief **Trade-offs Analysis** (benefit vs cost/risk).
 
 ## Phase Timeline
 
@@ -36,7 +36,7 @@ flowchart LR
     </div>
     <div class="card stepper-card">
       <div class="card-title"><a href="fase-1-red/">Network</a> <span class="tag tag-accent">Completed</span></div>
-      <div class="card-body">Fixed IP on <code>br0</code> on the 3 nodes.</div>
+      <div class="card-body">Fixed IP on <code>br0</code> on the 4 nodes.</div>
       <div class="card-meta"><code>playbook-set-static-ip.yml</code></div>
     </div>
   </div>
@@ -96,8 +96,7 @@ flowchart LR
   </div>
 </div>
 
-**End of guide:** **[HomeLab Summary](resumen-homelab.md)** — global checklist,
-URLs, `/etc/hosts`, nodes, and verification.
+**Guide Conclusion:** **[HomeLab Summary](resumen-homelab.md)** — global checklist, URLs, `/etc/hosts`, nodes, and verification.
 
 ## Two Repos, Two Responsibilities
 
@@ -106,21 +105,21 @@ URLs, `/etc/hosts`, nodes, and verification.
 | [`homelab`](https://github.com/maceosoft/homelab) | OS network, Incus, K3s, kube-vip, Argo CD controller | [Ansible](https://docs.ansible.com/) |
 | [`gitops`](https://github.com/maceosoft/gitops) | MetalLB, Gateway API, storage, vCluster, CAPN, … | [Argo CD](https://argo-cd.readthedocs.io/) |
 
-## Tech Stack
+## Technology Stack
 
 Layered diagram, list of products with official links and role in the HomeLab:
 
-**[See full tech stack →](stack-tecnologico.md)**
+**[See full technology stack →](stack-tecnologico.md)**
 
-Complementary architectural view: [C4 Architecture](../architecture/overview.md).
+Complementary architectural view: [C4 Model](../architecture/overview.md).
 
 ## Decision Map (forks)
 
 | Decision | Option A (default HomeLab) | Option B |
 |---|---|---|
-| Stable K3s API | Name `k3s.homelab.local` to the control plane (`deborah`, `192.168.20.5`) | [kube-vip](https://kube-vip.io/) (`kube_vip.enabled: true` on `k3s_install.yml`) |
+| Stable K3s API | Name `k3s.homelab.local` to the control plane (`deborah`, `192.168.20.5`) | [kube-vip](https://kube-vip.io/) (`kube_vip.enabled: true` in `k3s_install.yml`) |
 | Install K3s | `playbook-k3s.yml` | Manual curl ([reference](../k3s/index.md)) |
-| **CNI** | [Calico](https://docs.tigera.io/calico/latest/about/) (`k3s_cni: calico`) | Embedded [Flannel](https://github.com/flannel-io/flannel) (`vxlan`), [Canal](https://docs.tigera.io/calico/latest/getting-started/kubernetes/flannel/flannel), [Cilium](https://docs.cilium.io/) |
+| **CNI** | [Calico](https://docs.tigera.io/calico/latest/about/) (`k3s_cni: calico`) | [Flannel](https://github.com/flannel-io/flannel) embedded (`vxlan`), [Canal](https://docs.tigera.io/calico/latest/getting-started/kubernetes/flannel/flannel), [Cilium](https://docs.cilium.io/) |
 | OAuth Secrets | [1Password SDK](https://github.com/1Password/onepassword-sdk-python) — personal account, vault `HomeLab` | Corporate account or other vault via env vars |
 | vCluster / CAPN | Commented in `homelab-root` | Uncomment in `root-appset.yaml` when ready |
 | HA Storage | [Longhorn](https://longhorn.io/docs/) on invincible+deborah | Only [OpenEBS](https://openebs.io/docs) |
@@ -141,7 +140,7 @@ Complementary architectural view: [C4 Architecture](../architecture/overview.md)
     <div class="card-col">
       <div class="card-title">Ansible vs curl K3s</div>
       <div class="text-muted">Idempotent, flags in <code>group_vars</code></div>
-      <div class="text-muted">Manual only for occasional debugging</div>
+      <div class="text-muted">Manual only for specific debugging</div>
     </div>
     <div class="card-col">
       <div class="card-title">Flannel</div>
@@ -175,29 +174,28 @@ Complementary architectural view: [C4 Architecture](../architecture/overview.md)
     </div>
     <div class="card-col">
       <div class="card-title">Only OpenEBS</div>
-      <div class="text-muted">LocalPV on 3 nodes; simple</div>
+      <div class="text-muted">LocalPV on all nodes; simple</div>
       <div class="text-muted">No HA between nodes</div>
     </div>
   </div>
 </div>
 
-Details CNI (Container Network Interface): [Phase 3 — K3s](fase-3-k3s.md#options) · [playbook-options](../k3s/playbook-options.md#cni).
+CNI (Container Network Interface) details: [Phase 3 — K3s](fase-3-k3s.md#options) · [playbook-options](../k3s/playbook-options.md#cni).
 
-Details K3s flags (lightweight Kubernetes distribution): [Playbook options](../k3s/playbook-options.md).
+K3s (lightweight Kubernetes distribution) flag details: [Playbook options](../k3s/playbook-options.md).
 
 Ansible role catalog: [Ansible — roles](../ansible/index.md).
 
-## After the phases
+## Post-phases
 
-With the platform running, add the **local AI assistant** (Ollama on several nodes behind a router, with
-Open WebUI and Open Terminal), the **centralized logs** with weekly reports with AI, and the **security**
+With the platform running, add the **local AI assistant** (Ollama on multiple nodes behind a router, with
+Open WebUI and Open Terminal), **centralized logs** with weekly reports by AI, and **security**
 layers (host firewall, service tokens, stage-based NetworkPolicy). They are in
 [Operation](../operacion/index.md): [Local AI assistant](../operacion/ia-ollama.md),
-[Logs](../operacion/logs.md) and [Authentication model](../security/modelo-de-autenticacion.md). If the control plane ever
-needed to change nodes, the procedure is in
+[Logs](../operacion/logs.md) and [Authentication model](../security/modelo-de-autenticacion.md). If the control plane node ever needs to be changed, the procedure is in
 [Move the control plane](../operacion/mover-control-plane.md).
 
-## Start here
+## Start Here
 
 **[→ Phase 0 — Preparation](fase-0-preparacion.md)**
 

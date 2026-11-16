@@ -24,6 +24,10 @@ GitOps, y que no pueden vivir en git:
   k8sgpt-operator-system/ollama-token-k8sgpt   token de K8sGPT ante el router (clave "token")
   monitoring/alert-triage-webhook          token del webhook de alert-triage (opcional; clave "token")
   ai/mcp-api-key                           API key de mcpo, los tool servers MCP (opcional; clave "key")
+  monitoring/mcp-api-key                   la misma, para que alert-triage use los tool servers
+  monitoring/anthropic-api-key             API key de Claude para alert-triage (opcional; clave "api_key")
+  ai/anthropic-api-key                     la misma, para Open WebUI (clave "api_key")
+  ai/nvidia-api-key                        API key de NVIDIA para Open WebUI (opcional; clave "api_key")
   ai-sandbox/open-terminal-api-key         API key de Open Terminal (opcional; clave "api_key"; el namespace y su PSA son de GitOps)
   ai/open-terminal-api-key                 el mismo valor, para Open WebUI (clave "api_key")
   namespace terraform                      state de OpenTofu (lo escribe el runner)
@@ -52,6 +56,8 @@ docs/maceosoft/github.md:
                         cliente del router de Ollama (>= 32 caracteres sin espacios; genéralos con: openssl rand -hex 32)
   alert-triage-webhook  (opcional, IA) token: Bearer con el que Alertmanager llama a alert-triage (openssl rand -hex 32)
   mcp-api-key           (opcional, IA) key: API key de mcpo para los tool servers MCP (openssl rand -hex 32)
+  Anthropic-apikey      (opcional, IA) api-key: API key de Claude (console.anthropic.com, workspace con tope de gasto)
+  Nvidia-Apikey         (opcional, IA) password: API key de NVIDIA (build.nvidia.com)
   open-terminal         (opcional, IA) api_key: API key de Open Terminal (>= 32 caracteres sin espacios; openssl rand -hex 32)
   ftp-<repo>            (uno por repo con deploy) dev_host, dev_user,
                         dev_password, dev_remote_dir, prod_host, prod_user,
@@ -133,7 +139,11 @@ SANDBOX_NAMESPACE = "ai-sandbox"
 GITOPS_NAMESPACES = (AI_NAMESPACE, SANDBOX_NAMESPACE)
 SINGLE_TOKEN_ITEMS = {
     "alert-triage-webhook": ("token", [(MONITORING_NAMESPACE, "alert-triage-webhook", "token")]),
-    "mcp-api-key": ("key", [(AI_NAMESPACE, "mcp-api-key", "key")]),
+    # mcpo (ai/tools) la exige; alert-triage (monitoring) la presenta para diagnosticar con las herramientas.
+    "mcp-api-key": ("key", [(AI_NAMESPACE, "mcp-api-key", "key"), (MONITORING_NAMESPACE, "mcp-api-key", "key")]),
+    # API keys de Claude y NVIDIA: alert-triage (gitops: ai/alert-triage) y Open WebUI (gitops: argocd/apps/open-webui.yaml).
+    "Anthropic-apikey": ("api-key", [(MONITORING_NAMESPACE, "anthropic-api-key", "api_key"), (AI_NAMESPACE, "anthropic-api-key", "api_key")]),
+    "Nvidia-Apikey": ("password", [(AI_NAMESPACE, "nvidia-api-key", "api_key")]),
     "open-terminal": ("api_key", [(SANDBOX_NAMESPACE, "open-terminal-api-key", "api_key"), (AI_NAMESPACE, "open-terminal-api-key", "api_key")]),
 }
 # Un token corto o con espacios sería adivinable o rompería la cabecera Authorization.
@@ -664,10 +674,10 @@ async def check() -> int:
     # Opcional: tokens de IA (router de Ollama, alert-triage, mcpo): campos presentes y con formato de token.
     token_items = {OLLAMA_ROUTER_ITEM: OLLAMA_ROUTER_FIELDS, **{i: (v[0],) for i, v in SINGLE_TOKEN_ITEMS.items()}}
     for title, names in token_items.items():
-        if title not in by_title:
+        if title.lower() not in by_title:
             print(f"  · sin item {title} (opcional: IA)")
             continue
-        item = await client.items.get(vault_id, by_title[title].id)
+        item = await client.items.get(vault_id, by_title[title.lower()].id)
         found = {f.title: f.value for f in item.fields}
         print(f"  {title}  (opcional: IA)")
         for name in names:

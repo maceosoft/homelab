@@ -1,0 +1,163 @@
+---
+# Una carpeta: data_relocation_item (ver defaults/main.yml).
+
+- name: "Ver si ya está movida ({{ data_relocation_item.name }})"
+  ansible.builtin.command: "mountpoint -q {{ data_relocation_item.src }}"
+  register: data_relocation_is_mount
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: "Mover ({{ data_relocation_item.name }})"
+  when: data_relocation_is_mount.rc != 0
+  block:
+    # El destino tiene que estar en otro disco: si el montaje no está, la copia caería en el mismo disco.
+    - name: "Comprobar que el destino está en otro disco ({{ data_relocation_item.name }})"
+      ansible.builtin.command: "findmnt -n -o TARGET -T {{ data_relocation_item.dest | dirname }}"
+      register: data_relocation_dest_mount
+      changed_when: false
+      check_mode: false
+      failed_when: data_relocation_dest_mount.stdout | trim in ['', '/']
+
+    - name: "Leer dueño y permisos de la carpeta original ({{ data_relocation_item.name }})"
+      ansible.builtin.stat:
+        path: "{{ data_relocation_item.src }}"
+      register: data_relocation_src_stat
+      failed_when: not data_relocation_src_stat.stat.exists
+
+    - name: "Crear el destino con el mismo dueño y permisos ({{ data_relocation_item.name }})"
+      ansible.builtin.file:
+        path: "{{ data_relocation_item.dest }}"
+        state: directory
+        owner: "{{ data_relocation_src_stat.stat.uid }}"
+        group: "{{ data_relocation_src_stat.stat.gid }}"
+        mode: "{{ data_relocation_src_stat.stat.mode }}"
+
+    # Primera copia con todo andando: lo grande se copia sin cortes y la copia final solo lleva lo que cambió.
+    # rc 24 = archivos que desaparecieron durante la copia (normal con servicios corriendo).
+    # rsync corre dentro del nodo, de disco a disco: synchronize copia desde la estación de control.
+    - name: "Copia previa en caliente ({{ data_relocation_item.name }})" # noqa: command-instead-of-module
+      ansible.builtin.command: >-
+        rsync -aHAX --numeric-ids --delete {{ data_relocation_item.src }}/ {{ data_relocation_item.dest }}/
+      register: data_relocation_precopy
+      changed_when: true
+      failed_when: data_relocation_precopy.rc not in [0, 24]
+      when: not ansible_check_mode
+
+    - name: "Pausa antes del corte ({{ data_relocation_item.name }})"
+      ansible.builtin.pause:
+        prompt: >-
+          Copia previa lista. Ahora se {{ 'vacía el nodo (drain), ' if data_relocation_item.drain | default(false) else '' }}paran
+          {{ ((data_relocation_item.stop | default([]))
+              + (['k3s y sus contenedores (k3s-killall.sh)'] if data_relocation_item.killall | default(false) else []))
+             | join(', ') }},
+          se hace la copia final y {{ data_relocation_item.src }} pasa a montarse desde {{ data_relocation_item.dest }}.
+          Enter para seguir, Ctrl+C+A para abortar.
+      when: not ansible_check_mode
+
+    - name: "Vaciar el nodo ({{ data_relocation_item.name }})"
+      ansible.builtin.command: >-
+        k3s kubectl drain {{ inventory_hostname }} --ignore-daemonsets --delete-emptydir-data --timeout=15m
+      changed_when: true
+      when:
+        - data_relocation_item.drain | default(false)
+        - not ansible_check_mode
+
+    - name: "Parar servicios ({{ data_relocation_item.name }})"
+      ansible.builtin.systemd_service:
+        name: "{{ item }}"
+        state: stopped
+      loop: "{{ data_relocation_item.stop | default([]) }}"
+      when: not ansible_check_mode
+
+    - name: "Detener k3s y sus contenedores ({{ data_relocation_item.name }})"
+      ansible.builtin.command: /usr/local/bin/k3s-killall.sh
+      changed_when: true
+      when:
+        - data_relocation_item.killall | default(false)
+        - not ansible_check_mode
+
+    - name: "Copia final ({{ data_relocation_item.name }})" # noqa: command-instead-of-module
+      ansible.builtin.command: >-
+        rsync -aHAX --numeric-ids --delete {{ data_relocation_item.src }}/ {{ data_relocation_item.dest }}/
+      changed_when: true
+      when: not ansible_check_mode
+
+    - name: "Guardar la carpeta original para rollback ({{ data_relocation_item.name }})"
+      ansible.builtin.command:
+        cmd: "mv {{ data_relocation_item.src }} {{ data_relocation_item.src }}{{ data_relocation_old_suffix }}"
+        creates: "{{ data_relocation_item.src }}{{ data_relocation_old_suffix }}"
+      when: not ansible_check_mode
+
+    - name: "Crear el punto de montaje ({{ data_relocation_item.name }})"
+      ansible.builtin.file:
+        path: "{{ data_relocation_item.src }}"
+        state: directory
+        owner: "{{ data_relocation_src_stat.stat.uid }}"
+        group: "{{ data_relocation_src_stat.stat.gid }}"
+        mode: "{{ data_relocation_src_stat.stat.mode }}"
+      when: not ansible_check_mode
+
+    # Sin nofail: si el disco no monta, el arranque lo muestra en vez de seguir con la carpeta vacía.
+    - name: "Montar el destino en la ruta original (fstab) ({{ data_relocation_item.name }})"
+      ansible.posix.mount:
+        path: "{{ data_relocation_item.src }}"
+        src: "{{ data_relocation_item.dest }}"
+        fstype: none
+        opts: "bind,x-systemd.requires-mounts-for={{ data_relocation_item.dest }}"
+        state: mounted
+
+# Con la carpeta vacía (disco sin montar), K3s arrancaría con un datastore nuevo y crearía otro clúster:
+# RequiresMountsFor hace que estos servicios no arranquen sin el montaje.
+- name: "Crear los directorios de drop-ins ({{ data_relocation_item.name }})"
+  ansible.builtin.file:
+    path: "/etc/systemd/system/{{ item }}.d"
+    state: directory
+    mode: "0755"
+  loop: "{{ data_relocation_item.guard | default([]) }}"
+
+- name: "No arrancar sin el disco (RequiresMountsFor) ({{ data_relocation_item.name }})"
+  ansible.builtin.copy:
+    dest: "/etc/systemd/system/{{ item }}.d/10-data-relocation.conf"
+    content: |
+      # Gestionado por Ansible (rol data_relocation).
+      [Unit]
+      RequiresMountsFor={{ data_relocation_item.src }}
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ data_relocation_item.guard | default([]) }}"
+  register: data_relocation_dropins
+
+# No es handler: la recarga tiene que pasar antes de volver a arrancar los servicios, no al final del play.
+- name: "Recargar systemd ({{ data_relocation_item.name }})" # noqa: no-handler
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+  when: data_relocation_dropins is changed
+
+- name: "Volver a arrancar ({{ data_relocation_item.name }})"
+  when:
+    - data_relocation_is_mount.rc != 0
+    - not ansible_check_mode
+  block:
+    - name: "Arrancar servicios ({{ data_relocation_item.name }})"
+      ansible.builtin.systemd_service:
+        name: "{{ item }}"
+        state: started
+      loop: "{{ data_relocation_item.start | default([]) }}"
+
+    - name: "Esperar que el nodo vuelva a Ready ({{ data_relocation_item.name }})"
+      ansible.builtin.command: >-
+        k3s kubectl get node {{ inventory_hostname }}
+        -o jsonpath={.status.conditions[?(@.type=="Ready")].status}
+      register: data_relocation_ready
+      until: data_relocation_ready.stdout == 'True'
+      retries: 60
+      delay: 10
+      changed_when: false
+      when: data_relocation_item.drain | default(false)
+
+    - name: "Volver a programar pods en el nodo ({{ data_relocation_item.name }})"
+      ansible.builtin.command: "k3s kubectl uncordon {{ inventory_hostname }}"
+      changed_when: true
+      when: data_relocation_item.drain | default(false)

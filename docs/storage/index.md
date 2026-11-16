@@ -11,14 +11,16 @@ Híbrido x86_64 + ARM64 (arquitectura ARM de 64 bits) — manifiestos GitOps en 
 ```mermaid
 flowchart TB
   PVC["PVC workload"]
-  subgraph tier_local ["Default (3 nodos)"]
+  subgraph tier_local ["Default (todos los nodos)"]
     OB["OpenEBS LocalPV"]
     INV["invincible"]
     NOL["oliver"]
     DEB["deborah"]
+    EVE["eve"]
     OB --> INV
     OB --> NOL
     OB --> DEB
+    OB --> EVE
   end
   subgraph tier_ha ["HA cross-arch"]
     LH["Longhorn v1"]
@@ -31,12 +33,12 @@ flowchart TB
   PVC --> LH
 ```
 
-- **[OpenEBS](https://openebs.io/docs)** — LocalPV default; 3 nodos; sin replicación.
+- **[OpenEBS](https://openebs.io/docs)** — LocalPV default; todos los nodos; sin replicación.
 - **[Longhorn](https://longhorn.io/docs/)** — Replicado x86↔arm64; pensado para invincible + deborah (ver [Longhorn v1](#longhorn-v1-ha-selectiva-cross-arch)).
 
 ## OpenEBS LocalPV (default)
 
-DaemonSet en los 3 nodos. StorageClass por defecto para casi todo.
+DaemonSet en todos los nodos. StorageClass por defecto para casi todo.
 
 Desplegado vía Argo CD Application `openebs` (Helm).
 
@@ -66,7 +68,7 @@ queda replicado entre arquitecturas.
   <div class="option-grid">
     <div class="card-col">
       <div class="card-title">OpenEBS LocalPV <span class="tag tag-accent">elegida</span></div>
-      <div class="text-muted">Simple en 3 nodos; default para casi todo</div>
+      <div class="text-muted">Simple en todos los nodos; default para casi todo</div>
       <div class="text-muted">Sin HA si cae el nodo del pod</div>
     </div>
     <div class="card-col">
@@ -158,7 +160,7 @@ Crea una carpeta en el disco del nodo donde corre el pod.
 |---|---|
 | La más rápida: disco local, sin red ni réplicas | **Sin replicación**: si el nodo cae, los datos no están disponibles hasta que vuelva |
 | Casi sin consumo de RAM/CPU; funciona igual en x86_64 y ARM64 | El pod queda **atado al nodo** donde nació el volumen: no puede reprogramarse en otro |
-| Funciona en los 3 nodos, sin preparar discos ni paquetes | No se puede ampliar, no hay snapshots ni cuotas (el pod puede llenar el disco del nodo) |
+| Funciona en todos los nodos, sin preparar discos ni paquetes | No se puede ampliar, no hay snapshots ni cuotas (el pod puede llenar el disco del nodo) |
 | Con `WaitForFirstConsumer` el volumen nace donde el scheduler (planificador) ubica el pod | Solo `ReadWriteOnce` (un solo nodo a la vez) |
 
 **Úsala para:** cachés, datos reconstruibles, bases de datos de pruebas, todo lo que se
@@ -205,9 +207,9 @@ compartidos.
 !!! note "¿En cuántos nodos vive Longhorn?"
     Las etiquetas `node.longhorn.io/create-default-disk` de arriba solo se respetan si el
     ajuste `createDefaultDiskLabeledNodes` está en `true`. Hoy está en `false` (verificado
-    con `kubectl -n longhorn-system get settings.longhorn.io`), así que **los tres nodos**
-    aportan disco, `oliver` incluido. Para limitarlo a `invincible` y `deborah`, activa ese
-    ajuste en `defaultSettings` de `longhorn.yaml` y desactiva el disco de `oliver` en la UI.
+    con `kubectl -n longhorn-system get settings.longhorn.io`), así que **los cuatro nodos**
+    aportan disco, `oliver` y `eve` incluidos. Para limitarlo a `invincible` y `deborah`, activa ese
+    ajuste en `defaultSettings` de `longhorn.yaml` y desactiva los discos de `oliver` y `eve` en la UI.
 
     === "🖱️ Desde la interfaz"
 

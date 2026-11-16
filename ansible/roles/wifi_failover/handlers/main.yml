@@ -1,0 +1,5 @@
+---
+# reload aplica la config nueva de br0: puede cortar su IP un par de segundos.
+- name: Recargar systemd-networkd
+  ansible.builtin.command: networkctl reload
+  changed_when: true

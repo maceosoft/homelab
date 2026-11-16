@@ -7,3 +7,9 @@ cluster:
       name: {{ incus_storage_pool }}
       key: source
       value: "{{ incus_storage_device | default('') }}"
+{% for net in incus_cluster_physical_networks.stdout_lines | default([]) %}
+    - entity: network
+      name: {{ net }}
+      key: parent
+      value: "{{ incus_bridge | default('br0') }}"
+{% endfor %}

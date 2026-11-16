@@ -40,14 +40,12 @@ ansible/backups/
 .vault_pass_homelab
 
 # Resguardo: memorias/planes/bitacoras de sesiones de trabajo no van en el
-# repo (ver CLAUDE.md). Si alguna herramienta los crea aca, que no se commiteen.
+# repo. Si alguna herramienta los crea aca, que no se commiteen.
 .superpowers/
 
 # Cache de bytecode Python
 __pycache__/
 *.pyc
-CLAUDE.md
-.claude
 
 # Estado local de herramientas (Ansible, editor)
 .ansible/

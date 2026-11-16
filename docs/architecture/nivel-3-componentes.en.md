@@ -1,18 +1,14 @@
 # C4 Level 3 — Components
 
-Zoom into each **container** of the [Level 2](overview.md#level-2-containers):
-internal components, technologies, and relationships. For the physical node map,
-continue to **[Level 4 — Deployment](nivel-4-despliegue.md)**.
+Zoom into each **container** from [Level 2](overview.md#level-2-containers): internal components, technologies, and relationships. For the physical node map, continue to **[Level 4 — Deployment](nivel-4-despliegue.md)**.
 
-Return to [Overview (Levels 1–2)](overview.md).
+Back to [Overview (Level 1–2)](overview.md).
 
 ## 3.1 — K3s Management
 
-Breakdown of the bare-metal control cluster: GitOps (Argo CD), identity (Dex),
-provisioning CAPI/CAPN, service network (MetalLB, Gateway), storage operators (OpenEBS, Longhorn), secrets (Sealed Secrets), upgrades (SUC), and optional vCluster Platform.
+Breakdown of the bare-metal control cluster: GitOps (Argo CD), identity (Dex), CAPI/CAPN provisioning, service networking (MetalLB, Gateway), storage operators (OpenEBS, Longhorn), secrets (Sealed Secrets), upgrades (SUC), and optional vCluster Platform.
 
-Operational details: [Technology Stack](../implementacion/stack-tecnologico.md),
-[GitOps](../gitops/index.md).
+Operational detail: [Tech Stack](../implementacion/stack-tecnologico.md), [GitOps](../gitops/index.md).
 
 ```mermaid
 ---
@@ -69,11 +65,9 @@ flowchart LR
 
 ## 3.2 — Incus Cluster
 
-Internals of the HA (high availability) Incus cluster on the 3 physical nodes: quorum dqlite, daemon
-per member, pool `local` (driver `dir`), cluster groups, manual scheduler in
-`oliver`, native UI in invincible and OIDC (OpenID Connect) Dex (Phase 4).
+Internals of the HA (high availability) Incus cluster on the 4 physical nodes: dqlite quorum (3 members vote and `eve` stands by as reserve), daemon per member, pool `local` (driver `dir`), cluster groups, manual scheduler on `oliver`, native UI (user interface) on invincible and OIDC (OpenID Connect) Dex (Phase 4).
 
-Details: [Incus Cluster](../incus/cluster-setup.md).
+Detail: [Incus Cluster](../incus/cluster-setup.md).
 
 ```mermaid
 ---
@@ -86,7 +80,7 @@ flowchart TB
     operador(["<span style='color:#fff'><b>Operador HomeLab</b><br/><small>[Person]</small><br/>incus CLI / UI</span>"])
     k3s_mgmt["<span style='color:#fff'><b>K3s Management</b><br/><small>[Container: Kubernetes]</small><br/>CAPN provider</span>"]
     subgraph incus["Incus Cluster"]
-        dqlite["<span style='color:#000'><b>dqlite</b><br/><small>[Component: DB cluster]</small><br/>Quorum 3 miembros</span>"]
+        dqlite["<span style='color:#000'><b>dqlite</b><br/><small>[Component: DB cluster]</small><br/>Quorum: 3 votan + 1 de reserva</span>"]
         incusd["<span style='color:#000'><b>incusd</b><br/><small>[Component: daemon]</small><br/>API REST en cada nodo</span>"]
         storage_pool["<span style='color:#000'><b>Pool local</b><br/><small>[Component: dir driver]</small><br/>Pool local por miembro</span>"]
         groups["<span style='color:#000'><b>Cluster groups</b><br/><small>[Component: Incus]</small><br/>x86-nodes / arm64-nodes</span>"]
@@ -117,11 +111,9 @@ flowchart TB
 
 ## 3.3 — Workload Clusters
 
-Internal structure of a **kubeadm** ephemeral cluster provisioned by CAPN (Cluster API Provider for Incus)
-(e.g., `demo`): LXCMachine in Incus, control plane, workers, and CNI (Container Network Interface) Flannel of
-the workload. Not a nested K3s (lightweight Kubernetes distribution).
+Internal structure of an ephemeral **kubeadm** cluster provisioned by CAPN (Cluster API Provider for Incus) (e.g. `demo`): LXCMachine in Incus, control plane, workers, and workload CNI (Container Network Interface) Flannel. Not nested K3s (lightweight Kubernetes distribution).
 
-Details: [CAPN](../capn/index.md), [Phase 6](../implementacion/fase-6-capn.md).
+Detail: [CAPN](../capn/index.md), [Phase 6](../implementacion/fase-6-capn.md).
 
 ```mermaid
 ---
@@ -166,11 +158,9 @@ flowchart TB
 
 ## 3.4 — Storage
 
-Logical components of the hybrid tier **OpenEBS LocalPV** (default, 3 nodes) +
-**Longhorn v1** (cross-arch replica between `invincible` and `deborah`; see [Longhorn v1](../storage/index.md#longhorn-v1-selective-ha-cross-arch)). The pods
-run in K3s; here they are modeled as a separate Level 2 C4 container for clarity.
+Logical components of the hybrid tier **OpenEBS LocalPV** (default, all nodes) + **Longhorn v1** (cross-arch replication between `invincible` and `deborah`; see [Longhorn v1](../storage/index.md#longhorn-v1-selective-ha-cross-arch)). Pods run in K3s; here they are modeled as a separate C4 Level 2 container for clarity.
 
-Details: [Storage](../storage/index.md).
+Detail: [Storage](../storage/index.md).
 
 ```mermaid
 ---
@@ -184,7 +174,7 @@ flowchart TB
     k3s_mgmt["<span style='color:#fff'><b>K3s Management</b><br/><small>[Container: Kubernetes]</small><br/>Pods del management</span>"]
     subgraph storage["Storage tier"]
         sc["<span style='color:#000'><b>StorageClasses</b><br/><small>[Component: GitOps]</small><br/>openebs-hostpath + longhorn-mixto</span>"]
-        openebs_prov["<span style='color:#000'><b>OpenEBS LocalPV</b><br/><small>[Component: DaemonSet]</small><br/>Default 3 nodos</span>"]
+        openebs_prov["<span style='color:#000'><b>OpenEBS LocalPV</b><br/><small>[Component: DaemonSet]</small><br/>Default en todos los nodos</span>"]
         longhorn_mgr["<span style='color:#000'><b>Longhorn manager</b><br/><small>[Component: Deployment]</small><br/>Control de volúmenes</span>"]
         longhorn_eng["<span style='color:#000'><b>Longhorn engine</b><br/><small>[Component: DaemonSet]</small><br/>Réplicas v1 cross-arch</span>"]
         csi["<span style='color:#000'><b>CSI drivers</b><br/><small>[Component: CSI]</small><br/>OpenEBS + Longhorn</span>"]
@@ -209,10 +199,9 @@ flowchart TB
 
 ## 3.5 — Cinc Lab
 
-Learning sandbox **Cinc/Chef** in Incus VMs (virtual machines) (Ubuntu 24.04), one in
-`@x86-nodes` and another in `@arm64-nodes`. Not a production piece of the HomeLab.
+**Cinc/Chef** learning sandbox on Incus VMs (virtual machines) (Ubuntu 24.04), one on `@x86-nodes` and another on `@arm64-nodes`. Not a production piece of the HomeLab.
 
-Details: [Cinc/Chef Lab](../labs/cinc/index.md).
+Detail: [Cinc/Chef Lab](../labs/cinc/index.md).
 
 ```mermaid
 ---
@@ -255,11 +244,9 @@ flowchart TB
     style vms fill:none,stroke:#aaa,stroke-dasharray:2 3
 ```
 
-
 ## 3.6 — Monitoring
 
-Observability stack in the namespace `monitoring`, deployed by Argo CD. **VictoriaMetrics** (Prometheus-compatible metrics database) stores the series; **vmagent** scrapes them every 60 seconds from the nodes, the platform, and Incus; **vmalert** evaluates the rules and **Alertmanager** sends the alerts to Discord. The **probes** are executed by **blackbox-exporter** (HTTP and DNS seen from inside the cluster). On each node, **node-exporter** publishes CPU, memory, and temperatures, and also reads the **textfile collectors**: files `.prom` that some timers
-(`systemd timers`) write to the node with pending apt patches and the DNS (BIND) status; the SMART role is prepared in the repo.
+Observability stack in the `monitoring` namespace, deployed by Argo CD. **VictoriaMetrics** (Prometheus-compatible metrics database) stores the series; **vmagent** scrapes them every 60 seconds from nodes, platform, and Incus; **vmalert** evaluates rules and **Alertmanager** sends alerts to Discord. **Probes** are run by **blackbox-exporter** (HTTP and DNS seen from inside the cluster). On each node, **node-exporter** publishes CPU, memory, and temperatures, and also reads the **textfile collectors**: `.prom` files that timers (`systemd timers`) write on the node with pending apt patches and DNS status (BIND); the SMART role is prepared in the repo.
 
 ```mermaid
 ---
@@ -284,7 +271,7 @@ flowchart LR
         alertmanager["<span style='color:#000'><b>Alertmanager</b><br/><small>[Component: notifier]</small><br/>Agrupa, enruta y repite avisos</span>"]
         grafana["<span style='color:#000'><b>Grafana</b><br/><small>[Component: UI]</small><br/>Paneles; SSO con Dex</span>"]
         blackbox["<span style='color:#000'><b>blackbox-exporter</b><br/><small>[Component: probes]</small><br/>Sondas HTTP, redirección y DNS (VMProbe)</span>"]
-        subgraph nodos["En cada nodo (invincible, oliver, deborah)"]
+        subgraph nodos["En cada nodo (invincible, oliver, eve, deborah)"]
             direction TB
             nodeexp["<span style='color:#000'><b>node-exporter</b><br/><small>[Component: DaemonSet]</small><br/>CPU, memoria, disco, temperaturas</span>"]
             textfile["<span style='color:#000'><b>Textfile collectors</b><br/><small>[Component: systemd timers]</small><br/>Parches de apt y estado del DNS (.prom)</span>"]
@@ -321,4 +308,4 @@ flowchart LR
 
 ## Next
 
-**[→ Level 4 — Deployment](nivel-4-despliegue.md)** — physical map of the 3 nodes.
+**[→ Level 4 — Deployment](nivel-4-despliegue.md)** — physical map of the 4 nodes.

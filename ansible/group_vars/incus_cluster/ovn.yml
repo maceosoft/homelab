@@ -6,6 +6,11 @@
 #   ansible-playbook -i inventory.ini playbook-incus-cluster.yml --tags ovn -e incus_ovn_enabled=true -e incus_ovn_confirm=true  # instala
 incus_ovn_enabled: false
 
+# Miembros de la base de datos de OVN (Raft, ovn-central). Fijos, en este orden (el líder primero): es la
+# northbound_connection de Incus. Un nodo nuevo NO entra a la base: solo instala ovn-host (chassis), así
+# sumarlo no cambia la conexión ni reinicia ovn-central en los demás.
+incus_ovn_db_hosts: [invincible, oliver, deborah]
+
 # Segmentos. Los dos primeros son de la LAN (192.168.20.0/22) y deben quedar FUERA del DHCP del router
 # (192.168.20.31-192.168.23.191) y del pool de MetalLB (192.168.23.200-192.168.23.220).
 # Zona libre arriba: 192.168.23.192-192.168.23.255. Reparto:

@@ -1,6 +1,6 @@
 # Logs centralizados y reportes con IA
 
-Los registros (logs) de los tres nodos y de todos los pods se juntan en un solo lugar y se leen desde Grafana.
+Los registros (logs) de todos los nodos y de todos los pods se juntan en un solo lugar y se leen desde Grafana.
 Sobre esos registros corren además dos reportes automáticos: uno **diario** que resume lo ocurrido y uno **semanal**
 con sugerencias de mejora, publicados en el canal `#ia` de Discord.
 
