@@ -19,8 +19,8 @@ primero en 1Password (bóveda `HomeLab`) y después se lleva al clúster.
 
 | Credencial | Item en 1Password | Se aplica con |
 |---|---|---|
-| Private key de una GitHub App (`maceosoft-terraform`, `maceosoft-arc-runners`, `maceosoft-argocd`) | el item con el nombre de la App | `playbook-platform-secrets.yml` |
-| Credenciales FTP de un repo | `ftp-<repo>` | `playbook-platform-secrets.yml` + pipeline de `infra` |
+| Private key de una GitHub App (`maceosoft-arc-runners`, `maceosoft-argocd`) | el item con el nombre de la App | `playbook-platform-secrets.yml` (`maceosoft-terraform` ya no lo lee: los runners no llevan credenciales de OpenTofu) |
+| Credenciales FTP de un repo | `ftp-<repo>` | Ya no llegan al clúster: `playbook-platform-secrets.yml` no las lee ([ver Agregar un repo](agregar-repo.md#2-solo-si-despliega-credenciales-ftp-en-1password)) |
 | Client secret de Dex (login con GitHub) | `maceosoft-dex` | `playbook-dex-oauth-secrets.yml` |
 | Webhooks de Discord, ping URL de healthchecks.io y contraseña de Grafana (monitoreo) | `discord-webhooks`, `healthchecks-ping`, `grafana-admin` | `playbook-platform-secrets.yml` ([ver abajo](#monitoreo-webhooks-de-discord-ping-de-healthchecksio-y-grafana)) |
 | Clave de sesión de Open WebUI (asistente de IA) | `open-webui` (campo `WEBUI_SECRET_KEY`) | `playbook-platform-secrets.yml` ([cómo generarla](ia-ollama.md#crear-la-clave-de-open-webui-una-sola-vez)) |
@@ -30,7 +30,7 @@ primero en 1Password (bóveda `HomeLab`) y después se lleva al clúster.
 | Webhook del canal `#ia` (reportes con IA) | `discord-webhooks` (campo `ai`) | `playbook-platform-secrets.yml` ([crear el canal](logs.md#crear-el-canal-ia-y-su-webhook-una-sola-vez)) |
 | Contraseña de root de los nodos | `root@<nodo>` (la crea el playbook) | `playbook-rotate-root-passwords.yml` |
 | Llave de Sealed Secrets | `sealed-secrets` | `playbook-platform-secrets.yml` ([ojo: ver abajo](#llave-de-sealed-secrets)) |
-| Token de Argo CD del pipeline de `gitops` (cuenta `ci`) | `argocd-ci` | `playbook-platform-secrets.yml` ([cómo generarlo](pipeline-gitops.md#activar-el-diff-contra-el-cluster-una-vez)) |
+| Token de Argo CD del pipeline de `gitops` (cuenta `ci`, vence a los 90 días) | `argocd-ci` | Secreto de GitHub Actions `ARGOCD_CI_TOKEN` de `maceosoft/gitops`, no el playbook ([cómo generarlo y renovarlo](pipeline-gitops.md#activar-el-diff-contra-el-cluster-una-vez)) |
 
 ## Private key de una GitHub App
 

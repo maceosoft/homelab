@@ -136,6 +136,9 @@ jobs:
       - name: Tests de las métricas de servicios del host
         run: python -m unittest discover -s ansible/roles/node_units_metrics/tests
 
+      - name: Tests de los secretos de plataforma (1Password y kubectl simulados)
+        run: python -m unittest discover -s ansible/scripts/tests
+
   opentofu:
     runs-on: arc-runners
     steps:

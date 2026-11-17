@@ -29,51 +29,66 @@ Argo CD.
 
 El diff usa una cuenta de Argo CD de **solo lectura**, `ci`, que ya está
 declarada en `gitops/argocd/config` (`accounts.ci: apiKey` y
-`g, ci, role:readonly`). Falta generar su token y llevarlo al runner. Hay que
-hacerlo con Argo CD ya funcionando y `argocd` sincronizado. Mientras no
+`g, ci, role:readonly`). Falta generar su token y guardarlo como **secreto de
+GitHub Actions** `ARGOCD_CI_TOKEN` del repo `maceosoft/gitops`. Hay que hacerlo
+con Argo CD ya funcionando y `argocd` sincronizado. Mientras el secreto no
 exista, el job se salta con un aviso y los demás jobs corren igual.
 
-1. Genera el token con la CLI (Command Line Interface) de Argo CD, logueado como admin:
+`gitops/.github/workflows/validate.yml` pasa ese secreto como `argocd-token`
+a `gitops.yml`, que se lo entrega **solo al paso del diff** (como
+`ARGOCD_AUTH_TOKEN`). GitHub no se lo da a los PR de Dependabot ni de forks: en
+esos PR el diff se omite.
+
+!!! info "Por qué ya no está en el entorno del runner"
+    Antes el token llegaba al runner como el Secret `arc-runners/argocd-ci`
+    (junto con `terraform-app` y `tofu-vars`), que el scale set cargaba en el
+    entorno de **todos** los jobs. Así cualquier job de cualquier repo de la
+    org, incluido el código de un PR, podía leer esas credenciales. Ahora el
+    runner no lleva credenciales en su entorno, y `playbook-platform-secrets.yml`
+    borra esos tres Secrets de `arc-runners` si todavía existen.
+
+Necesitas la CLI (Command Line Interface) de Argo CD con un usuario que pueda
+generar tokens (admin), `op` con 1Password desbloqueado (si tienes más de una
+cuenta, exporta `OP_ACCOUNT` antes) y `gh` logueado como owner de la org.
+El token vence a los **90 días** (`--expires-in 2160h`).
+
+1. Entra a Argo CD:
 
     ```bash
-    argocd login argocd.homelab.local --grpc-web
-    argocd account generate-token --account ci
+    argocd login argocd.homelab.local --sso --grpc-web
     ```
 
-2. Guarda el token en 1Password, bóveda `HomeLab`, item **`argocd-ci`**:
-
-    === "🖱️ Desde la interfaz"
-
-        En 1Password, bóveda `HomeLab`, crea el item **`argocd-ci`** (Nota segura)
-        con un campo **`token`** (Contraseña) y pega el token
-        ([cómo crear un item](../maceosoft/github.md#como-crear-un-item-con-campos-propios)).
-
-    === "⌨️ Desde la consola"
-
-        Un solo comando genera el token y lo guarda, sin que se vea en pantalla (necesitas el login de `argocd` del paso 1
-        y 1Password desbloqueado; si tienes más de una cuenta de 1Password, exporta `OP_ACCOUNT` antes):
-
-        ```bash
-        op item create --category "Secure Note" --vault HomeLab --title argocd-ci \
-          "token[password]=$(argocd account generate-token --account ci)"
-        ```
-
-        Para rotarlo: `op item edit argocd-ci "token[password]=$(argocd account generate-token --account ci)"`.
-
-3. Llévalo al clúster (crea el Secret `arc-runners/argocd-ci`), desde
-   `ansible/` en `homelab`:
+2. Genera el token y guárdalo en 1Password (bóveda `HomeLab`, item **`argocd-ci`**,
+   campo `token`) y en GitHub. Los comandos encadenados con `&&` y el
+   `test -n` hacen que, si `argocd` falla, no se guarde un valor vacío; el token
+   no se muestra en pantalla:
 
     ```bash
-    # tu cuenta
-    export ONEPASSWORD_ACCOUNT_NAME="Mi Cuenta"
-    # tiene que mostrar: argocd-ci (opcional) ✓ token
-    ../.venv/bin/python scripts/apply_platform_secrets.py --check
-    ansible-playbook -i inventory.ini playbook-platform-secrets.yml
+    TOKEN=$(argocd account generate-token --account ci --expires-in 2160h) && test -n "$TOKEN" \
+      && { op item edit argocd-ci --vault HomeLab "token[password]=$TOKEN" >/dev/null \
+           || op item create --category "Secure Note" --vault HomeLab --title argocd-ci "token[password]=$TOKEN" >/dev/null; } \
+      && printf '%s' "$TOKEN" | gh secret set ARGOCD_CI_TOKEN --repo maceosoft/gitops
+    unset TOKEN
     ```
 
-Los runners nuevos ya lo reciben como `ARGOCD_AUTH_TOKEN` (el scale set lo
-monta con `optional: true`). Para rotarlo, genera otro token, reemplaza el
-campo y re-corre el playbook.
+    `op item edit` actualiza el item si existe; si no existe, lo crea `op item create`.
+    El valor pasa por argumento a `op` y se ve un instante en `ps` dentro de tu
+    propio equipo; no lo hagas en un equipo compartido.
+
+3. Comprueba que el secreto existe (GitHub muestra solo el nombre y la fecha, nunca el valor):
+
+    ```bash
+    gh secret list --repo maceosoft/gitops
+    ```
+
+    El próximo PR en `gitops` tiene que mostrar el diff en el resumen del job `argocd-diff`.
+
+!!! warning "Renovarlo antes de los 90 días"
+    Cuando el token vence, `argocd-diff` falla al comparar. Repite los pasos 1 y 2
+    **antes** de que pasen 90 días (deja un recordatorio en tu calendario): se
+    sobrescriben el item de 1Password y el secreto de GitHub. Para ver los tokens
+    de la cuenta y cuándo vencen: `argocd account get --account ci`; para
+    revocar uno viejo: `argocd account delete-token --account ci <id>`.
 
 ## Exigir el pipeline antes de mergear (opcional)
 
@@ -130,5 +145,5 @@ En el propio repo `gitops`: `.yamllint.yaml` (reglas de yamllint) y
 | `schemas`: `additionalProperties '…' not allowed` | Un campo mal escrito o en el lugar equivocado en ese manifiesto |
 | `schemas`: `could not find schema` | Un CRD que no está en el catálogo; si es a propósito, hay que agregarlo a los `-skip` del job |
 | `security`: gitleaks encontró algo | Si es un secreto real: rótalo y sácalo del historial. Si es un ejemplo con placeholders, nómbralo `*.example.yaml` |
-| `argocd-diff` omitido | Falta el token (sección *Activar el diff*) |
-| `argocd-diff`: error al comparar | La cuenta `ci` no existe o no tiene `role:readonly` (sincroniza `argocd`), o el token venció |
+| `argocd-diff` omitido | Falta el secreto `ARGOCD_CI_TOKEN` en `maceosoft/gitops` (sección *Activar el diff*), o es un PR de Dependabot o de un fork |
+| `argocd-diff`: error al comparar | La cuenta `ci` no existe o no tiene `role:readonly` (sincroniza `argocd`), o el token venció (renuévalo: sección *Activar el diff*) |

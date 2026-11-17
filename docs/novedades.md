@@ -10,6 +10,10 @@ pymdownx.snippets. Una línea de fecha y título en negrita, dos o tres frases y
 -->
 
 <!-- --8<-- [start:recientes] -->
+- **17 nov 2026 · Runners sin credenciales en su entorno.** Los runners de GitHub Actions de `maceosoft` ya no cargan
+  la App de OpenTofu, las credenciales FTP ni el token de Argo CD: cualquier job, incluido el de un PR, podía leerlos.
+  El token del diff de `gitops` llega ahora como secreto de GitHub Actions solo al paso que lo usa, y vence a los 90
+  días. [Pipeline de gitops](operacion/pipeline-gitops.md#activar-el-diff-contra-el-cluster-una-vez).
 - **15 nov 2026 · La IA pasa a Claude y NVIDIA.** Ollama quedó pausado en todos los nodos porque los calentaba
   demasiado. Ahora cada alerta llega a Discord con un resumen de Claude, y Open WebUI conversa con Claude y con modelos
   abiertos de NVIDIA. Las claves viven en 1Password, como el resto de los secretos.
@@ -18,11 +22,11 @@ pymdownx.snippets. Una línea de fecha y título en negrita, dos o tres frases y
   copiarle datos: quedó fuera de uso hasta tener disipador y ahora hay alertas de temperatura de NVMe y de disco
   desaparecido. Un script muestra todos los sensores de cada nodo.
   [Salud de los discos](operacion/salud-de-discos.md#nvme).
+<!-- --8<-- [end:recientes] -->
 - **8 nov 2026 · Un cuarto nodo: `eve`.** Una MacBook Pro 16" de 2019 con chip T2 (el coprocesador de seguridad de
   Apple) se suma al clúster como miembro de Incus, nodo de Kubernetes y nodo de Ollama. Se conecta por un adaptador de
   red gigabit TP-Link; si se corta el cable, el WiFi de respaldo ahora sí toma el control, y el prompt avisa si está
   con cargador o a batería. [Ver en el inventario](hardware/inventory.md#eve-macbook-pro-con-chip-t2).
-<!-- --8<-- [end:recientes] -->
 - **8 nov 2026 · Monitoreo listo para cuatro nodos.** Las alertas de Calico comparan con la cantidad real de nodos en
   vez de un número fijo, las métricas de Incus incluyen a `eve` y se arregló un cruce entre Argo CD y el operador de
   VictoriaMetrics que desincronizaba los logs cada cinco minutos. De paso: Open WebUI 0.13, VictoriaMetrics 0.97 y

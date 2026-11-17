@@ -236,7 +236,10 @@ cd ..
 |---|---|---|
 | `repo-gitops` | `argocd` | App `maceosoft-argocd` para `https://github.com/maceosoft/gitops.git` |
 | `arc-runners-github-app` | `arc-runners` | Registro del runner de ARC |
-| `terraform-app`, `tofu-vars` | `arc-runners` | Credenciales de OpenTofu (`TF_VAR_*`) para el pipeline |
+
+Los runners de `maceosoft` no llevan credenciales en su entorno: el playbook ya no crea `terraform-app`, `tofu-vars` ni
+`argocd-ci`, y los borra de `arc-runners` si existen. El token del diff de Argo CD va como secreto de GitHub Actions
+([Pipeline de gitops](../operacion/pipeline-gitops.md#activar-el-diff-contra-el-cluster-una-vez)).
 
 También crea el namespace `terraform`, donde OpenTofu guarda su estado. Usa
 siempre `~/.kube/homelab-k3s.yaml`, no el contexto actual de `kubectl`. Es
@@ -702,6 +705,13 @@ Comprueba que el runner aparece en GitHub:
     ```bash
     gh api orgs/maceosoft/actions/runners --jq '.runners[] | [.name, .status] | @tsv'
     ```
+
+!!! warning "El pipeline de OpenTofu no tiene credenciales hoy"
+    `tofu.yml` espera `TF_VAR_github_app_*` y `TF_VAR_ftp` en el entorno del runner, y los runners de `maceosoft` ya no
+    los llevan (cualquier job, incluido el código de un PR, podía leerlos). Hoy ningún repo de `maceosoft` llama a
+    `tofu.yml`. Antes de usarlo hay que pasarle esas credenciales como secretos de GitHub Actions del repo que lo llama,
+    entregados solo al paso que las usa, como el token del
+    [pipeline de gitops](../operacion/pipeline-gitops.md#activar-el-diff-contra-el-cluster-una-vez).
 
 **Primer pipeline.** En `maceosoft/infra`, lanza *Actions → tofu → Run
 workflow* sobre `main`, o haz un push a `main`. El workflow reusable
@@ -1201,7 +1211,7 @@ playbook de secretos ya aplicado.
 | Apps en `Error`: `ComparisonError … terminatingReplicas: field not declared in schema` | Argo CD es anterior a la 3.5 y el clúster tiene Kubernetes 1.34 o más nuevo: [Actualizar Argo CD](../operacion/actualizar-argocd.md#la-primera-vez-actualizar-a-mano-y-despues-activar-la-app) |
 | Login con GitHub da 404 (`client_id=.github.clientId`) | Faltan `dex.*` en `argocd-secret`: corre `playbook-dex-oauth-secrets.yml --tags argocd` ([4.7](#47-secretos-oauth-github-vcluster-incus-ui)) |
 | Runner no aparece en GitHub | `kubectl logs -n arc-systems` del listener; Secret `arc-runners/arc-runners-github-app` (App instalada en `maceosoft`) |
-| Pipeline `tofu` sin runner o sin credenciales | Runner `arc-runners` Online; Secrets `terraform-app`/`tofu-vars` en `arc-runners` |
+| Pipeline `tofu` sin runner o sin credenciales | Runner `arc-runners` Online. Los runners ya no llevan `TF_VAR_*` en su entorno: el pipeline tiene que recibir sus credenciales como secretos de GitHub Actions del repo que lo llama |
 | Longhorn pending | Etiquetas Longhorn ([playbook-options](../k3s/playbook-options.md)) |
 
 Catálogo y troubleshooting extendido: [GitOps — profundización](../gitops/index.md).
