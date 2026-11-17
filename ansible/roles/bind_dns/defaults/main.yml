@@ -49,11 +49,13 @@ bind_dns_tsig_keys:
   - { name: homelab-ansible, field: ansible }
   - { name: homelab-externaldns, field: externaldns }
 
-# Registros fijos de homelab.local (los escribe Ansible; ExternalDNS no puede tocarlos).
+# Registros fijos de homelab.local (los escribe Ansible; ExternalDNS no puede tocarlos). s3 apunta al nodo con los
+# buckets de Incus (incus_s3_host, rol incus_s3), no al líder del clúster.
 bind_dns_static_records: >-
   {{
     [{'name': 'ns', 'ip': dns_primary},
      {'name': 'incus', 'ip': hostvars[incus_cluster_leader].static_ip},
+     {'name': incus_s3_dns_name.split('.')[0], 'ip': hostvars[incus_s3_host].static_ip},
      {'name': 'k3s', 'ip': k3s_api_ip}]
     + bind_dns_node_records
   }}

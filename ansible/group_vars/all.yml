@@ -29,6 +29,13 @@ k3s_api_endpoint: k3s.homelab.local
 # IP a la que apunta ese registro: la del nodo que hoy es k3s_server (deborah).
 # Tras la mudanza, cambiar a la IP de oliver (192.168.20.7) y re-aplicar bind_dns.
 k3s_api_ip: "192.168.20.5"
+
+# --- S3 de Incus (rol incus_s3) ---
+# Nodo que tiene los buckets del pool "local" y publica el S3 por HAProxy. El registro s3.homelab.local (bind_dns)
+# apunta a su IP, no al líder del clúster Incus (registro "incus"), que puede cambiar. playbook-incus-s3.yml corre en
+# este mismo nodo.
+incus_s3_host: invincible
+incus_s3_dns_name: s3.homelab.local
 # Compatibilidad: lo usa la zona mco.local (registro "k3s").
 k3s_control_plane_host: "{{ k3s_api_ip }}"
 # SANs del certificado del API. Además de estos, el rol k3s_server agrega la IP y el

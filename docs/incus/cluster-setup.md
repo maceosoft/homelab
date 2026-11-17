@@ -409,7 +409,7 @@ verifica al final. Para rehacer el clúster después de desinstalar: `playbook-b
 Incus ofrece buckets por S3 (Simple Storage Service, el protocolo de objetos de Amazon) en el pool `local`. Cada bucket
 vive solo en el miembro donde se creó (hoy `backup`, `test` y `postgres-backups`, todos en `invincible`) y solo ese
 miembro lo sirve. El S3 no se publica directamente: Incus lo escucha en loopback (`core.storage_buckets_address` en
-`127.0.0.1:8556`, solo en `invincible`) y HAProxy lo publica en `https://192.168.20.6:8555` con un certificado de la
+`127.0.0.1:8556`, solo en `invincible`) y HAProxy lo publica en `https://s3.homelab.local:8555` (`192.168.20.6`) con un certificado de la
 CA (autoridad certificadora) del HomeLab, para no cambiar el certificado de la API de Incus. Por qué, cómo se renueva
 y los comandos: [PostgreSQL y respaldos en Incus](../storage/postgres.md#el-certificado-del-endpoint-s3).
 

@@ -2,7 +2,7 @@
 
 El HomeLab tiene un PostgreSQL compartido para las aplicaciones de la plataforma (la primera es `homelab-agent`). Lo
 administra CloudNativePG, un operador de Kubernetes, y sus respaldos (el WAL, Write-Ahead Log: el registro de cambios
-de PostgreSQL, y una copia base diaria) van a un bucket de Incus por S3 (Simple Storage
+de PostgreSQL, y una copia base semanal) van a un bucket de Incus por S3 (Simple Storage
 Service, el protocolo de almacenamiento de objetos de Amazon), cifrado con TLS (Transport Layer Security) y con un
 certificado firmado por la CA (autoridad certificadora) del HomeLab.
 
@@ -16,9 +16,9 @@ fuera de Kubernetes (el S3 de Incus, su certificado y los Secrets que vienen de 
 |---|---|---|
 | Cluster `postgres` | namespace `postgres` (gitops) | Una instancia de PostgreSQL 18 con un volumen de Longhorn; servicio `postgres-rw.postgres.svc:5432` |
 | Rol y base `homelab_agent` | gitops (`DatabaseRole` y `Database`) | Base de `homelab-agent`, con su propio usuario |
-| Respaldos | plugin Barman Cloud (gitops, componente `backups/`) | WAL archivado de forma continua y un respaldo base diario, con 30 días de retención |
+| Respaldos | plugin Barman Cloud (gitops, componente `backups/`) | WAL archivado de forma continua y un respaldo base semanal (domingo 03:00 UTC), con 3 semanas de retención: se puede volver a cualquier momento de las últimas 3 semanas |
 | Bucket `postgres-backups` | Incus, pool `local`, miembro `invincible` | Guarda los respaldos. Lo crea una persona |
-| Endpoint `https://192.168.20.6:8555` | HAProxy en `invincible` ([rol `incus_s3`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/incus_s3/README.md)) | Publica el S3 de Incus con un certificado de `homelab-ca` |
+| Endpoint `https://s3.homelab.local:8555` (`192.168.20.6`) | HAProxy en `invincible` ([rol `incus_s3`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/incus_s3/README.md)) | Publica el S3 de Incus con un certificado de `homelab-ca` |
 
 Secrets que crea [`playbook-platform-secrets.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-platform-secrets.yml)
 desde 1Password (bóveda `HomeLab`):
@@ -203,12 +203,12 @@ export ONEPASSWORD_VAULT=HomeLab
 
     ```bash
     kubectl -n cert-manager get secret homelab-ca -o jsonpath='{.data.ca\.crt}' | base64 -d > ~/homelab-ca.crt
-    openssl s_client -connect 192.168.20.6:8555 -CAfile ~/homelab-ca.crt -verify_ip 192.168.20.6 \
+    openssl s_client -connect s3.homelab.local:8555 -CAfile ~/homelab-ca.crt -verify_hostname s3.homelab.local \
       -verify_return_error </dev/null 2>/dev/null | grep 'Verify return code'
     AWS_ACCESS_KEY_ID=$(op read "op://HomeLab/postgres-s3/access_key") \
     AWS_SECRET_ACCESS_KEY=$(op read "op://HomeLab/postgres-s3/secret_key") \
     AWS_CA_BUNDLE=~/homelab-ca.crt \
-      aws s3 ls s3://postgres-backups --endpoint-url https://192.168.20.6:8555 --region us-east-1; echo "exit=$?"
+      aws s3 ls s3://postgres-backups --endpoint-url https://s3.homelab.local:8555 --region us-east-1; echo "exit=$?"
     ```
 
     Esperado: `Verify return code: 0 (ok)` y `exit=0` (el bucket vacío no lista nada).
@@ -225,7 +225,24 @@ export ONEPASSWORD_VAULT=HomeLab
 10. **Encender los respaldos en `gitops`** (otro repo y otro PR): seguir
     [`backups/kustomization.yaml`](https://github.com/maceosoft/gitops/blob/main/addons/storage/postgres/cluster/backups/kustomization.yaml).
     Al terminar, `kubectl -n postgres get cluster postgres -o jsonpath='{.status.conditions}'` tiene que mostrar
-    `ContinuousArchiving` en `True` y `kubectl -n postgres get backups` un respaldo `completed`.
+    `ContinuousArchiving` en `True` y `kubectl -n postgres get backups.postgresql.cnpg.io` un respaldo `completed`
+    (con el nombre completo: Longhorn también tiene un recurso `backups` y `kubectl get backups` muestra el suyo).
+
+## El nombre del endpoint
+
+CloudNativePG llega al S3 por `https://s3.homelab.local:8555`. El registro `s3` de la zona `homelab.local`
+([`bind_dns`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/bind_dns/README.md)) apunta al nodo que
+tiene los buckets (`incus_s3_host` en `group_vars/all.yml`, hoy `invincible`), no a `incus.homelab.local`, que sigue al
+líder del clúster Incus y puede cambiar. Los pods resuelven `homelab.local` con el BIND gracias a `coredns-custom`.
+
+El certificado del proxy incluye ese nombre, `invincible`, `invincible.homelab.local` y la IP. Si el S3 se muda a otro
+nodo o cambia la IP, el orden es:
+
+1. Cambiar `incus_s3_host` (y el `hosts:` de `playbook-incus-s3.yml`) y correr `playbook-bind-dns.yml`.
+2. Correr `playbook-incus-s3.yml` en el nodo nuevo: emite un certificado con los nombres nuevos y verifica la IP y
+   `s3.homelab.local`.
+3. Recién entonces, en `gitops`, actualizar la IP de la NetworkPolicy `networkpolicy-s3.yaml` (Kubernetes no admite
+   reglas por nombre). El `endpointURL` no cambia.
 
 ## Rotar credenciales
 
@@ -239,7 +256,8 @@ export ONEPASSWORD_VAULT=HomeLab
 
 Esquema (se detalla cuando haya respaldos reales que probar):
 
-1. Comprobar que hay respaldos: `kubectl -n postgres get backups` y, en el bucket, el prefijo `postgres/`.
+1. Comprobar que hay respaldos: `kubectl -n postgres get backups.postgresql.cnpg.io` y, en el bucket, el prefijo
+   `postgres/`.
 2. Crear un Cluster **nuevo** con otro nombre (por ejemplo `postgres-restore`) que arranque desde el ObjectStore. Nunca
    restaurar sobre el Cluster que sigue archivando: escribiría en la misma carpeta del bucket.
 

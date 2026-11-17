@@ -7,7 +7,7 @@ Kubernetes, una instancia nueva de Incus, un nodo nuevo del inventario. Nadie ed
 |---|---|---|
 | App publicada en el Gateway (`HTTPRoute`) o Service `LoadBalancer` con la anotación `external-dns.alpha.kubernetes.io/hostname` | **ExternalDNS** (Kubernetes) | `<app>.homelab.local` → IP del Gateway (`192.168.23.200`) |
 | Instancia de Incus en la red `ovn-lan` | **Incus** (zona propia) y BIND la copia | `<instancia>.ovn.homelab.local` → IP interna de OVN |
-| Nodo del inventario, su WiFi, `k3s`, `incus`, `ns` | **Ansible** (`playbook-bind-dns.yml`) | `<nodo>.homelab.local`, `<nodo>-wifi.homelab.local` |
+| Nodo del inventario, su WiFi, `k3s`, `incus`, `s3`, `ns` | **Ansible** (`playbook-bind-dns.yml`) | `<nodo>.homelab.local`, `<nodo>-wifi.homelab.local` |
 
 !!! info "Las IPs de `ovn-lan` no se alcanzan desde la LAN"
     `ovn-lan` está aislada a propósito (NAT, sin ruta desde el router). Sus nombres se resuelven desde cualquier equipo,
