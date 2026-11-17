@@ -1,0 +1,37 @@
+---
+# incus_s3 — S3 de Incus (buckets del pool "local") publicado con un certificado de la CA del HomeLab.
+#
+# Por qué un proxy TLS y no el certificado de Incus: Incus sirve TODOS sus listeners (API 8443, clúster, métricas y
+# buckets) con un único certificado, el del clúster (/var/lib/incus/cluster.crt); no hay una opción para darle otro
+# al de buckets. Cambiar ese certificado afecta a la API, la UI, los remotos y la comunicación entre miembros. Por eso
+# Incus escucha S3 solo en loopback y HAProxy publica el puerto en la LAN con un certificado firmado por homelab-ca.
+# Decisión y alternativas: docs/storage/postgres.md.
+
+# Gate de los cambios: sin -e incus_s3_confirm=true el rol solo hace el preflight (con -C muestra además qué cambiaría).
+incus_s3_confirm: false
+
+# Dirección y puerto públicos (los que usa CloudNativePG: https://192.168.20.6:8555).
+incus_s3_listen_address: "{{ static_ip }}"
+incus_s3_port: 8555
+# Listener S3 de Incus (core.storage_buckets_address de este miembro): solo loopback, lo consume HAProxy.
+incus_s3_backend_address: "127.0.0.1:8556"
+# Pool y bucket que se comprueban en el preflight (el bucket y su llave los crea una persona).
+incus_s3_pool: local
+incus_s3_bucket: postgres-backups
+
+# Certificado del proxy: lo firma el ClusterIssuer homelab-ca de cert-manager a partir de un CSR. La llave privada se
+# genera en el nodo y nunca sale de él; la llave de la CA nunca sale del clúster.
+incus_s3_dir: /etc/haproxy/incus-s3
+incus_s3_tls_common_name: incus-s3
+incus_s3_tls_sans:
+  - "IP:{{ incus_s3_listen_address }}"
+  - "DNS:{{ inventory_hostname }}"
+incus_s3_tls_duration: 8760h   # 1 año
+incus_s3_tls_renew_days: 30    # se renueva al correr el playbook si vence en menos de esto
+incus_s3_tls_force_renew: false
+
+# cert-manager (en el clúster K3s; se usa desde la estación del operador con kubectl).
+incus_s3_kubeconfig: "{{ lookup('ansible.builtin.env', 'KUBECONFIG') | default(lookup('ansible.builtin.env', 'HOME') ~ '/.kube/homelab-k3s.yaml', true) }}"
+incus_s3_issuer: homelab-ca
+incus_s3_ca_namespace: cert-manager
+incus_s3_ca_secret: homelab-ca
