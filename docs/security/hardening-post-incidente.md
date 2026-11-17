@@ -65,7 +65,7 @@ etapas (NetworkPolicy `default-deny`, etiquetas PSA —Pod Security Admission—
 | Ollama sin autenticación, con `/api/pull`, `/api/create` y `/api/delete` | Socket solo en la IP del nodo, `nftables` con el puerto `11434` solo desde los nodos de K3s y los pods, Kong solo por HTTPS y autenticación Bearer en el router, que además bloquea los verbos de gestión. El Ollama del nodo sigue sin autenticar: la protección real es el token del router más las NetworkPolicy |
 | Kong Manager (puertos `8002` y `8445`, NodePort) y Admin API sin autenticación | Kong Manager desactivado; Admin API solo interna (su NetworkPolicy está por activar) |
 | Argo CD con el usuario `admin` local y su secreto inicial | `admin.enabled: "false"` y borrar el secreto inicial; el pipeline usa un token `ci` con caducidad |
-| Sin NetworkPolicy en `kong`, `monitoring`, `ai`, `longhorn-system`, `gateway` y `arc-*` | Manifiestos de `default-deny` y permisos explícitos por namespace, **por activar** una a una (las de logs, `ai/tools`, `alert-triage` y Open Terminal ya viajan con su aplicación) |
+| Sin NetworkPolicy en `kong`, `monitoring`, `ai`, `longhorn-system`, `gateway` y `arc-*` | Manifiestos de `default-deny` y permisos explícitos por namespace, **por activar** una a una (las de logs, `addons/ai/tools`, `alert-triage` y Open Terminal ya viajan con su aplicación) |
 | Open WebUI con registro abierto y sin Dex | Dex con el team `devops`, registro cerrado |
 | Incus (`8443`) abierto a la LAN | Limitado por `nftables`; grupo OIDC específico |
 | `adbd` (Android Debug Bridge, sin credenciales) escuchando en `deborah:5555`, lanzado por `usbdevice.service` | Deshabilitar y enmascarar esa unidad y verificar que el puerto cierra |

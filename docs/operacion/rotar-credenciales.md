@@ -347,8 +347,8 @@ Solo hay que tocarla si se filtró la llave **privada**. En ese caso:
 
 **Reinstalar K3s** no es una rotación: con el item en 1Password, el playbook
 vuelve a crear el mismo Secret y los `SealedSecret` de Git siguen
-funcionando. Hazlo **antes** de activar `sealed-secrets` en
-`root-appset.yaml`.
+funcionando. Hazlo **antes** del bootstrap de GitOps (`sealed-secrets` está en
+`gitops/bootstrap/components/`).
 
 ## Verificar
 

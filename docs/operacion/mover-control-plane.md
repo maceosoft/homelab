@@ -127,7 +127,7 @@ El playbook no toca estos archivos; edítalos a mano al terminar (y haz commit t
 - `host_vars/deborah.yml` y `host_vars/oliver.yml`: las etiquetas y las opciones de K3s siguen a `k3s_move_done`;
   `deborah` conserva `workload-tier=heavy` y `oliver` sigue siendo `light`.
 - Vuelve a aplicar `playbook-bind-dns.yml` para que la zona quede alineada con `k3s_api_ip`.
-- **Planes del SUC** (*System Upgrade Controller*, el actualizador automático de K3s; [`k3s-upgrade/`](https://github.com/maceosoft/gitops/tree/main/k3s-upgrade)): seleccionan
+- **Planes del SUC** (*System Upgrade Controller*, el actualizador automático de K3s; [`addons/cluster/k3s-upgrade/`](https://github.com/maceosoft/gitops/tree/main/addons/cluster/k3s-upgrade)): seleccionan
   el control plane por la etiqueta `node-role.kubernetes.io/control-plane`, así que no cambian y ahora actualizan primero a `oliver`.
 
 Otras guías que hablan del control plane: [Sacar o reemplazar un nodo](sacar-nodo.md),
@@ -166,7 +166,7 @@ dejarlo como estaba.
    rollback.
 3. **Revisa Argo CD, Longhorn y Kong** con la tabla de [Verificación](#verificacion).
 4. **Permisos del login con Dex.** El repo `gitops` trae el ClusterRoleBinding
-   [`oidc-devops-view`](https://github.com/maceosoft/gitops/blob/main/security/rbac/oidc-devops.yaml)
+   [`oidc-devops-view`](https://github.com/maceosoft/gitops/blob/main/addons/security/rbac/oidc-devops.yaml)
    (Application `security-rbac`, ya activa), que da el ClusterRole `view` (solo lectura) al grupo
    `oidc:maceosoft:devops`. Es inofensivo hasta que haya tokens OIDC.
 

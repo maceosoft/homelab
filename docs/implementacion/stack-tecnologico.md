@@ -124,7 +124,7 @@ flowchart TB
 
 ## Capa 3 — GitOps, red y acceso
 
-- **[Argo CD](https://argo-cd.readthedocs.io/)** — ApplicationSet de bootstrap (`homelab-root`) desde GitHub, por olas; Fase 4.
+- **[Argo CD](https://argo-cd.readthedocs.io/)** — ApplicationSet `homelab` (una Application por archivo de `bootstrap/components/`, por olas con RollingSync), administrado por la Application `homelab-bootstrap`; Fase 4.
 - **[Dex](https://dexidp.io/docs/)** — IdP (proveedor de identidad) OIDC embebido en Argo CD; SSO (inicio de sesión único) para Argo CD, Grafana, Open WebUI, vCluster Platform e Incus UI (interfaz de usuario); Fase 4.
 - **[GitHub](https://docs.github.com/en/apps/oauth-apps)** — Connector OAuth (Open Authorization) + repos GitOps; Fase 4.
 - **[MetalLB](https://metallb.universe.tf/)** — LoadBalancer en LAN (red local); Fase 4 wave 0–1.

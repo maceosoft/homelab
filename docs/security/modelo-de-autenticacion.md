@@ -76,15 +76,16 @@ y documentada cuando la autenticación no es posible.**
 ## Qué está activo y qué está por activar
 
 Algunos controles se despliegan por etapas, para no cortar el clúster de golpe. En el repo
-[`gitops`](https://github.com/maceosoft/gitops/blob/main/bootstrap/root-appset.yaml) están **comentados** en
-`root-appset.yaml` hasta que se activen uno a uno, tras leer su README:
+[`gitops`](https://github.com/maceosoft/gitops/tree/main/bootstrap/components/apagadas) sus Applications están en
+`bootstrap/components/apagadas/` hasta que se activen uno a uno (moviendo el archivo a `bootstrap/components/`), tras
+leer su README:
 
 | Control | Estado |
 |---|---|
-| NetworkPolicy `default-deny` por namespace (`ai`, `monitoring`, `longhorn-system`, `kong`, `gateway`, `arc-runners`) | **Por activar**, una a una y en este orden: `netpol-ai`, `netpol-monitoring`, `netpol-longhorn-system`, `netpol-kong` y `netpol-gateway`, `netpol-arc-runners` (leer antes el README de [`security/networkpolicies/`](https://github.com/maceosoft/gitops/tree/main/security/networkpolicies)) |
+| NetworkPolicy `default-deny` por namespace (`ai`, `monitoring`, `longhorn-system`, `kong`, `gateway`, `arc-runners`) | **Por activar**, una a una y en este orden: `netpol-ai`, `netpol-monitoring`, `netpol-longhorn-system`, `netpol-kong` y `netpol-gateway`, `netpol-arc-runners` (leer antes el README de [`addons/security/networkpolicies/`](https://github.com/maceosoft/gitops/tree/main/addons/security/networkpolicies)) |
 | Etiquetas de Pod Security Admission (`warn`/`audit` con `restricted`) | **Por activar** (aplicación `namespace-labels`) |
 | `oauth2-proxy` delante de interfaces internas (p. ej. Alertmanager) | **Por activar** y opcional |
-| NetworkPolicy que viajan con su propia aplicación: logs (VictoriaLogs y Vector), `ai/tools`, `alert-triage` y Open Terminal (la de `ai-sandbox` va junto al pod) | **Activas** al desplegar esa aplicación |
+| NetworkPolicy que viajan con su propia aplicación: logs (VictoriaLogs y Vector), `addons/ai/tools`, `alert-triage` y Open Terminal (la de `ai-sandbox` va junto al pod) | **Activas** al desplegar esa aplicación |
 | Login de personas a la API de K3s: ClusterRoleBinding `oidc-devops-view` (Application `security-rbac`) | **Activo**, solo lectura (`view`); inofensivo hasta que haya OIDC |
 | K8sGPT | **Etapado**: la decisión es del usuario (ver más abajo) |
 | Tokens Bearer del router, clave de Open Terminal, Dex en Open WebUI, Kong Manager desactivado, `admin` de Argo CD desactivado | **Activos** al desplegar |
@@ -181,11 +182,11 @@ El firewall que cierra los puertos de los nodos está descrito en
 
     (con cualquier `GlobalNetworkPolicy` de prueba). Si responde `created`, esa cuenta puede cambiar el firewall de
     los pods: quita el binding `calico-tiered-policy-passthrough` que se lo permite.
-    Los pasos de mitigación están en [`security/calico-policy-edit/`](https://github.com/maceosoft/gitops/tree/main/security/calico-policy-edit).
+    Los pasos de mitigación están en [`addons/security/calico-policy-edit/`](https://github.com/maceosoft/gitops/tree/main/addons/security/calico-policy-edit).
 - **K8sGPT.** Su chart trae un ClusterRole `*/*/*` (en la práctica, administrador del clúster) y su RBAC (control de acceso por roles) dinámico lee
-  los Secrets de todo el clúster. Por eso está **etapado** (comentado en `root-appset.yaml`). Para activarlo hay tres
-  caminos, en [`security/k8sgpt-rbac/`](https://github.com/maceosoft/gitops/tree/main/security/k8sgpt-rbac): aceptar el
-  riesgo y descomentar la línea; usar el rol acotado propuesto (no está probado); o activar también la NetworkPolicy del
+  los Secrets de todo el clúster. Por eso está **etapado** (en `bootstrap/components/apagadas/`). Para activarlo hay tres
+  caminos, en [`addons/security/k8sgpt-rbac/`](https://github.com/maceosoft/gitops/tree/main/addons/security/k8sgpt-rbac): aceptar el
+  riesgo y mover `k8sgpt.yaml` a `bootstrap/components/`; usar el rol acotado propuesto (no está probado); o activar también la NetworkPolicy del
   namespace.
 
 ## Decisiones pendientes

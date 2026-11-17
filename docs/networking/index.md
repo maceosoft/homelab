@@ -115,7 +115,7 @@ El DHCP del router reparte **`192.168.20.31` a `192.168.23.191`**. Todo lo fijo 
 | `192.168.20.9`, `.10`, `.11` | WiFi de respaldo de deborah, invincible y eve (`<nodo>-wifi` en el DNS); oliver no tiene WiFi | `wifi_ip` en `inventory.ini` |
 | `192.168.20.31 – 192.168.23.191` | **DHCP del router** | Router |
 | `192.168.23.192 – .199` | Libre | — |
-| `192.168.23.200 – .220` | **MetalLB** (`LoadBalancer`, Gateway; el Gateway de Kong usa `.200`) | [`gitops/metallb/ipaddresspool.yaml`](https://github.com/maceosoft/gitops/blob/main/metallb/ipaddresspool.yaml) |
+| `192.168.23.200 – .220` | **MetalLB** (`LoadBalancer`, Gateway; el Gateway de Kong usa `.200`) | [`gitops/addons/network/metallb/ipaddresspool.yaml`](https://github.com/maceosoft/gitops/blob/main/addons/network/metallb/ipaddresspool.yaml) |
 | `192.168.23.221 – .223` | Libre | — |
 | `192.168.23.224/28` (`.224–.239`) | **LB de Incus** (OVN), `ipv4.routes` de la uplink | `incus_ovn_lb_routes` en `group_vars/incus_cluster/ovn.yml` |
 | `192.168.23.240 – .249` | **OVN externo**, `ipv4.ovn.ranges` (un router virtual por red OVN) | `incus_ovn_external_ranges` en el mismo archivo |

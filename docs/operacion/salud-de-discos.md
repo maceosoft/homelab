@@ -26,12 +26,12 @@ mano, con Ansible (ver [Autotest SMART](#autotest-smart)).
 |---|---|
 | Rol de discos | [`ansible/roles/node_smart_metrics`](https://github.com/maceosoft/homelab/tree/main/ansible/roles/node_smart_metrics) y [`playbook-smart-metrics.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-smart-metrics.yml) |
 | Rol de BIND | [`ansible/roles/node_bind_metrics`](https://github.com/maceosoft/homelab/tree/main/ansible/roles/node_bind_metrics) y [`playbook-bind-metrics.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-bind-metrics.yml) |
-| Alertas | [`gitops/monitoring/config/rules/homelab-hardware.yaml`](https://github.com/maceosoft/gitops/blob/main/monitoring/config/rules/homelab-hardware.yaml) |
-| Pruebas de las alertas | [`gitops/monitoring/tests/rules-test.yaml`](https://github.com/maceosoft/gitops/blob/main/monitoring/tests/rules-test.yaml) |
+| Alertas | [`gitops/addons/monitoring/config/rules/homelab-hardware.yaml`](https://github.com/maceosoft/gitops/blob/main/addons/monitoring/config/rules/homelab-hardware.yaml) |
+| Pruebas de las alertas | [`gitops/addons/monitoring/tests/rules-test.yaml`](https://github.com/maceosoft/gitops/blob/main/addons/monitoring/tests/rules-test.yaml) |
 
 !!! note "Requisito: textfile collector"
     node-exporter tiene que montar `/var/lib/node_exporter/textfile` (configuración en
-    [`gitops/monitoring/values-vm-stack.yaml`](https://github.com/maceosoft/gitops/blob/main/monitoring/values-vm-stack.yaml)).
+    [`gitops/addons/monitoring/values/values-vm-stack.yaml`](https://github.com/maceosoft/gitops/blob/main/addons/monitoring/values/values-vm-stack.yaml)).
     Sin eso los archivos se escriben pero nadie los lee, y a las 24 h salta `SinDatosDeDiscos`.
 
 ### Por qué un script y no `smartctl_exporter`

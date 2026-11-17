@@ -149,18 +149,18 @@ kubectl label node oliver node.longhorn.io/create-default-disk=false
 ## 5. Almacenamiento
 
 Ver [Storage](../storage/index.md) para el detalle de OpenEBS/Longhorn
-replicado x86↔arm64. Manifiestos GitOps en [`gitops/storage/`](https://github.com/maceosoft/gitops/tree/main/storage).
+replicado x86↔arm64. Manifiestos GitOps en [`gitops/addons/storage/classes/`](https://github.com/maceosoft/gitops/tree/main/addons/storage/classes).
 
 ## 6. Plan de actualización automática
 
-Manifiestos versionados en [`gitops/k3s-upgrade/`](https://github.com/maceosoft/gitops/tree/main/k3s-upgrade).
+Manifiestos versionados en [`gitops/addons/cluster/k3s-upgrade/`](https://github.com/maceosoft/gitops/tree/main/addons/cluster/k3s-upgrade).
 
 ### 6.1 K3s (server + agents) — `system-upgrade-controller`
 
 ```bash
 kubectl apply -f https://github.com/rancher/system-upgrade-controller/releases/latest/download/system-upgrade-controller.yaml
 kubectl apply -f https://github.com/rancher/system-upgrade-controller/releases/latest/download/crd.yaml
-kubectl apply -f gitops/k3s-upgrade/
+kubectl apply -f gitops/addons/cluster/k3s-upgrade/
 ```
 
 `concurrency: 1` es intencional en un clúster de 4 nodos: nunca deja el

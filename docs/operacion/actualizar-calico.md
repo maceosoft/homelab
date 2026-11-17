@@ -10,8 +10,8 @@ Calico es el CNI (Container Network Interface, la red de los pods) del clúster.
 
 | Application | Qué administra | Dónde |
 |---|---|---|
-| `calico-operator` | CRDs y el operador (`tigera-operator`) en la versión elegida | `cni/calico-operator/kustomization.yaml` |
-| `calico-config` | `Installation` (pool de pods `10.42.0.0/16`, VXLAN cross-subnet) y `APIServer` | `cni/calico/custom-resources.yaml` |
+| `calico-operator` | CRDs y el operador (`tigera-operator`) en la versión elegida | `addons/network/calico-operator/kustomization.yaml` |
+| `calico-config` | `Installation` (pool de pods `10.42.0.0/16`, VXLAN cross-subnet) y `APIServer` | `addons/network/calico/custom-resources.yaml` |
 
 !!! warning "Sync manual, sin prune"
     Las dos Applications **no** sincronizan solas. Un cambio de versión en Git actualiza la red
@@ -31,7 +31,7 @@ Calico se instaló con **v3.29.1** (operador `v1.36.2`). La v3.33 solo soporta a
 (documentación de Calico), así que el salto directo desde la 3.29 **no está soportado**. Se hace en dos etapas, cada una
 con su Sync y su verificación:
 
-| Etapa | `cni/calico-operator/kustomization.yaml` | Operador | Qué hace |
+| Etapa | `addons/network/calico-operator/kustomization.yaml` | Operador | Qué hace |
 |---|---|---|---|
 | 1 | `v3.31.7` | `v1.40.15` | Adopta los recursos existentes y actualiza el CNI de 3.29.1 a 3.31.7 |
 | 2 | `v3.33.0` | `v1.44.0` | Actualiza de 3.31.7 a 3.33.0 |
@@ -61,8 +61,8 @@ kubectl get pods -A --no-headers | awk '$4!="Running" && $4!="Completed"'
 **Vista previa de lo que cambiaría** (solo lectura, contra el servidor):
 
 ```bash
-kustomize build gitops/cni/calico-operator | kubectl diff --server-side --force-conflicts -f - | grep -cE '^[+-] '
-kubectl diff --server-side --force-conflicts -f gitops/cni/calico/custom-resources.yaml
+kustomize build gitops/addons/network/calico-operator | kubectl diff --server-side --force-conflicts -f - | grep -cE '^[+-] '
+kubectl diff --server-side --force-conflicts -f gitops/addons/network/calico/custom-resources.yaml
 ```
 
 La segunda debe salir **vacía**: el YAML de `calico-config` declara todos los campos que el
@@ -70,8 +70,8 @@ operador escribe, para que Argo CD y el operador no se pisen.
 
 **Sync, en orden:**
 
-1. Activa las dos Applications: ya están en `bootstrap/root-appset.yaml`; aplica el ApplicationSet
-   (`kubectl apply -f gitops/bootstrap/root-appset.yaml`).
+1. Las dos Applications ya están en `gitops/bootstrap/components/` (`calico-operator.yaml` y `calico-config.yaml`):
+   el ApplicationSet `homelab` las crea con la ola `manual`, sin sincronizarlas. No hay que aplicar nada.
 2. **Sync** de `calico-operator` (con *Server-Side Apply*, ya activo). El operador se
    actualiza y reinicia los `calico-node` **nodo a nodo** (`maxUnavailable: 1`).
 
@@ -118,7 +118,7 @@ El último comprueba que un pod aún llega a un servicio de otro nodo.
 
 ## Cambios posteriores
 
-- **Subir de versión:** cambia las dos URLs de `cni/calico-operator/kustomization.yaml`, haz push
+- **Subir de versión:** cambia las dos URLs de `addons/network/calico-operator/kustomization.yaml`, haz push
   y **Sync** manual. Sube una o dos versiones menores cada vez y revisa las notas de cada versión.
 - **No cambies** `cidr`, `encapsulation` ni `blockSize` del pool sin una ventana de
   mantenimiento: cambian la red de todos los pods.

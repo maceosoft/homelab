@@ -114,9 +114,10 @@ La interfaz de GitOps. Pide iniciar sesión con GitHub (Dex); solo entran los mi
 ??? note "Ver captura: inicio de sesión de Argo CD"
     ![Pantalla de inicio de sesión de Argo CD con el botón «Log in via GitHub»](../assets/screenshots/argocd-login.jpg){ loading=lazy }
 
-Dentro, la aplicación raíz `homelab-root` agrupa todas las demás (vista de árbol):
+Dentro, la Application `homelab-bootstrap` muestra el ApplicationSet `homelab` y, debajo, todas las demás (vista de
+árbol). La captura es del modelo anterior, con una Application raíz (`homelab-root`) que ya no existe:
 
-??? note "Ver captura: árbol de homelab-root"
+??? note "Ver captura: árbol de la Application raíz (modelo anterior)"
     ![Árbol de la aplicación homelab-root en Argo CD, con las aplicaciones arc-controller, arc-runners, argocd y argocd-route sincronizadas y sanas](../assets/screenshots/argocd-homelab-root.jpg){ loading=lazy }
 
 Más sobre el catálogo y los problemas frecuentes: [GitOps — catálogo y troubleshooting](../gitops/index.md).
@@ -189,8 +190,8 @@ Qué se vigila y qué hacer ante cada aviso: [Monitoreo y alertas](monitoreo.md)
 
 ## vCluster Platform
 
-Su dirección es [`https://vcluster.homelab.local`](https://vcluster.homelab.local), pero **no se despliega por defecto**: su Application está comentada en
-`gitops/bootstrap/root-appset.yaml` y no hay `HTTPRoute`, así que hasta activarla en la [Fase 5](../implementacion/fase-5-vcluster.md) la URL responde 404.
+Su dirección es [`https://vcluster.homelab.local`](https://vcluster.homelab.local), pero **no se despliega por defecto**: su Application está en
+`gitops/bootstrap/components/apagadas/` y no hay `HTTPRoute`, así que hasta activarla en la [Fase 5](../implementacion/fase-5-vcluster.md) la URL responde 404.
 
 ## Sin interfaz propia
 

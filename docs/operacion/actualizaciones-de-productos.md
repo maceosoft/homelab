@@ -20,10 +20,10 @@ flowchart LR
 
 | Detecta | Dónde mira en `gitops` |
 |---|---|
-| Charts de Helm de las Applications de Argo CD (Kong, VictoriaMetrics, cert-manager, MetalLB, OpenEBS, Sealed Secrets, Longhorn, ARC…), incluidos los rangos como `0.95.x` o `v1.21.x` | `argocd/apps/*.yaml` |
-| Calico (tigera-operator y CRDs) | `cni/calico-operator/kustomization.yaml` |
-| CRDs de Gateway API | `gateway-api/kustomization.yaml` |
-| Imágenes con versión fija (p. ej. `busybox`) | `arc/values-scaleset.yaml` |
+| Charts de Helm de las Applications de Argo CD (Kong, VictoriaMetrics, cert-manager, MetalLB, OpenEBS, Sealed Secrets, Longhorn, ARC…), incluidos los rangos como `0.95.x` o `v1.21.x` | `bootstrap/components/*.yaml` |
+| Calico (tigera-operator y CRDs) | `addons/network/calico-operator/kustomization.yaml` |
+| CRDs de Gateway API | `addons/network/gateway-api/kustomization.yaml` |
+| Imágenes con versión fija (p. ej. `busybox`) | `addons/ci/arc/values-scaleset.yaml` |
 | Acciones de GitHub Actions (`actions/checkout@v7`…) | `.github/workflows/` |
 
 | No detecta | Por qué |
@@ -32,7 +32,7 @@ flowchart LR
 | **K3s** | Lo actualizan los planes del SUC por el canal `stable` ([Actualizar K3s](actualizar-k3s.md)); no hay versión en Git |
 | **Argo CD** | Sigue la rama `stable` del manifiesto oficial ([Actualizar Argo CD](actualizar-argocd.md)) |
 | **Imágenes con tag `latest`** (el runner de ARC) | No hay versión que comparar |
-| Apps opcionales **no activas** en `bootstrap/root-appset.yaml` (Traefik, NGINX Gateway, vCluster, Cilium, Canal) | Se ignoran para no generar ruido. Si activas una, quita su ruta de la regla correspondiente en `renovate.json5` |
+| Apps opcionales **no activas** en `bootstrap/components/apagadas/` (Traefik, NGINX Gateway, vCluster, Cilium, Canal) | Se ignoran para no generar ruido. Si activas una (moviéndola a `bootstrap/components/`), quita su ruta de la regla correspondiente en `renovate.json5` |
 | `homelab` (este repo) y `core-pipelines` | Los vigila Dependabot: Python, GitHub Actions y OpenTofu (ver [más abajo](#y-dependabot-de-homelab)) |
 
 ### Qué queda solo en aviso

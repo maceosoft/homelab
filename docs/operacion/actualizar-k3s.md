@@ -6,7 +6,7 @@ K3s (distribución ligera de Kubernetes) se actualiza **solo**: el SUC (System U
 (*cordon* y *drain*). Este procedimiento es para revisar que eso funciona,
 fijar una versión cuando haga falta y mantener alineado Ansible.
 
-Los planes están en [`maceosoft/gitops` → `k3s-upgrade/`](https://github.com/maceosoft/gitops/tree/main/k3s-upgrade)
+Los planes están en [`maceosoft/gitops` → `addons/cluster/k3s-upgrade/`](https://github.com/maceosoft/gitops/tree/main/addons/cluster/k3s-upgrade)
 y los aplica la Application `k3s-upgrade` de Argo CD.
 
 ## 1. Comprobar que el SUC está instalado
@@ -39,7 +39,7 @@ Todos los nodos deberían terminar con la misma `VERSION`.
 
 Para no seguir `stable` (por ejemplo, para esperar antes de subir de versión
 menor), cambia `channel` por `version` en los **dos** planes de
-`k3s-upgrade/k3s-plans.yaml`, en el repo `gitops`:
+`addons/cluster/k3s-upgrade/k3s-plans.yaml`, en el repo `gitops`:
 
 ```yaml
 spec:

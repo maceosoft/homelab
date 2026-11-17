@@ -17,16 +17,16 @@ cluster) y de vClusters, sin depender solo de CLI (interfaz de línea de comando
 | SSO | Login OIDC vía **Dex** → **GitHub** (team `devops` de la org `maceosoft`); credenciales en 1Password |
 | Kubeconfig | **Download kubeconfig** / **Connect** para el **host K3s** (connected cluster) y para cada **vCluster** |
 
-Sync **manual** — Application `vcluster-platform` (comentada en el ApplicationSet `homelab-root`: se activa a mano).
+Sync **manual** — Application `vcluster-platform` (en `gitops/bootstrap/components/apagadas/`: se activa moviéndola a `bootstrap/components/` y se sincroniza a mano).
 
 ## Componentes involucrados
 
 | Recurso | Para qué sirve |
 |---|---|
-| [`vcluster-platform.yaml`](https://github.com/maceosoft/gitops/blob/main/argocd/apps/vcluster-platform.yaml) | Application Helm que instala Loft Platform en `vcluster-platform` |
-| [`vcluster/values/platform.yaml`](https://github.com/maceosoft/gitops/blob/main/vcluster/values/platform.yaml) | HTTPRoute `vcluster.homelab.local` (`vcluster/route`), OIDC issuer → Argo CD Dex |
-| [`argocd/config/dex.config`](https://github.com/maceosoft/gitops/blob/main/argocd/config/dex.config) | Connector GitHub + OAuth client `vcluster-platform` |
-| [`argocd/secrets/1password.md`](https://github.com/maceosoft/gitops/blob/main/argocd/secrets/1password.md) | Items 1Password → `argocd-secret` |
+| [`vcluster-platform.yaml`](https://github.com/maceosoft/gitops/blob/main/bootstrap/components/apagadas/vcluster-platform.yaml) | Application Helm que instala Loft Platform en `vcluster-platform` |
+| [`addons/cluster/vcluster/values/platform.yaml`](https://github.com/maceosoft/gitops/blob/main/addons/cluster/vcluster/values/platform.yaml) | HTTPRoute `vcluster.homelab.local` (`addons/cluster/vcluster/route`), OIDC issuer → Argo CD Dex |
+| [`addons/argocd/config/dex.config`](https://github.com/maceosoft/gitops/blob/main/addons/argocd/config/dex.config) | Connector GitHub + OAuth client `vcluster-platform` |
+| [`addons/argocd/secrets/1password.md`](https://github.com/maceosoft/gitops/blob/main/addons/argocd/secrets/1password.md) | Items 1Password → `argocd-secret` |
 | **`argocd-route`** | Publica Argo CD/Dex en `argocd.homelab.local` (ver [GitOps](../gitops/index.md)) |
 
 ## Flujo de autenticación
@@ -68,9 +68,8 @@ ansible-playbook -i inventory.ini playbook-dex-oauth-secrets.yml \
 
 ### 2. Desplegar Platform
 
-```bash
-kubectl apply -f gitops/argocd/apps/vcluster-platform.yaml
-```
+En el repo `gitops`, mueve `bootstrap/components/apagadas/vcluster-platform.yaml` a `bootstrap/components/` y mergea en
+`main`. El ApplicationSet `homelab` crea la Application con la ola `manual` (no tiene sync automático): sincronízala a mano.
 
 === "🖱️ Desde la interfaz"
 
@@ -89,7 +88,7 @@ kubectl apply -f gitops/argocd/apps/vcluster-platform.yaml
 
 Tras sync de `argocd`, login en Argo CD o Platform debe ofrecer **GitHub**.
 Si falla, revisa el Redirect URIs de la OAuth App y el team `maceosoft/devops` en
-[`dex.config`](https://github.com/maceosoft/gitops/blob/main/argocd/config/dex.config).
+[`dex.config`](https://github.com/maceosoft/gitops/blob/main/addons/argocd/config/dex.config).
 
 Con SSO estable, pon `auth.password.disabled: true` en `platform.yaml`.
 

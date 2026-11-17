@@ -14,7 +14,7 @@ verificadas por `sha256`.
 
 | Job | Cuándo | Qué revisa | Falla si… |
 |---|---|---|---|
-| `render` | PR y push a `main` | yamllint; `kustomize build`; `helm template` de cada Application con chart, con sus values; la lista del ApplicationSet `bootstrap/root-appset.yaml` | YAML inválido, un chart o kustomize que no renderiza, una app de la lista sin archivo (o al revés) |
+| `render` | PR y push a `main` | yamllint; `kustomize build`; `helm template` de cada Application con chart de `bootstrap/components/` (activas y `apagadas/`), con sus values; que cada archivo sea una sola Application con el nombre del archivo | YAML inválido, un chart o kustomize que no renderiza, un archivo cuya Application no se llama como él |
 | `schemas` | PR y push a `main` | Cada manifiesto, y lo renderizado, contra el esquema de Kubernetes y de los CRD (Custom Resource Definition): Application, MetalLB, planes del SUC (System Upgrade Controller)… | Un campo que no existe o está mal ubicado, un tipo incorrecto, un recurso sin esquema |
 | `security` | PR y push a `main` | gitleaks sobre los commits; reglas del repo | Un secreto en el código; una Application de `gitops` con otro `repoURL` o rama; una Application sin `sync-wave`; un `Secret` en texto plano |
 | `argocd-diff` | Solo en PR | Qué cambiaría Argo CD en el clúster con el commit del PR, app por app | Solo si Argo CD no puede calcular el diff. Que haya cambios no es un error: es lo que se revisa |
@@ -28,7 +28,7 @@ Argo CD.
 ## Activar el diff contra el clúster (una vez)
 
 El diff usa una cuenta de Argo CD de **solo lectura**, `ci`, que ya está
-declarada en `gitops/argocd/config` (`accounts.ci: apiKey` y
+declarada en `gitops/addons/argocd/config` (`accounts.ci: apiKey` y
 `g, ci, role:readonly`). Falta generar su token y guardarlo como **secreto de
 GitHub Actions** `ARGOCD_CI_TOKEN` del repo `maceosoft/gitops`. Hay que hacerlo
 con Argo CD ya funcionando y `argocd` sincronizado. Mientras el secreto no
@@ -129,8 +129,8 @@ inputs:
 | Input | Default | Para qué |
 |---|---|---|
 | `argocd-diff` | `true` | Desactivar el diff |
-| `allowed-secrets` | `argocd/apps/arc-helm-repo.yaml argocd/apps/nginx-gateway-helm-repo.yaml` | Rutas que pueden tener un `Secret` en texto plano (separadas por espacio) |
-| `no-wave-apps` | `vcluster-platform capn-demo canal cilium` | Applications que pueden no tener `sync-wave` |
+| `allowed-secrets` | `bootstrap/repositories/arc-helm-repo.yaml bootstrap/repositories/nginx-gateway-helm-repo.yaml` | Rutas que pueden tener un `Secret` en texto plano (separadas por espacio) |
+| `no-wave-apps` | `vcluster-platform capn-demo canal cilium` (gitops pasa además `homelab-bootstrap`) | Applications que pueden no tener `sync-wave` |
 
 En el propio repo `gitops`: `.yamllint.yaml` (reglas de yamllint) y
 `.gitleaks.toml` (excepciones de gitleaks; hoy, las plantillas
@@ -141,7 +141,7 @@ En el propio repo `gitops`: `.yamllint.yaml` (reglas de yamllint) y
 | Síntoma | Revisar |
 |---|---|
 | `render`: `helm … not a valid chart repository` | La URL del repo de Helm de esa Application cambió o dejó de existir (le pasó a `sealed-secrets`) |
-| `render`: app de la lista sin archivo | Un nombre mal escrito en `bootstrap/root-appset.yaml`, o un archivo de `argocd/apps/` que falta agregar (comentado) a la lista |
+| `render`: el archivo no es una sola Application con su nombre | Un archivo de `bootstrap/components/` con otro `metadata.name` o con más de un documento (el ApplicationSet `homelab` usa `metadata.name`) |
 | `schemas`: `additionalProperties '…' not allowed` | Un campo mal escrito o en el lugar equivocado en ese manifiesto |
 | `schemas`: `could not find schema` | Un CRD que no está en el catálogo; si es a propósito, hay que agregarlo a los `-skip` del job |
 | `security`: gitleaks encontró algo | Si es un secreto real: rótalo y sácalo del historial. Si es un ejemplo con placeholders, nómbralo `*.example.yaml` |

@@ -14,9 +14,9 @@ entre jobs, excepto el *tool cache* de `setup-python`/`setup-node` (ver abajo).
 
 | Pieza | Dónde | Qué hace |
 |---|---|---|
-| PVC `arc-cache` | [`gitops/arc/cache/pvc.yaml`](https://github.com/maceosoft/gitops/blob/main/arc/cache/pvc.yaml) | 20 Gi, `ReadWriteMany` (RWX: varios pods a la vez, en nodos distintos), StorageClass `longhorn` (se sirve por NFS) |
-| Montaje y variables | [`gitops/arc/values-scaleset.yaml`](https://github.com/maceosoft/gitops/blob/main/arc/values-scaleset.yaml) | Monta el volumen en `/cache` y apunta las cachés de cada herramienta ahí; un `initContainer` deja las carpetas con el usuario del runner |
-| Limpieza | [`gitops/arc/cache/prune-cronjob.yaml`](https://github.com/maceosoft/gitops/blob/main/arc/cache/prune-cronjob.yaml) | CronJob semanal (domingo 04:00) que borra archivos sin tocar hace más de 30 días de pip, npm, Composer, Helm y XDG, y muestra el uso |
+| PVC `arc-cache` | [`gitops/addons/ci/arc/cache/pvc.yaml`](https://github.com/maceosoft/gitops/blob/main/addons/ci/arc/cache/pvc.yaml) | 20 Gi, `ReadWriteMany` (RWX: varios pods a la vez, en nodos distintos), StorageClass `longhorn` (se sirve por NFS) |
+| Montaje y variables | [`gitops/addons/ci/arc/values-scaleset.yaml`](https://github.com/maceosoft/gitops/blob/main/addons/ci/arc/values-scaleset.yaml) | Monta el volumen en `/cache` y apunta las cachés de cada herramienta ahí; un `initContainer` deja las carpetas con el usuario del runner |
+| Limpieza | [`gitops/addons/ci/arc/cache/prune-cronjob.yaml`](https://github.com/maceosoft/gitops/blob/main/addons/ci/arc/cache/prune-cronjob.yaml) | CronJob semanal (domingo 04:00) que borra archivos sin tocar hace más de 30 días de pip, npm, Composer, Helm y XDG, y muestra el uso |
 
 Qué se guarda y dónde:
 
@@ -41,7 +41,7 @@ tarball) y es seguro compartirlo.
 
 ## Docker y runners con PHP
 
-Todos los runners llevan Docker con un sidecar `dind` privilegiado, por lo que sus namespaces usan `enforce=privileged`. Lo define [`gitops/arc/values-scaleset.yaml`](https://github.com/maceosoft/gitops/blob/main/arc/values-scaleset.yaml), con MTU 1400 porque Calico usa 1450: con una MTU mayor, las conexiones TLS desde contenedores se cuelgan.
+Todos los runners llevan Docker con un sidecar `dind` privilegiado, por lo que sus namespaces usan `enforce=privileged`. Lo define [`gitops/addons/ci/arc/values-scaleset.yaml`](https://github.com/maceosoft/gitops/blob/main/addons/ci/arc/values-scaleset.yaml), con MTU 1400 porque Calico usa 1450: con una MTU mayor, las conexiones TLS desde contenedores se cuelgan.
 
 El scale set `arc-php-84` usa la imagen `ghcr.io/symintel/ci-php`, con PHP 8.4, Composer, `lftp` y PostgreSQL 16. Comparte namespace, Secrets y caché con `arc-runners-symintel`. Su archivo de valores repite `containers`: cualquier cambio en esa parte de la plantilla debe copiarse ahí.
 

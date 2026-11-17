@@ -9,8 +9,8 @@
 
     | Qué | Proveedor | Cómo |
     |---|---|---|
-    | Resumen de cada alerta en Discord (`alert-triage`) | Claude Haiku 5.5 (Anthropic) | SDK oficial de Anthropic ([`ai/alert-triage`](https://github.com/maceosoft/gitops/tree/main/ai/alert-triage)) |
-    | Chat en Open WebUI | Claude Sonnet, Opus y Haiku 5.5, y modelos abiertos de NVIDIA (Mistral Large 4, Nemotron) | Dos conexiones tipo OpenAI ([`argocd/apps/open-webui.yaml`](https://github.com/maceosoft/gitops/blob/main/argocd/apps/open-webui.yaml)) |
+    | Resumen de cada alerta en Discord (`alert-triage`) | Claude Haiku 5.5 (Anthropic) | SDK oficial de Anthropic ([`addons/ai/alert-triage`](https://github.com/maceosoft/gitops/tree/main/addons/ai/alert-triage)) |
+    | Chat en Open WebUI | Claude Sonnet, Opus y Haiku 5.5, y modelos abiertos de NVIDIA (Mistral Large 4, Nemotron) | Dos conexiones tipo OpenAI ([`bootstrap/components/open-webui.yaml`](https://github.com/maceosoft/gitops/blob/main/bootstrap/components/open-webui.yaml)) |
     | Traducción de la documentación y reporte semanal de logs | Pausados (dependían de Ollama) | Pendientes de pasar a Claude |
 
     Las claves viven en 1Password (items `Anthropic-apikey`, campo `api-key`, y `Nvidia-Apikey`, campo `password`) y
@@ -19,8 +19,8 @@
     lo que escribas en el chat. Ponle un tope de gasto mensual a la clave en la consola de cada proveedor.
 
     **Para volver a Ollama:** encender el servicio en los nodos que lo tengan (`playbook-ollama.yml`) y devolver
-    `replicas: 1` a lo que tiene el comentario `APAGADO` en `gitops` (`ai/ollama-router`, `ai/tools`, la línea de
-    `open-terminal` en `bootstrap/root-appset.yaml`). El resto de esta página describe ese modo.
+    `replicas: 1` a lo que tiene el comentario `APAGADO` en `gitops` (`addons/ai/ollama-router`, y el scrape y las
+    alertas de Ollama en `bootstrap/components/victoria-metrics-config.yaml`). El resto de esta página describe ese modo.
 
 El HomeLab tiene su propia inteligencia artificial, gratis y sin salir de la casa: modelos de lenguaje (LLM,
 *Large Language Model*) que corren en los equipos de la casa y se usan desde una página web (Open WebUI) para
@@ -318,11 +318,11 @@ a Ollama vía el router un resumen en lenguaje claro y lo publica en Discord.
 de Ollama.
 
 !!! warning "K8sGPT está etapado: la decisión es tuya"
-    Su línea está comentada en `root-appset.yaml`. El chart del operador trae un ClusterRole con permisos `*/*/*`
+    Su Application está en `bootstrap/components/apagadas/` (repo `gitops`). El chart del operador trae un ClusterRole con permisos `*/*/*`
     (en la práctica, administrador de todo el clúster) y no ofrece una opción para quitarlo; además el RBAC (control de acceso por roles) dinámico
     lee los Secrets de todo el clúster. Para activarlo hay tres caminos, descritos en
-    [`security/k8sgpt-rbac/`](https://github.com/maceosoft/gitops/tree/main/security/k8sgpt-rbac): aceptar el riesgo y
-    descomentar la línea; usar el rol acotado que ahí se propone (no está probado); y activar la NetworkPolicy del
+    [`addons/security/k8sgpt-rbac/`](https://github.com/maceosoft/gitops/tree/main/addons/security/k8sgpt-rbac): aceptar el riesgo y
+    mover `k8sgpt.yaml` a `bootstrap/components/`; usar el rol acotado que ahí se propone (no está probado); y activar la NetworkPolicy del
     namespace junto con la app. Mientras no se active, el resto de este apartado describe cómo funciona. Corre como operador, con análisis programado y poco frecuente, y deja sus resultados como objetos
 del clúster:
 
@@ -337,7 +337,7 @@ Todo el análisis es local: no se envía nada fuera de la casa.
 Open Terminal es un terminal con ejecución de código que Open WebUI usa como **herramienta del agente**: el
 asistente puede escribir y ejecutar scripts, procesar archivos y devolverte el resultado dentro del chat. Corre en
 su propio namespace, `ai-sandbox`, con la imagen `ghcr.io/open-webui/open-terminal` (variante `slim`), y se
-despliega desde [`ai/open-terminal/`](https://github.com/maceosoft/gitops/tree/main/ai/open-terminal).
+despliega desde [`addons/ai/open-terminal/`](https://github.com/maceosoft/gitops/tree/main/addons/ai/open-terminal).
 
 **Para qué sirve:** ejecutar código (Python, shell), convertir o analizar archivos, probar un script antes de
 llevarlo a Ansible o a un manifiesto. **Qué no hace:** no administra el HomeLab; no tiene acceso al clúster.
@@ -403,7 +403,7 @@ La clave protege la API de Open Terminal (Bearer). Se crea y rota igual que las 
    *Admin Settings → Integrations → Open Terminal* si hace falta (esto último es solo desde la interfaz).
 
 La clave se monta en el pod como un **archivo** (`OPEN_TERMINAL_API_KEY_FILE`, permisos `0440`), no como variable de
-entorno. La NetworkPolicy de `ai-sandbox` viaja junto al pod (`ai/open-terminal/networkpolicy.yaml`, con el orden
+entorno. La NetworkPolicy de `ai-sandbox` viaja junto al pod (`addons/ai/open-terminal/networkpolicy.yaml` en `gitops`, con el orden
 Namespace → NetworkPolicy → pod). Si despliegas la app **antes** de crear el Secret, Open WebUI arranca igual pero la
 conexión a Open Terminal responde `401` hasta que crees el Secret y reinicies el pod.
 
@@ -452,9 +452,9 @@ Ver [Rotar credenciales](rotar-credenciales.md).
 | Rol de Ansible `ollama_ondemand` (nodos Linux) | [`ansible/roles/ollama_ondemand`](https://github.com/maceosoft/homelab/tree/main/ansible/roles/ollama_ondemand) |
 | Playbook | [`ansible/playbook-ollama.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-ollama.yml) (grupo `llm_nodes`) |
 | Agente de nodo y bundle de macOS | [`ollama-node/`](https://github.com/maceosoft/homelab/tree/main/ollama-node) |
-| Router | [`ai/ollama-router/`](https://github.com/maceosoft/gitops/tree/main/ai/ollama-router) |
-| Applications de Argo CD | `ollama-router`, `open-webui`, `open-terminal`, `ai-tools` y `k8sgpt` en [`argocd/apps/`](https://github.com/maceosoft/gitops/tree/main/argocd/apps) |
-| Manifiestos | Carpeta [`ai/`](https://github.com/maceosoft/gitops/tree/main/ai) (`ollama-router`, `open-webui`, `open-terminal`, `tools`, `alert-triage`, `k8sgpt` y `log-report`) |
+| Router | [`addons/ai/ollama-router/`](https://github.com/maceosoft/gitops/tree/main/addons/ai/ollama-router) |
+| Applications de Argo CD | `ollama-router`, `open-webui`, `open-terminal`, `ai-tools` y `k8sgpt` en [`bootstrap/components/`](https://github.com/maceosoft/gitops/tree/main/bootstrap/components) |
+| Manifiestos | Carpeta [`addons/ai/`](https://github.com/maceosoft/gitops/tree/main/addons/ai) (`ollama-router`, `open-webui`, `open-terminal`, `tools`, `alert-triage`, `k8sgpt` y `log-report`) |
 
 Ver también [Agregar un nodo al clúster de Ollama](agregar-nodo-ollama.md), [Logs](logs.md),
 [Ansible](../ansible/index.md), [GitOps](../gitops/index.md), [Red](../networking/index.md) y
