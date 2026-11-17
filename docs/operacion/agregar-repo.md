@@ -56,20 +56,12 @@ Crea el item **`ftp-<repo>`** (por ejemplo `ftp-web-clientes`) en la bóveda
     unset FTP_DEV_PASS FTP_PROD_PASS
     ```
 
-Comprueba que se lee bien y llévalo al clúster, desde la raíz de `homelab`.
-El runner de OpenTofu recibe estas credenciales como `TF_VAR_ftp` desde el
-clúster, así que este paso va **antes** del PR (pull request): si no, el
-pipeline falla por falta de credenciales.
-
-```bash
-# tu cuenta
-export ONEPASSWORD_ACCOUNT_NAME="Mi Cuenta"
-.venv/bin/python ansible/scripts/apply_platform_secrets.py --check
-cd ansible
-ansible-playbook -i inventory.ini playbook-platform-secrets.yml
-```
-
-`--check` tiene que mostrar el item `ftp-<repo>` con sus 8 campos en ✓.
+!!! warning "Estas credenciales ya no llegan al runner"
+    Antes `playbook-platform-secrets.yml` juntaba todos los items `ftp-<repo>` en el Secret `arc-runners/tofu-vars` y el
+    runner de OpenTofu los recibía como `TF_VAR_ftp` en su entorno. Eso las dejaba al alcance de cualquier job de
+    cualquier repo, incluido el código de un PR, así que el playbook ya no lo crea (y lo borra si existe). Hasta que
+    `tofu.yml` reciba las credenciales como secretos de GitHub Actions del repo que lo llama, el pipeline de `infra`
+    no tiene `TF_VAR_ftp`: guarda igual el item en 1Password, que sigue siendo la fuente de las credenciales.
 
 ## 3. Agrega el repo al mapa (PR en `infra`)
 
@@ -204,7 +196,7 @@ check que exige la protección de `main` si pusiste
 
 | Síntoma | Revisar |
 |---|---|
-| El `plan` de `infra` falla con *deploy = true requiere credenciales ftp* | Falta el item `ftp-<repo>` o no re-corriste `playbook-platform-secrets.yml` (paso 2) |
+| El `plan` de `infra` falla con *deploy = true requiere credenciales ftp* | El runner ya no lleva `TF_VAR_ftp` (ver el aviso del paso 2) |
 | `--check` marca campos con ✗ | Nombres exactos de los 8 campos, sin sección ([detalle](../maceosoft/github.md#como-crear-un-item-con-campos-propios)) |
 | El `git push` a `main` es rechazado | Solo los owners de la org pueden saltarse la protección de `main`; si no, sube el código por PR |
-| El deploy falla al conectar | Datos del item `ftp-<repo>` y `ftp_protocol` en `repos.tf`; tras corregir el item, repite el paso 2 y relanza el pipeline de `infra` |
+| El deploy falla al conectar | Datos del item `ftp-<repo>` y `ftp_protocol` en `repos.tf`; tras corregir el item, relanza el pipeline de `infra` |

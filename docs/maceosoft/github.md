@@ -67,7 +67,7 @@ export ONEPASSWORD_ACCOUNT_NAME="Mi Cuenta"
 
 | Item | Tipo de item | Campos | Lo usa |
 |---|---|---|---|
-| `maceosoft-terraform` | Nota segura | `app_id`, `installation_id`, `private_key` | Runner de OpenTofu (`TF_VAR_github_app_*`) |
+| `maceosoft-terraform` | Nota segura | `app_id`, `installation_id`, `private_key` | OpenTofu de `infra` (`TF_VAR_github_app_*`). El playbook ya no lo lleva al clúster: los runners no tienen credenciales en su entorno (ver el Paso 3) |
 | `maceosoft-arc-runners` | Nota segura | `app_id`, `installation_id`, `private_key` | ARC (registro del runner) |
 | `maceosoft-argocd` | Nota segura | `app_id`, `installation_id`, `private_key` | Argo CD lee `maceosoft/gitops` (`argocd/repo-gitops`) |
 | `symintel-arc-runners` *(opcional)* | Nota segura | `app_id`, `installation_id`, `private_key` | ARC de la **org antigua** (`symintel`): registro de su scale set. Ver [Dos organizaciones](#dos-organizaciones-un-scale-set-por-org) |
@@ -78,7 +78,8 @@ export ONEPASSWORD_ACCOUNT_NAME="Mi Cuenta"
 | `healthchecks-ping` | Nota segura | `url`: ping URL del check de healthchecks.io *(opcional: monitoreo)* | Alertmanager le manda un ping cada 5 minutos para avisar que el monitoreo sigue vivo. Cómo crearla: [Discord y healthchecks.io](discord-healthchecks.md#parte-2-healthchecksio) |
 | `grafana-admin` | Nota segura | `password` y, si quieres, `username` (por defecto `admin`) *(opcional: monitoreo)* | Administrador de Grafana |
 | `wifi-homelab` | Nota segura | `ssid` (texto), `psk` (contraseña) | WiFi de respaldo del cable en los nodos con WiFi (`playbook-wifi-failover.yml`) |
-| `ftp-<repo>` | Nota segura | `dev_host`, `dev_user`, `dev_password`, `dev_remote_dir`, `prod_host`, `prod_user`, `prod_password`, `prod_remote_dir` | OpenTofu → secrets FTP de `<repo>` (`TF_VAR_ftp`) |
+| `ftp-<repo>` | Nota segura | `dev_host`, `dev_user`, `dev_password`, `dev_remote_dir`, `prod_host`, `prod_user`, `prod_password`, `prod_remote_dir` | OpenTofu → secrets FTP de `<repo>` (`TF_VAR_ftp`). El playbook ya no lo lee |
+| `argocd-ci` | Nota segura | `token` | Copia del token de la cuenta `ci` de Argo CD; el pipeline lo recibe del secreto de GitHub Actions `ARGOCD_CI_TOKEN` de `maceosoft/gitops`, no del playbook ([Pipeline de gitops](../operacion/pipeline-gitops.md#activar-el-diff-contra-el-cluster-una-vez)) |
 
 ### Cómo crear un item con campos propios
 
@@ -544,17 +545,19 @@ crea los namespaces `argocd`, `arc-runners` (PSS `privileged`, por el sidecar `d
 |---|---|---|
 | `repo-gitops` | `argocd` | App `maceosoft-argocd`: Argo CD puede clonar `https://github.com/maceosoft/gitops.git` |
 | `arc-runners-github-app` | `arc-runners` | App de ARC |
-| `terraform-app` | `arc-runners` | `TF_VAR_github_app_id`, `TF_VAR_github_app_installation_id`, `TF_VAR_github_app_private_key` |
-| `tofu-vars` | `arc-runners` | `TF_VAR_ftp` (todos los items `ftp-<repo>`) |
 | `arc-runners-github-app`, `terraform-app` | `arc-runners-symintel` | Lo mismo para la org antigua, desde `symintel-arc-runners` y `symintel-terraform` (solo si existen). El namespace se crea con PSS `baseline` |
 | `sealed-secrets-key-homelab` | `kube-system` | Par de llaves de Sealed Secrets (item `sealed-secrets`, si existe) |
 | `discord-webhooks`, `healthchecks-ping`, `grafana-admin` | `monitoring` | Webhooks de Discord, ping URL de healthchecks.io y contraseña de Grafana (los items del mismo nombre; solo si existen los tres). El namespace se crea con PSS `privileged`, porque `node-exporter` usa el disco y la red del nodo |
 
-!!! note "Un solo runner"
+Además **borra** de `arc-runners`, si existen, los Secrets `terraform-app`, `tofu-vars` y `argocd-ci`, que antes creaba.
+
+!!! note "Un solo runner, sin credenciales en su entorno"
     Es un HomeLab: el único scale set (`arc-runners`, grupo Default) corre CI (integración continua),
-    deploys y OpenTofu, y tiene las credenciales de OpenTofu como variables de
-    entorno. Cualquier repo de `maceosoft` que corra un job ahí puede
-    alcanzarlas. Mantén la org solo con repos tuyos.
+    deploys y OpenTofu. Lo que esté en el entorno del runner lo puede leer cualquier job de cualquier repo de
+    `maceosoft`, incluido el código de un PR. Por eso el runner ya no carga credenciales (antes llevaba
+    `terraform-app`, `tofu-vars` y `argocd-ci`): cada credencial llega como secreto de GitHub Actions solo al paso
+    que la usa (por ejemplo, el token del [pipeline de gitops](../operacion/pipeline-gitops.md#activar-el-diff-contra-el-cluster-una-vez)).
+    Mantén igual la org solo con repos tuyos.
 
 !!! warning "Siempre contra el HomeLab"
     El playbook usa `~/.kube/homelab-k3s.yaml` (el que deja
@@ -562,8 +565,7 @@ crea los namespaces `argocd`, `arc-runners` (PSS `privileged`, por el sidecar `d
     escribe secretos en otro clúster. Para otro kubeconfig:
     `-e platform_kubeconfig=/ruta`.
 
-Es idempotente: vuelve a correrlo cada vez que rotes algo en 1Password o agregues
-un item `ftp-<repo>`.
+Es idempotente: vuelve a correrlo cada vez que rotes algo en 1Password.
 
 ## Dos organizaciones: un scale set por org
 
@@ -579,7 +581,7 @@ atiendan a la org nueva (`maceosoft`) y a la antigua (`symintel`) hay **dos scal
 | Nombre en `runs-on:` | `arc-runners` | `arc-runners` (el mismo) |
 | Caché `/cache` (RWX, Longhorn) | 20 GiB | 10 GiB, propia |
 | Docker (`dind`) | Sí, con un sidecar privilegiado | Sí, igual |
-| OpenTofu y FTP | Sí (`terraform-app`, `tofu-vars`) | Solo si existe el item `symintel-terraform` |
+| OpenTofu y FTP en el entorno del runner | No (sin credenciales en el entorno) | Solo si existe el item `symintel-terraform` (`terraform-app`) |
 
 Los dos usan **la misma plantilla** de runner
 ([`values-scaleset.yaml`](https://github.com/maceosoft/gitops/blob/main/arc/values-scaleset.yaml)); la org antigua cambia
@@ -604,9 +606,14 @@ Argo CD sincroniza, entre otras, estas Applications:
 |---|---|
 | `arc-controller` | Controller de ARC (`arc-systems`) |
 | `terraform-rbac` | ServiceAccount `tofu-runner` + Role (solo Secrets/Leases del namespace `terraform`) |
-| `arc-runners` | El runner (hasta 3 en paralelo), con los Secrets del namespace como variables de entorno |
+| `arc-runners` | El runner (hasta 3 en paralelo), sin credenciales en su entorno |
 
 ## Paso 5 — Primer pipeline de OpenTofu
+
+!!! warning "Sin credenciales hasta adaptar `tofu.yml`"
+    `tofu.yml` espera `TF_VAR_github_app_*` y `TF_VAR_ftp` en el entorno del runner, que ya no los lleva. Hoy ningún
+    repo de `maceosoft` lo llama; antes de usarlo hay que pasarle esas credenciales como secretos de GitHub Actions
+    del repo que lo llama, solo al paso que las usa.
 
 Haz un push a `main` de `infra`, o lánzalo desde *Actions → tofu →
 Run workflow* (con la CLI: `gh workflow run tofu.yml --repo maceosoft/infra --ref main` y `gh run watch --repo maceosoft/infra`). El workflow
@@ -631,8 +638,9 @@ Después del playbook y de GitOps:
 
 ```bash
 kubectl -n argocd get secret repo-gitops
-kubectl -n arc-runners get secret \
-  arc-runners-github-app terraform-app tofu-vars
+kubectl -n arc-runners get secret arc-runners-github-app
+# los Secrets obsoletos ya no existen: tiene que responder NotFound
+kubectl -n arc-runners get secret terraform-app tofu-vars argocd-ci
 # org antigua, si la usas:
 kubectl -n arc-runners-symintel get secret arc-runners-github-app
 kubectl -n argocd get applications | grep -E 'arc|terraform'
