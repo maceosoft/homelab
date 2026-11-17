@@ -35,6 +35,7 @@ paréntesis.
 | **CPU** | unidad central de procesamiento |  |
 | **CR** / CRs | [Custom Resource](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/) | Objeto de Kubernetes definido por un operador (p. ej. un Plan de SUC). |
 | **CRD** / CRDs | [Custom Resource Definition](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/) | Definición de un tipo de objeto nuevo en Kubernetes (la instala un operador, p. ej. el SUC). |
+| **CSR** | [Certificate Signing Request](https://cert-manager.io/docs/usage/certificaterequest/) | Pedido de firma de un certificado: lleva la llave pública y los nombres (SANs), nunca la llave privada. Así se firma el certificado del S3 de Incus sin sacar su llave del nodo. |
 | **CSV** | Comma-Separated Values | Archivo de datos en texto donde las columnas se separan con comas. |
 | **Dex** | [Dex](https://dexidp.io/docs/) | Proveedor de identidad OIDC del HomeLab: permite entrar con la cuenta de GitHub (team `devops`) a Argo CD, Grafana, Open WebUI y SSH. |
 | **DHCP** | Dynamic Host Configuration Protocol | Protocolo con el que el router asigna IPs automáticamente. |
@@ -110,6 +111,7 @@ paréntesis.
 | **RAM** | memoria RAM | Memoria de trabajo del equipo. |
 | **RBAC** | [Role-Based Access Control](https://kubernetes.io/docs/reference/access-authn-authz/rbac/) | Control de acceso por roles: qué puede hacer cada usuario o cuenta de servicio. |
 | **RWX** | ReadWriteMany | Modo de acceso de un volumen que varios pods pueden montar a la vez, incluso en nodos distintos. |
+| **S3** | [Simple Storage Service](https://linuxcontainers.org/incus/docs/main/howto/storage_buckets/) | Protocolo de almacenamiento de objetos (buckets) creado por Amazon. Incus lo ofrece para sus buckets; aquí guarda los respaldos de PostgreSQL. |
 | **SAN** | Subject Alternative Name | Nombre o IP extra que acepta un certificado TLS (singular de SANs). |
 | **SANs** | Subject Alternative Names | Nombres e IPs extra que acepta un certificado TLS. |
 | **SATA** | Serial ATA | Interfaz de los discos y SSD de 2,5 pulgadas (invincible y oliver). |
@@ -129,6 +131,7 @@ paréntesis.
 | **SSO** | inicio de sesión único | Single Sign-On: entrar a varios servicios con la misma cuenta (aquí, GitHub vía Dex). |
 | **SUC** | [System Upgrade Controller](https://github.com/rancher/system-upgrade-controller) | Controlador de Rancher que actualiza K3s nodo por nodo. |
 | **T2** | [chip Apple T2](https://wiki.t2linux.org/) | Coprocesador de seguridad de las Mac Intel 2018-2020; maneja teclado, trackpad, audio y Touch ID, y en Linux necesita el kernel `linux-t2` (nodo `eve`). |
+| **TCP** | Transmission Control Protocol | Protocolo de transporte con conexión y entrega ordenada; sobre él viajan HTTP, TLS y SSH. |
 | **TLS** | Transport Layer Security | Cifrado de las conexiones (lo que pone la S en HTTPS). |
 | **TTL** | Time To Live | Tiempo que se guarda un dato en caché antes de volver a pedirlo. |
 | **UDP** | User Datagram Protocol | Protocolo de transporte sin conexión; lo usan, por ejemplo, el DNS y VXLAN. |
@@ -145,6 +148,7 @@ paréntesis.
 | **VM** / VMs | máquina virtual | Virtual machine. |
 | **VPN** | red privada virtual | Virtual Private Network: acceso cifrado a la red de la casa desde afuera. |
 | **VXLAN** | Virtual Extensible LAN | Red de capa 2 encapsulada sobre UDP; con ella Flannel y Calico conectan los pods entre nodos. |
+| **WAL** | [Write-Ahead Log](https://www.postgresql.org/docs/current/wal-intro.html) | Registro donde PostgreSQL anota cada cambio antes de aplicarlo. Archivarlo de forma continua permite restaurar la base a cualquier momento. |
 | **YAML** | YAML Ain't Markup Language | Formato de texto de configuración que usan Kubernetes y Ansible. |
 
 ## Conceptos y herramientas
@@ -165,6 +169,7 @@ operación. Si una palabra te frena al leer, búscala aquí.
 | **Bridge** (puente) | Interfaz de red virtual que funciona como un switch. El bridge `br0` conecta las VMs y los contenedores a la LAN como si fueran un equipo más. |
 | **[Calico](https://docs.tigera.io/calico/)** | El CNI del clúster: conecta los pods entre nodos y hace cumplir las NetworkPolicy. |
 | **[cert-manager](https://cert-manager.io/)** | Emite y renueva solo los certificados TLS dentro de Kubernetes. Aquí los firma la CA propia del HomeLab para los dominios `*.homelab.local`. |
+| **[CloudNativePG](https://cloudnative-pg.io/)** | Operador de Kubernetes que crea y administra clústeres de PostgreSQL (instancias, usuarios, respaldos). Aquí corre el PostgreSQL compartido de la plataforma. |
 | **[Cilium](https://cilium.io/)** | CNI basado en eBPF. En la guía aparece como alternativa a Calico. |
 | **Clúster** | Grupo de máquinas que trabajan juntas como si fueran un solo sistema. En este HomeLab hay dos sobre los mismos 4 nodos: el de Incus y el de K3s. |
 | **Contenedor** | Proceso aislado que trae todo lo que necesita para funcionar pero comparte el kernel del equipo anfitrión; por eso es más liviano que una VM. Incus corre contenedores de sistema (LXC) y Kubernetes corre contenedores de aplicación dentro de los pods. |
@@ -189,6 +194,7 @@ operación. Si una palabra te frena al leer, búscala aquí.
 | **[GitHub App](https://docs.github.com/apps)** | Identidad de aplicación en GitHub con permisos acotados, para automatizar sin usar una cuenta personal (la usan ARC, Argo CD y OpenTofu). |
 | **[GitOps](https://opengitops.dev/)** | Forma de operar en la que Git es la fuente de verdad: cambias un archivo en el repo y una herramienta (aquí Argo CD) hace que el clúster coincida. También es el nombre del repo `maceosoft/gitops`. |
 | **[Grafana](https://grafana.com/docs/grafana/latest/)** | La web donde ves las métricas en dashboards y buscas logs (en «Explore»). |
+| **[HAProxy](https://www.haproxy.org/)** | Proxy y balanceador TCP/HTTP. En `invincible` publica el S3 de Incus con un certificado de la CA del HomeLab (rol `incus_s3`). |
 | **group_vars** / **host_vars** | Carpetas de Ansible con las variables de un grupo de máquinas o de una máquina concreta. |
 | **Hardening** | Endurecer la seguridad de un sistema: cerrar puertos, quitar accesos que sobran y aplicar configuraciones seguras. |
 | **[healthchecks.io](https://healthchecks.io/)** | Servicio externo que espera un aviso («ping») periódico y alerta si deja de llegar. Vigila que el propio monitoreo siga vivo. |

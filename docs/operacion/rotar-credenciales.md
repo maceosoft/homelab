@@ -28,6 +28,9 @@ primero en 1Password (bóveda `HomeLab`) y después se lleva al clúster.
 | Token del webhook de `alert-triage` y clave de API de `mcpo` | `alert-triage-webhook` (campo `token`), `mcp-api-key` (campo `key`) | `playbook-platform-secrets.yml` ([ver abajo](#tokens-de-ollama-y-de-servicios-internos)) |
 | Clave de API de Open Terminal | `open-terminal` (campo `api_key`) | `playbook-platform-secrets.yml` ([ver abajo](#tokens-de-ollama-y-de-servicios-internos)) |
 | Webhook del canal `#ia` (reportes con IA) | `discord-webhooks` (campo `ai`) | `playbook-platform-secrets.yml` ([crear el canal](logs.md#crear-el-canal-ia-y-su-webhook-una-sola-vez)) |
+| Contraseña del rol `homelab_agent` del PostgreSQL de la plataforma | `postgres-homelab-agent` (campo `password`; la genera el playbook si falta) | `playbook-platform-secrets.yml` ([ver abajo](#postgresql-de-la-plataforma)) |
+| Llave del bucket `postgres-backups` de Incus (respaldos de PostgreSQL) | `postgres-s3` (campos `access_key`, `secret_key`) | Incus + `playbook-platform-secrets.yml` ([ver abajo](#postgresql-de-la-plataforma)) |
+| Certificado del S3 de Incus (no es un secreto: se renueva cada año) | — | `playbook-incus-s3.yml -e incus_s3_confirm=true` ([renovación](../storage/postgres.md#renovacion)) |
 | Contraseña de root de los nodos | `root@<nodo>` (la crea el playbook) | `playbook-rotate-root-passwords.yml` |
 | Llave de Sealed Secrets | `sealed-secrets` | `playbook-platform-secrets.yml` ([ojo: ver abajo](#llave-de-sealed-secrets)) |
 | Token de Argo CD del pipeline de `gitops` (cuenta `ci`, vence a los 90 días) | `argocd-ci` | Secreto de GitHub Actions `ARGOCD_CI_TOKEN` de `maceosoft/gitops`, no el playbook ([cómo generarlo y renovarlo](pipeline-gitops.md#activar-el-diff-contra-el-cluster-una-vez)) |
@@ -302,6 +305,47 @@ Para rotar uno:
         ```bash
         op read "op://HomeLab/ollama-router/translate" | gh secret set OLLAMA_TOKEN --repo maceosoft/homelab
         ```
+
+## PostgreSQL de la plataforma
+
+El [PostgreSQL compartido](../storage/postgres.md) usa dos credenciales. CloudNativePG relee sus Secrets al cambiar
+(etiqueta `cnpg.io/reload`), así que no hace falta reiniciar la base.
+
+**Contraseña de `homelab_agent`:**
+
+1. Reemplaza el campo `password` del item `postgres-homelab-agent` (el valor se genera dentro del comando):
+
+    ```bash
+    op item edit postgres-homelab-agent "password[password]=$(openssl rand -hex 32)" >/dev/null
+    ```
+
+2. Aplica y reinicia la aplicación para que tome la `DATABASE_URL` nueva:
+
+    ```bash
+    cd ansible
+    ansible-playbook -i inventory.ini playbook-platform-secrets.yml
+    kubectl -n ai rollout restart deploy/<deployment-de-homelab-agent>
+    ```
+
+**Llave del bucket `postgres-backups`:** se crea una llave nueva, se cambia y recién entonces se borra la vieja, así
+el archivo del WAL (Write-Ahead Log, el registro de cambios de PostgreSQL) no se corta.
+
+1. Valores nuevos en 1Password y la llave nueva (`cnpg-<fecha>`) en Incus, sin mostrarlos:
+
+    ```bash
+    op item edit postgres-s3 "access_key[password]=$(openssl rand -hex 16)" "secret_key[password]=$(openssl rand -hex 32)" >/dev/null
+    AK=$(op read "op://HomeLab/postgres-s3/access_key") && SK=$(op read "op://HomeLab/postgres-s3/secret_key") \
+      && test -n "$AK" && test -n "$SK" \
+      && printf 'description: CloudNativePG (postgres)\naccess-key: %s\nsecret-key: %s\n' "$AK" "$SK" \
+      | ssh invincible "sudo incus storage bucket key create local postgres-backups cnpg-$(date +%Y%m%d) --role admin >/dev/null"
+    unset AK SK
+    ```
+
+2. Aplica los Secrets: `ansible-playbook -i inventory.ini playbook-platform-secrets.yml`.
+3. Comprueba que el archivo sigue funcionando: `kubectl -n postgres get cluster postgres -o jsonpath='{.status.conditions}'`
+   (`ContinuousArchiving` en `True`) o pide un respaldo manual.
+4. Borra la llave vieja: `ssh invincible 'sudo incus storage bucket key list local postgres-backups'` y
+   `ssh invincible 'sudo incus storage bucket key delete local postgres-backups <llave-vieja>'`.
 
 ## Contraseña de root de los nodos
 

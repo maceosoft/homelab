@@ -190,6 +190,26 @@ op item edit ollama-router "reports[password]=$(openssl rand -hex 32)"
 Después vuelve a correr `playbook-platform-secrets.yml` y reinicia los pods que lo usan (ver
 [Rotar credenciales](../operacion/rotar-credenciales.md)). Si cambias `translate`, repite el comando de `gh secret set`.
 
+## PostgreSQL de la plataforma (1Password → Secrets del clúster)
+
+`playbook-platform-secrets.yml` crea también los Secrets del PostgreSQL compartido (CloudNativePG) y de sus respaldos
+en el S3 (Simple Storage Service) de Incus. Detalle y puesta en marcha:
+[PostgreSQL y respaldos en Incus](../storage/postgres.md).
+
+| Item de 1Password | Campos | Secret en el clúster |
+|---|---|---|
+| `postgres-homelab-agent` | `password` (**si falta, el playbook lo genera** y lo guarda en el item) | `postgres/postgres-homelab-agent` (`kubernetes.io/basic-auth`, etiqueta `cnpg.io/reload`) y `ai/homelab-agent-postgres` (`DATABASE_URL`) |
+| `postgres-s3` *(opcional, respaldos)* | `access_key`, `secret_key` (los crea el operador) | `postgres/postgres-s3` (`ACCESS_KEY_ID`, `ACCESS_SECRET_KEY`; etiqueta `cnpg.io/reload`) |
+| — | — | `postgres/incus-s3-ca`: `ca.crt` de `cert-manager/homelab-ca`, solo el certificado público |
+
+- Con `-C` (`--dry-run`) el script **no escribe en 1Password**: avisa que la contraseña se generará al aplicar.
+- La contraseña generada son 64 caracteres hexadecimales; el script la escapa igual en la `DATABASE_URL` si se cambia
+  a mano por otra con símbolos.
+- Para `incus-s3-ca` el script pide a Kubernetes solo la clave `ca.crt` y rechaza cualquier cosa que contenga una
+  llave privada: el Secret `cert-manager/homelab-ca` guarda también la llave de la CA.
+- El namespace `postgres` es de GitOps: el script solo se asegura de que exista, sin etiquetas y con
+  `Prune=false,Delete=false`.
+
 ## Rotación de password de root (1Password SDK local)
 
 [`playbook-rotate-root-passwords.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-rotate-root-passwords.yml)

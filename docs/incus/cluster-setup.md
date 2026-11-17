@@ -404,6 +404,15 @@ El clúster exige **la misma versión de Incus en todos los miembros**: mientras
 ya actualizados hasta que los demás los alcanzan. Por eso el playbook de actualización recorre todos los nodos seguidos y
 verifica al final. Para rehacer el clúster después de desinstalar: `playbook-bootstrap.yml` y `playbook-incus-cluster.yml`.
 
+## Buckets S3
+
+Incus ofrece buckets por S3 (Simple Storage Service, el protocolo de objetos de Amazon) en el pool `local`. Cada bucket
+vive solo en el miembro donde se creó (hoy `backup`, `test` y `postgres-backups`, todos en `invincible`) y solo ese
+miembro lo sirve. El S3 no se publica directamente: Incus lo escucha en loopback (`core.storage_buckets_address` en
+`127.0.0.1:8556`, solo en `invincible`) y HAProxy lo publica en `https://192.168.20.6:8555` con un certificado de la
+CA (autoridad certificadora) del HomeLab, para no cambiar el certificado de la API de Incus. Por qué, cómo se renueva
+y los comandos: [PostgreSQL y respaldos en Incus](../storage/postgres.md#el-certificado-del-endpoint-s3).
+
 ## Backup y snapshots (opcional)
 
 No forman parte del bootstrap por defecto. Actívalos cuando quieras proteger
