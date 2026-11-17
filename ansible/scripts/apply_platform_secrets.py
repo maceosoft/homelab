@@ -112,13 +112,13 @@ MONITORING_NAMESPACE = "monitoring"
 ARGOCD_NAMESPACE = "argocd"
 ARGOCD_NOTIFICATIONS_SECRET = "argocd-notifications-secret"
 DISCORD_ITEM = "discord-webhooks"
-# Asistente de IA (opcional): Open WebUI (gitops: argocd/apps/open-webui.yaml) lee este Secret en el namespace "ai".
+# Asistente de IA (opcional): Open WebUI (gitops: bootstrap/components/open-webui.yaml) lee este Secret en el namespace "ai".
 AI_NAMESPACE = "ai"
 OPEN_WEBUI_ITEM = "open-webui"
 OPEN_WEBUI_SECRET_NAME = "open-webui-secret"
 # Firma las sesiones de Open WebUI: una clave corta o con patrón sería adivinable.
 OPEN_WEBUI_KEY_RE = re.compile(r"^[0-9a-f]{64}$")
-# Router de Ollama (gitops: ai/ollama-router): un token Bearer por cliente. El Secret del router lleva todos los campos del
+# Router de Ollama (gitops: addons/ai/ollama-router): un token Bearer por cliente. El Secret del router lleva todos los campos del
 # item; cada cliente recibe solo el suyo (clave "token") en el namespace donde corre.
 OLLAMA_ROUTER_ITEM = "ollama-router"
 OLLAMA_ROUTER_SECRET = "ollama-router-secrets"
@@ -132,14 +132,14 @@ OLLAMA_CLIENT_TOKENS = {
 }
 # Items de un solo campo: item -> (campo, [(namespace, Secret, clave), ...]); el mismo valor va a cada destino.
 SANDBOX_NAMESPACE = "ai-sandbox"
-# Namespaces cuyas etiquetas PSA declara GitOps (ai-sandbox: restricted en ai/open-terminal/namespace.yaml): este script
+# Namespaces cuyas etiquetas PSA declara GitOps (ai-sandbox: restricted en gitops addons/ai/open-terminal/namespace.yaml): este script
 # solo se asegura de que existan, sin etiqueta PSA, y con la anotación que impide que ArgoCD los pode.
 GITOPS_NAMESPACES = (AI_NAMESPACE, SANDBOX_NAMESPACE)
 SINGLE_TOKEN_ITEMS = {
     "alert-triage-webhook": ("token", [(MONITORING_NAMESPACE, "alert-triage-webhook", "token")]),
-    # mcpo (ai/tools) la exige; alert-triage (monitoring) la presenta para diagnosticar con las herramientas.
+    # mcpo (gitops: addons/ai/tools) la exige; alert-triage (monitoring) la presenta para diagnosticar con las herramientas.
     "mcp-api-key": ("key", [(AI_NAMESPACE, "mcp-api-key", "key"), (MONITORING_NAMESPACE, "mcp-api-key", "key")]),
-    # API keys de Claude y NVIDIA: alert-triage (gitops: ai/alert-triage) y Open WebUI (gitops: argocd/apps/open-webui.yaml).
+    # API keys de Claude y NVIDIA: alert-triage (gitops: addons/ai/alert-triage) y Open WebUI (gitops: bootstrap/components/open-webui.yaml).
     "Anthropic-apikey": ("api-key", [(MONITORING_NAMESPACE, "anthropic-api-key", "api_key"), (AI_NAMESPACE, "anthropic-api-key", "api_key")]),
     "Nvidia-Apikey": ("password", [(AI_NAMESPACE, "nvidia-api-key", "api_key")]),
     "open-terminal": ("api_key", [(SANDBOX_NAMESPACE, "open-terminal-api-key", "api_key"), (AI_NAMESPACE, "open-terminal-api-key", "api_key")]),
@@ -337,7 +337,7 @@ async def build_manifests() -> list[dict]:
 
     manifests: list[dict] = [
         namespace("argocd"),
-        # privileged: los runners llevan un sidecar dind (gitops: arc/values-scaleset.yaml).
+        # privileged: los runners llevan un sidecar dind (gitops: addons/ci/arc/values-scaleset.yaml).
         namespace(RUNNER_NAMESPACE, privileged=True),
         namespace(STATE_NAMESPACE),
     ]

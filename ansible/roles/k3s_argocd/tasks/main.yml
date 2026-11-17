@@ -57,9 +57,150 @@
   changed_when: false
   when: not ansible_check_mode
 
+# Progressive syncs (RollingSync del ApplicationSet "homelab" de gitops/bootstrap/) y el glob
+# nuevo del generador git (sin él, bootstrap/components/*.yaml también genera las apps de
+# apagadas/). Después las mantiene gitops (addons/argocd/config/kustomization.yaml, mismos
+# valores), pero tienen que estar ANTES de que arranque el ApplicationSet: el controller las
+# lee solo al arrancar.
+# En --check sobre un clúster sin ArgoCD todavía (la instalación de arriba no corre en
+# --check) el ConfigMap no existe: se toma como vacío.
+- name: Leer argocd-cmd-params-cm
+  ansible.builtin.command: k3s kubectl -n argocd get configmap argocd-cmd-params-cm -o json
+  register: k3s_argocd_cmd_params
+  changed_when: false
+  failed_when: k3s_argocd_cmd_params.rc != 0 and not ansible_check_mode
+  check_mode: false
+
+- name: Calcular las claves del ApplicationSet controller que faltan
+  ansible.builtin.set_fact:
+    k3s_argocd_cmd_params_missing: >-
+      {{ k3s_argocd_appset_cmd_params | dict2items
+         | rejectattr('key', 'in', k3s_argocd_cmd_params_ok) | items2dict }}
+  vars:
+    k3s_argocd_cmd_params_current: >-
+      {{ ((k3s_argocd_cmd_params.stdout | default('', true) or '{}') | from_json).data | default({}) }}
+    k3s_argocd_cmd_params_ok: >-
+      {{ k3s_argocd_cmd_params_current | dict2items | selectattr('value', 'equalto', 'true')
+         | map(attribute='key') | list }}
+    k3s_argocd_appset_cmd_params:
+      applicationsetcontroller.enable.progressive.syncs: "true"
+      applicationsetcontroller.enable.new.git.file.globbing: "true"
+
+# Una sola vez: solo si faltaba alguna clave (instalación nueva o claves borradas a mano).
+- name: Activar progressive syncs y el glob nuevo, y reiniciar el ApplicationSet controller
+  when: k3s_argocd_cmd_params_missing | length > 0
+  block:
+    - name: Agregar las claves a argocd-cmd-params-cm
+      ansible.builtin.command:
+        argv:
+          - k3s
+          - kubectl
+          - -n
+          - argocd
+          - patch
+          - configmap
+          - argocd-cmd-params-cm
+          - --type
+          - merge
+          - -p
+          - "{{ {'data': k3s_argocd_cmd_params_missing} | to_json }}"
+      changed_when: true
+
+    - name: Reiniciar argocd-applicationset-controller (lee las claves al arrancar)
+      ansible.builtin.command: k3s kubectl -n argocd rollout restart deployment argocd-applicationset-controller
+      changed_when: true
+
+    - name: Esperar argocd-applicationset-controller tras el reinicio
+      ansible.builtin.command: >-
+        k3s kubectl -n argocd rollout status deployment argocd-applicationset-controller --timeout=300s
+      changed_when: false
+      when: not ansible_check_mode
+
+# Bootstrap de gitops (kubectl apply -k bootstrap/): solo la PRIMERA vez y solo con
+# k3s_argocd_bootstrap_confirm=true. Después lo administra ArgoCD (Application
+# homelab-bootstrap): volver a aplicarlo repondría values.pausadas de git (vacío) y
+# despausaría todas las apps, así que si el ApplicationSet "homelab" ya existe no se toca.
+# Este rol nunca borra Applications ni ApplicationSets.
+- name: Ver si el ApplicationSet homelab ya existe
+  ansible.builtin.command: k3s kubectl -n argocd get applicationset homelab -o name
+  register: k3s_argocd_appset
+  changed_when: false
+  failed_when: >-
+    k3s_argocd_appset.rc != 0 and 'NotFound' not in k3s_argocd_appset.stderr
+    and not ansible_check_mode
+  check_mode: false
+
+- name: Aplicar el bootstrap de gitops (primera vez)
+  when:
+    - k3s_argocd_bootstrap_confirm | default(false) | bool
+    - k3s_argocd_appset.rc != 0
+    # En --check con ArgoCD sin instalar todavía no hay CRDs contra los que probar.
+    - not (ansible_check_mode and k3s_argocd_diff.rc == 1)
+  block:
+    # gitops es privado y el server no tiene credenciales de GitHub: se renderiza en la
+    # estación del operador, desde su copia de gitops, y se aplica en el server por stdin.
+    - name: Leer la rama de la copia local de gitops
+      ansible.builtin.slurp:
+        src: "{{ k3s_install.gitops_argocd.gitops_local_path }}/.git/HEAD"
+      register: k3s_argocd_gitops_head
+      delegate_to: localhost
+      become: false
+
+    - name: Exigir la rama main en la copia local de gitops
+      ansible.builtin.assert:
+        that: "(k3s_argocd_gitops_head.content | b64decode | trim) == 'ref: refs/heads/main'"
+        fail_msg: >-
+          {{ k3s_install.gitops_argocd.gitops_local_path }} no está en la rama main
+          ({{ k3s_argocd_gitops_head.content | b64decode | trim }}): el bootstrap se aplica desde main
+          (git checkout main && git pull).
+
+    # repo-gitops (lo crea playbook-platform-secrets.yml) es la credencial con la que ArgoCD
+    # lee gitops: sin él, el ApplicationSet no descubre ningún componente.
+    - name: Comprobar el Secret argocd/repo-gitops
+      ansible.builtin.command: k3s kubectl -n argocd get secret repo-gitops -o name
+      register: k3s_argocd_repo_secret
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: Exigir los secretos de plataforma antes del bootstrap
+      ansible.builtin.assert:
+        that: k3s_argocd_repo_secret.rc == 0
+        fail_msg: >-
+          Falta el Secret argocd/repo-gitops. Corre antes ansible-playbook playbook-platform-secrets.yml
+          y vuelve a correr este rol.
+
+    - name: Renderizar gitops/bootstrap (kubectl kustomize)
+      ansible.builtin.command: kubectl kustomize {{ k3s_install.gitops_argocd.gitops_local_path }}/bootstrap
+      register: k3s_argocd_bootstrap_manifest
+      delegate_to: localhost
+      become: false
+      changed_when: false
+      check_mode: false
+
+    - name: Probar el bootstrap contra la API (--dry-run=server)
+      ansible.builtin.command:
+        cmd: k3s kubectl apply --dry-run=server -f -
+        stdin: "{{ k3s_argocd_bootstrap_manifest.stdout }}"
+      changed_when: false
+      check_mode: false
+
+    - name: Aplicar gitops/bootstrap (homelab-bootstrap, ApplicationSet homelab, repos Helm)
+      ansible.builtin.command:
+        cmd: k3s kubectl apply -f -
+        stdin: "{{ k3s_argocd_bootstrap_manifest.stdout }}"
+      changed_when: true
+
 - name: Recordar paso GitOps post-bootstrap
   ansible.builtin.debug:
     msg: >-
-      ArgoCD {{ k3s_argocd_version }} listo. Aplica el ApplicationSet de bootstrap desde gitops:
-      kubectl apply -f bootstrap/root-appset.yaml
-      (repo: {{ k3s_install.gitops_argocd.gitops_repo_url }})
+      {{ ('ArgoCD ' ~ k3s_argocd_version ~ ' listo. El ApplicationSet homelab ya existe: el bootstrap lo
+      administra ArgoCD (Application homelab-bootstrap); este rol no lo vuelve a aplicar.')
+         if k3s_argocd_appset.rc == 0 else
+         ('ArgoCD ' ~ k3s_argocd_version ~ ' listo. Falta el bootstrap de gitops: tras
+         playbook-platform-secrets.yml, vuelve a correr este rol con -e k3s_argocd_bootstrap_confirm=true
+         o aplica a mano desde gitops: kubectl apply -k bootstrap/ (repo: '
+         ~ k3s_install.gitops_argocd.gitops_repo_url ~ ')')
+         if not (k3s_argocd_bootstrap_confirm | default(false) | bool) else
+         ('ArgoCD ' ~ k3s_argocd_version ~ ' listo y bootstrap de gitops aplicado: '
+         ~ 'kubectl -n argocd get applicationset homelab; kubectl -n argocd get applications') }}

@@ -6,7 +6,7 @@ lan_cidr: 192.168.20.0/22
 dns_primary: 192.168.20.5
 
 # IP fija del Gateway de GitOps (primera del pool de MetalLB, 192.168.23.200–.220).
-# La piden los Service de kong/traefik/nginx-gateway en gitops (argocd/apps/*.yaml)
+# La piden los Service de kong/traefik/nginx-gateway en gitops (bootstrap/components/*.yaml)
 # y la resuelven argocd, vcluster y api en el DNS (zona homelab.local de bind_dns).
 gateway_ip: 192.168.23.200
 dns_domain: mco.local

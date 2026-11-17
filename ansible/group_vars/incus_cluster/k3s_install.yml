@@ -11,7 +11,7 @@ k3s_node_labels_enabled: true      # etiquetas de nodos (rol k3s_node_labels)
 k3s_install:
   core:
     # Canal "stable" de K3s (https://update.k3s.io/v1-release/channels/stable). El SUC
-    # (gitops/k3s-upgrade) sigue ese canal: al agregar un nodo, usar la versión que
+    # (gitops/addons/cluster/k3s-upgrade) sigue ese canal: al agregar un nodo, usar la versión que
     # muestra `kubectl get nodes`.
     version: "v1.37.2+k3s1"
     # SHA-256 de install.sh en el tag de esa versión
@@ -72,6 +72,10 @@ k3s_install:
     # actualiza solo: la Application "argocd" de gitops sigue el tag stable del repo oficial.
     version: latest
     gitops_repo_url: https://github.com/maceosoft/gitops
+    # Copia local de gitops (en main) desde la que el rol renderiza bootstrap/ la primera vez
+    # (-e k3s_argocd_bootstrap_confirm=true). gitops es privado: se lee en la estación del
+    # operador, no en el server.
+    gitops_local_path: "{{ playbook_dir }}/../../gitops"
 
   node_labels:
     enabled: "{{ k3s_node_labels_enabled | bool }}"

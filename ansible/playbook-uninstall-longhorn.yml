@@ -7,8 +7,10 @@
 # DESTRUCTIVO: borra todos los volúmenes y réplicas de Longhorn. El disco dedicado NO se formatea ni
 # se borra: solo se desmonta y se quita de fstab, con su filesystem y sus datos intactos.
 #
-# Requisito previo (gitops): comentar `longhorn` y `arc-runners` en bootstrap/root-appset.yaml y
-# hacer push, para que Argo CD no recree lo que este playbook borra.
+# Requisito previo (gitops): mover `longhorn.yaml` y `arc-runners.yaml` de bootstrap/components/ a
+# bootstrap/components/apagadas/ y mergear, para que Argo CD no recree lo que este playbook borra. Con
+# applicationsSync: create-update el ApplicationSet no borra las Applications: borrarlas a mano
+# (kubectl -n argocd delete application arc-runners longhorn).
 #
 # Ejecutar (desde ansible/, con KUBECONFIG apuntando al clúster):
 #   ansible-playbook -i inventory.ini playbook-uninstall-longhorn.yml                                # solo preflight
