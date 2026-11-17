@@ -6,10 +6,7 @@ GitOps, y que no pueden vivir en git:
 
   argocd/repo-gitops                       App maceosoft-argocd: ArgoCD lee maceosoft/gitops (privado)
   arc-runners/arc-runners-github-app       App de ARC (registro del runner)
-  arc-runners/terraform-app                App de OpenTofu, como TF_VAR_github_app_*
-  arc-runners-symintel/...                 lo mismo para la org antigua (symintel), opcional: ver abajo
-  arc-runners/tofu-vars                    TF_VAR_ftp (credenciales FTP por repo)
-  arc-runners/argocd-ci                    ARGOCD_AUTH_TOKEN (opcional: diff del pipeline de gitops)
+  arc-runners-symintel/...                 App de ARC y de OpenTofu de la org antigua (symintel), opcional: ver abajo
   kube-system/sealed-secrets-key-homelab   llave de Sealed Secrets (opcional, ver abajo)
   monitoring/discord-webhooks              webhooks de Discord de Alertmanager (opcional: monitoreo)
   monitoring/healthchecks-ping             ping URL de healthchecks.io (opcional: monitoreo)
@@ -32,8 +29,13 @@ GitOps, y que no pueden vivir en git:
   ai/open-terminal-api-key                 el mismo valor, para Open WebUI (clave "api_key")
   namespace terraform                      state de OpenTofu (lo escribe el runner)
 
-El único scale set (arc-runners, desplegado por ArgoCD desde maceosoft/gitops)
-monta los dos últimos Secrets como variables de entorno.
+Además BORRA de arc-runners los Secrets terraform-app, tofu-vars y argocd-ci si
+existen (OBSOLETE_RUNNER_SECRETS). Antes se creaban aquí y el scale set de
+maceosoft los cargaba con envFrom en el entorno de TODOS los jobs, incluido el
+código de un PR. Ahora una credencial llega solo al paso que la usa, como
+secreto de GitHub Actions (el token de ArgoCD del diff: secreto ARGOCD_CI_TOKEN
+de maceosoft/gitops; ver docs/operacion/pipeline-gitops.md). Por eso el script
+ya no lee los items maceosoft-terraform, ftp-<repo> ni argocd-ci.
 
 Items esperados en la bóveda (ONEPASSWORD_VAULT, default HomeLab); ver
 docs/maceosoft/github.md:
@@ -41,7 +43,6 @@ docs/maceosoft/github.md:
   maceosoft-argocd       app_id, installation_id, private_key
   sealed-secrets        (opcional) certificate, private_key: el par de Sealed Secrets
   maceosoft-arc-runners  app_id, installation_id, private_key
-  maceosoft-terraform    app_id, installation_id, private_key
   symintel-arc-runners  (opcional) app_id, installation_id, private_key: App de ARC de la org antigua; crea el namespace
                         arc-runners-symintel y su Secret arc-runners-github-app (Application arc-runners-symintel)
   symintel-terraform    (opcional) app_id, installation_id, private_key: App de OpenTofu de la org antigua
@@ -59,9 +60,6 @@ docs/maceosoft/github.md:
   Anthropic-apikey      (opcional, IA) api-key: API key de Claude (console.anthropic.com, workspace con tope de gasto)
   Nvidia-Apikey         (opcional, IA) password: API key de NVIDIA (build.nvidia.com)
   open-terminal         (opcional, IA) api_key: API key de Open Terminal (>= 32 caracteres sin espacios; openssl rand -hex 32)
-  ftp-<repo>            (uno por repo con deploy) dev_host, dev_user,
-                        dev_password, dev_remote_dir, prod_host, prod_user,
-                        prod_password, prod_remote_dir
 
 Uso:
   python3 ansible/scripts/apply_platform_secrets.py            # aplica
@@ -92,9 +90,10 @@ LEGACY_RUNNER_NAMESPACE = "arc-runners-symintel"
 LEGACY_ARC_ITEM = "symintel-arc-runners"
 LEGACY_TF_ITEM = "symintel-terraform"
 STATE_NAMESPACE = "terraform"
-FTP_ITEM_PREFIX = "ftp-"
-# Token de la cuenta "ci" de ArgoCD (solo lectura). Opcional: se genera recién
-# cuando ArgoCD funciona; mientras no exista el item, el Secret no se crea.
+# Secrets que este script creaba en arc-runners y que el scale set cargaba en el entorno de todos los jobs. Ya no se
+# crean y, al aplicar, se borran si existen (idempotente). El token de ArgoCD del diff vive ahora en 1Password (item
+# argocd-ci) y en el secreto de GitHub Actions ARGOCD_CI_TOKEN de maceosoft/gitops: este script ya no lo lee.
+OBSOLETE_RUNNER_SECRETS = ("terraform-app", "tofu-vars", "argocd-ci")
 ARGOCD_CI_ITEM = "argocd-ci"
 # Par de llaves de Sealed Secrets, generado por el operador (docs/maceosoft/github.md).
 # El controlador usa un Secret tls de kube-system con la etiqueta "active" en vez de
@@ -104,7 +103,6 @@ SEALED_ITEM = "sealed-secrets"
 SEALED_NAMESPACE = "kube-system"
 SEALED_SECRET_NAME = "sealed-secrets-key-homelab"
 SEALED_LABEL = "sealedsecrets.bitnami.com/sealed-secrets-key"
-FTP_FIELDS = ("host", "user", "password", "remote_dir")
 # Monitoreo (opcional): VictoriaMetrics + Alertmanager + Grafana en el namespace "monitoring". Si no existe
 # ninguno de los tres items, no se configura nada; si existe alguno, tienen que estar completos los tres.
 # El namespace es "privileged" porque node-exporter usa hostPath/hostNetwork.
@@ -331,30 +329,11 @@ def ensure_namespace(manifests: list[dict], name: str, **kwargs) -> None:
         manifests.append(namespace(name, **kwargs))
 
 
-async def read_ftp(client) -> dict[str, dict]:
-    """{repo: {dev: {...}, prod: {...}}} desde los items ftp-<repo> de la bóveda."""
-    vault_id = await find_vault_id(client)
-    result: dict[str, dict] = {}
-    for overview in await client.items.list(vault_id):
-        if not overview.title.startswith(FTP_ITEM_PREFIX):
-            continue
-        repo = overview.title[len(FTP_ITEM_PREFIX):]
-        ref = f"op://{VAULT_NAME}/{overview.title}"
-        result[repo] = {}
-        for env in ("dev", "prod"):
-            result[repo][env] = {}
-            for f in FTP_FIELDS:
-                result[repo][env][f] = (await resolve(client, f"{ref}/{env}_{f}")).strip()
-    return result
-
-
 async def build_manifests() -> list[dict]:
     client = await create_client()
 
     argocd = await read_app(client, "maceosoft-argocd")
     arc = await read_app(client, "maceosoft-arc-runners")
-    tf = await read_app(client, "maceosoft-terraform")
-    ftp = await read_ftp(client)
 
     manifests: list[dict] = [
         namespace("argocd"),
@@ -388,27 +367,11 @@ async def build_manifests() -> list[dict]:
             },
         )
     )
-    manifests.append(
-        secret(
-            RUNNER_NAMESPACE,
-            "terraform-app",
-            {
-                "TF_VAR_github_app_id": tf["app_id"],
-                "TF_VAR_github_app_installation_id": tf["installation_id"],
-                "TF_VAR_github_app_private_key": tf["private_key"],
-            },
-        )
-    )
-    manifests.append(secret(RUNNER_NAMESPACE, "tofu-vars", {"TF_VAR_ftp": json.dumps(ftp)}))
-    token = await read_optional(client, f"op://{VAULT_NAME}/{ARGOCD_CI_ITEM}/token")
-    if token:
-        manifests.append(secret(RUNNER_NAMESPACE, "argocd-ci", {"ARGOCD_AUTH_TOKEN": token.strip()}))
-    else:
-        print(f"Aviso: sin item {ARGOCD_CI_ITEM!r} en 1Password: el pipeline de gitops omitirá el diff de ArgoCD.", file=sys.stderr)
 
     legacy_arc = await read_app_optional(client, LEGACY_ARC_ITEM)
     legacy_tf = await read_app_optional(client, LEGACY_TF_ITEM)
     if legacy_arc:
+        # Org antigua: sin cambios. Su scale set (arc-runners-symintel) todavía carga terraform-app con envFrom.
         manifests.append(namespace(LEGACY_RUNNER_NAMESPACE, privileged=True))
         manifests.append(
             secret(
@@ -527,6 +490,18 @@ async def build_manifests() -> list[dict]:
     return manifests
 
 
+def delete_obsolete_secrets(run=None) -> list[str]:
+    """Borra de arc-runners los Secrets que ya no se crean (OBSOLETE_RUNNER_SECRETS). Idempotente.
+
+    Devuelve los Secrets borrados como los imprime kubectl -o name ("secret/<nombre>"); vacía si no había ninguno.
+    """
+    result = (run or subprocess.run)(
+        ["kubectl", "delete", "secret", "-n", RUNNER_NAMESPACE, *OBSOLETE_RUNNER_SECRETS, "--ignore-not-found", "-o", "name"],
+        check=True, capture_output=True, text=True,
+    )
+    return [line for line in result.stdout.splitlines() if line.strip()]
+
+
 def redact(manifest: dict) -> dict:
     if manifest["kind"] != "Secret":
         return manifest
@@ -535,11 +510,9 @@ def redact(manifest: dict) -> dict:
 
 # Items y campos que el script espera (ver docs/maceosoft/github.md).
 EXPECTED = {
-    "maceosoft-terraform": ["app_id", "installation_id", "private_key"],
     "maceosoft-arc-runners": ["app_id", "installation_id", "private_key"],
     "maceosoft-argocd": ["app_id", "installation_id", "private_key"],
 }
-FTP_EXPECTED = [f"{env}_{f}" for env in ("dev", "prod") for f in FTP_FIELDS]
 
 
 async def check() -> int:
@@ -549,7 +522,6 @@ async def check() -> int:
     overviews = await client.items.list(vault_id)
     by_title = {o.title.lower(): o for o in overviews}
     expected = dict(EXPECTED)
-    expected.update({t: FTP_EXPECTED for t in by_title if t.startswith(FTP_ITEM_PREFIX)})
     ok = True
     print(f"Bóveda {VAULT_NAME!r}:")
     for title, fields in expected.items():
@@ -579,16 +551,11 @@ async def check() -> int:
         extra = sorted(set(found) - set(fields))
         if extra:
             print(f"    · otros campos en el item: {', '.join(repr(x) for x in extra)}")
-    if not any(t.startswith(FTP_ITEM_PREFIX) for t in by_title):
-        print(f"  · ningún item {FTP_ITEM_PREFIX}<repo> (solo hace falta para repos con deploy)")
-    # Opcional: token de solo lectura de ArgoCD para el diff del pipeline de gitops.
-    if ARGOCD_CI_ITEM in by_title:
-        item = await client.items.get(vault_id, by_title[ARGOCD_CI_ITEM].id)
-        has = any(f.title.lower() == "token" for f in item.fields)
-        print(f"  {ARGOCD_CI_ITEM}  (opcional)\n    {'✓' if has else '✗'} token")
-        ok = ok and has
-    else:
-        print(f"  · sin item {ARGOCD_CI_ITEM} (opcional: el pipeline de gitops omite el diff de ArgoCD)")
+    # Ya no se leen (solo informativo, sin abrir el item): el token de ArgoCD del diff va como secreto de GitHub Actions.
+    print(
+        f"  · {ARGOCD_CI_ITEM}: este script ya no lo lee; el token va en el secreto ARGOCD_CI_TOKEN de maceosoft/gitops "
+        "(docs/operacion/pipeline-gitops.md)"
+    )
     # Opcional: las Apps de la org antigua (scale set arc-runners-symintel).
     for title in (LEGACY_ARC_ITEM, LEGACY_TF_ITEM):
         if title in by_title:
@@ -700,6 +667,8 @@ async def main() -> int:
     manifests = await build_manifests()
     if args.dry_run:
         print(json.dumps([redact(m) for m in manifests], indent=2))
+        obsolete = ", ".join(f"{RUNNER_NAMESPACE}/{n}" for n in OBSOLETE_RUNNER_SECRETS)
+        print(f"Al aplicar se borran, si existen: {obsolete}.", file=sys.stderr)
         return 0
 
     doc = {"apiVersion": "v1", "kind": "List", "items": manifests}
@@ -711,10 +680,10 @@ async def main() -> int:
         if m["kind"] == "Secret":
             subprocess.run(["kubectl", "annotate", "secret", m["metadata"]["name"], "-n", m["metadata"]["namespace"],
                             "kubectl.kubernetes.io/last-applied-configuration-"], check=False, capture_output=True)
-    tofu_vars = next(m for m in manifests if m["metadata"]["name"] == "tofu-vars")
-    ftp_repos = sorted(json.loads(tofu_vars["stringData"]["TF_VAR_ftp"]))
-    monitoring_note = "; monitoreo configurado" if any(m["metadata"]["name"] == "discord-webhooks" for m in manifests) else ""
-    print(f"Secretos de plataforma aplicados (FTP para: {', '.join(ftp_repos) or 'ninguno'}{monitoring_note}).")
+    deleted = delete_obsolete_secrets()
+    monitoring_note = " (monitoreo configurado)" if any(m["metadata"]["name"] == "discord-webhooks" for m in manifests) else ""
+    print(f"Secretos de plataforma aplicados{monitoring_note}.")
+    print(f"Borrados de {RUNNER_NAMESPACE}: {', '.join(deleted)}." if deleted else f"Nada obsoleto que borrar en {RUNNER_NAMESPACE}.")
     return 0
 
 
