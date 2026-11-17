@@ -21,10 +21,14 @@ sys.modules["onepassword_homelab"] = types.SimpleNamespace(
     VAULT_NAME="HomeLab",
     create_client=None,
     find_vault_id=None,
+    set_item_field=None,
 )
 aps = importlib.import_module("apply_platform_secrets")
 
 APP = {"app_id": "1", "installation_id": "2", "private_key": "-----BEGIN RSA PRIVATE KEY-----\nx\n-----END RSA PRIVATE KEY-----\n"}
+CA_PEM = "-----BEGIN CERTIFICATE-----\nMIIBfake\n-----END CERTIFICATE-----\n"
+PG_REF = "op://HomeLab/postgres-homelab-agent/password"
+S3_REFS = {"access_key": "op://HomeLab/postgres-s3/access_key", "secret_key": "op://HomeLab/postgres-s3/secret_key"}
 
 
 class FakeSecrets:
@@ -46,10 +50,21 @@ class FakeItems:
         raise AssertionError("build_manifests ya no tiene que listar items (eran los ftp-<repo>)")
 
 
-def run_build(values=None, legacy=None):
-    """build_manifests con un cliente falso; read_app/read_app_optional no validan el PEM (sin cryptography)."""
+def run_build(values=None, legacy=None, dry_run=False, stored=None):
+    """build_manifests con un cliente falso; read_app/read_app_optional no validan el PEM (sin cryptography).
+
+    stored: lista donde quedan las escrituras en 1Password (set_item_field) como (item, campo, valor).
+    """
     client = types.SimpleNamespace(secrets=FakeSecrets(values or {}), items=FakeItems())
     apps_read = []
+    writes = stored if stored is not None else []
+
+    async def set_item_field(_client, field, value, *, vault_id, item_title):
+        assert vault_id == "vault-id"
+        writes.append((item_title, field, value))
+
+    async def find_vault_id(_client):
+        return "vault-id"
 
     async def create_client():
         return client
@@ -66,14 +81,22 @@ def run_build(values=None, legacy=None):
         mock.patch.object(aps, "create_client", create_client),
         mock.patch.object(aps, "read_app", read_app),
         mock.patch.object(aps, "read_app_optional", read_app_optional),
+        mock.patch.object(aps, "set_item_field", set_item_field),
+        mock.patch.object(aps, "find_vault_id", find_vault_id),
+        mock.patch.object(aps, "read_homelab_ca", lambda: CA_PEM),
         contextlib.redirect_stderr(io.StringIO()),
     ):
-        manifests = asyncio.run(aps.build_manifests())
+        manifests = asyncio.run(aps.build_manifests(dry_run=dry_run))
     return manifests, client.secrets.asked, apps_read
 
 
 def names(manifests, ns):
     return {m["metadata"]["name"] for m in manifests if m["kind"] == "Secret" and m["metadata"]["namespace"] == ns}
+
+
+def find(manifests, ns, name):
+    (m,) = [m for m in manifests if m["kind"] == "Secret" and m["metadata"]["namespace"] == ns and m["metadata"]["name"] == name]
+    return m
 
 
 class BuildManifestsTest(unittest.TestCase):
@@ -97,6 +120,91 @@ class BuildManifestsTest(unittest.TestCase):
 
     def test_check_ya_no_pide_maceosoft_terraform(self):
         self.assertNotIn("maceosoft-terraform", aps.EXPECTED)
+
+
+class PostgresTest(unittest.TestCase):
+    def test_contrasena_existente_no_se_regenera(self):
+        writes = []
+        manifests, _, _ = run_build({PG_REF: "a" * 64}, stored=writes)
+        self.assertEqual(writes, [])
+        app = find(manifests, "postgres", "postgres-homelab-agent")
+        self.assertEqual(app["type"], "kubernetes.io/basic-auth")
+        self.assertEqual(app["metadata"]["labels"], {"cnpg.io/reload": "true"})
+        self.assertEqual(app["stringData"], {"username": "homelab_agent", "password": "a" * 64})
+        url = find(manifests, "ai", "homelab-agent-postgres")["stringData"]["DATABASE_URL"]
+        self.assertEqual(url, "postgresql://homelab_agent:" + "a" * 64 + "@postgres-rw.postgres.svc:5432/homelab_agent?sslmode=require")
+
+    def test_contrasena_faltante_se_genera_y_se_guarda_en_1password(self):
+        writes = []
+        manifests, _, _ = run_build(stored=writes)
+        ((item, field, value),) = writes
+        self.assertEqual((item, field), ("postgres-homelab-agent", "password"))
+        self.assertRegex(value, r"^[0-9a-f]{64}$")
+        self.assertEqual(find(manifests, "postgres", "postgres-homelab-agent")["stringData"]["password"], value)
+        self.assertIn(value, find(manifests, "ai", "homelab-agent-postgres")["stringData"]["DATABASE_URL"])
+
+    def test_dry_run_no_escribe_en_1password(self):
+        writes = []
+        manifests, _, _ = run_build(dry_run=True, stored=writes)
+        self.assertEqual(writes, [])
+        self.assertEqual(find(manifests, "postgres", "postgres-homelab-agent")["stringData"]["password"], aps.PENDING_PASSWORD)
+
+    def test_contrasena_corta_se_rechaza(self):
+        with self.assertRaises(RuntimeError):
+            run_build({PG_REF: "corta"})
+
+    def test_llave_s3_y_ca(self):
+        values = {PG_REF: "a" * 64, S3_REFS["access_key"]: "k" * 20, S3_REFS["secret_key"]: "s" * 40}
+        manifests, _, _ = run_build(values)
+        s3 = find(manifests, "postgres", "postgres-s3")
+        self.assertEqual(s3["stringData"], {"ACCESS_KEY_ID": "k" * 20, "ACCESS_SECRET_KEY": "s" * 40})
+        self.assertEqual(s3["metadata"]["labels"], {"cnpg.io/reload": "true"})
+        self.assertEqual(find(manifests, "postgres", "incus-s3-ca")["stringData"], {"ca.crt": CA_PEM})
+        namespaces = [m["metadata"] for m in manifests if m["kind"] == "Namespace" and m["metadata"]["name"] == "postgres"]
+        self.assertEqual(len(namespaces), 1)
+        # El namespace es de GitOps: sin etiqueta PSA y sin que ArgoCD lo pode.
+        self.assertEqual(namespaces[0]["labels"], {})
+        self.assertIn("Prune=false", namespaces[0]["annotations"]["argocd.argoproj.io/sync-options"])
+
+    def test_sin_item_s3_no_hay_secret_de_llave_pero_si_ca(self):
+        manifests, _, _ = run_build({PG_REF: "a" * 64})
+        self.assertEqual(names(manifests, "postgres"), {"postgres-homelab-agent", "incus-s3-ca"})
+
+    def test_llave_s3_incompleta_falla(self):
+        with self.assertRaises(RuntimeError):
+            run_build({PG_REF: "a" * 64, S3_REFS["access_key"]: "k" * 20})
+
+    def test_database_url_escapa_la_contrasena(self):
+        self.assertIn("homelab_agent:a%40b%2Fc%3A@", aps.database_url("a@b/c:"))
+
+
+class HomelabCaTest(unittest.TestCase):
+    def _read(self, pem):
+        import base64
+
+        calls = []
+
+        def run(cmd, **kwargs):  # noqa: ARG001
+            calls.append(cmd)
+            return subprocess.CompletedProcess(cmd, 0, stdout=base64.b64encode(pem.encode()).decode(), stderr="")
+
+        return aps.read_homelab_ca(run=run), calls
+
+    def test_lee_solo_ca_crt(self):
+        pem, calls = self._read(CA_PEM)
+        self.assertEqual(pem, CA_PEM)
+        ((cmd),) = calls
+        self.assertEqual(cmd[-2:], ["-o", r"jsonpath={.data.ca\.crt}"])
+        self.assertEqual(cmd[1:6], ["-n", "cert-manager", "get", "secret", "homelab-ca"])
+
+    def test_rechaza_una_llave_privada(self):
+        with self.assertRaises(RuntimeError):
+            self._read(CA_PEM + "-----BEGIN EC PRIVATE KEY-----\nx\n-----END EC PRIVATE KEY-----\n")
+
+    def test_rechaza_lo_que_no_es_certificado(self):
+        for bad in ("", "hola", CA_PEM + "basura"):
+            with self.subTest(bad=bad), self.assertRaises(RuntimeError):
+                aps.check_public_cert(bad, "prueba")
 
 
 class DeleteObsoleteTest(unittest.TestCase):
@@ -128,8 +236,12 @@ class DeleteObsoleteTest(unittest.TestCase):
 
 class MainTest(unittest.TestCase):
     def _main(self, argv, manifests):
-        async def build():
+        async def build(dry_run=False):
+            seen.append(dry_run)
             return manifests
+
+        seen = []
+        self.seen = seen
 
         calls = []
 
@@ -153,6 +265,8 @@ class MainTest(unittest.TestCase):
         rc, calls, _ = self._main(["--dry-run"], [aps.secret("arc-runners", "arc-runners-github-app", {"a": "b"})])
         self.assertEqual(rc, 0)
         self.assertEqual(calls, [])
+        # --dry-run llega a build_manifests: así no se genera ni guarda la contraseña en 1Password.
+        self.assertEqual(self.seen, [True])
 
     def test_aplicar_borra_los_obsoletos_despues_del_apply(self):
         manifests = [aps.secret("arc-runners", "arc-runners-github-app", {"a": "b"})]
