@@ -1,24 +1,31 @@
 # Procedure — Add a repo
 
-Routine **procedure**: repeated every time the org `maceosoft` needs a new repo. The OpenTofu pipeline of the repo [`maceosoft/infra`](https://github.com/maceosoft/infra) creates it; you add the entry in the repo map and, if the project deploys to cPanel via FTP (File Transfer Protocol), its credentials in 1Password.
+**Routine** procedure: repeats every time the org `maceosoft` needs
+a new repo. The repo
+[`maceosoft/infra`](https://github.com/maceosoft/infra)'s OpenTofu pipeline creates it; you add the
+entry to the repo map and, if the project deploys to cPanel via FTP (File Transfer Protocol),
+its credentials in 1Password.
 
 !!! info "Before you start"
-    - The base platform is already running: [Phase 4 — 4.11](../implementacion/fase-4-gitops.md#411-arc-and-opentofu-pipeline) completed (the pipeline `tofu` of `infra` runs green).
-    - The 1Password app is unlocked and `ONEPASSWORD_ACCOUNT_NAME` with your account name ([details](../maceosoft/github.md#1password-items)).
+    - The base platform is already working: [Phase 4 — 4.11](../implementacion/fase-4-gitops.md#411-arc-and-opentofu-pipeline)
+      completed (the `tofu` pipeline of `infra` runs green).
+    - The 1Password app unlocked and `ONEPASSWORD_ACCOUNT_NAME` with your
+      account name ([detail](../maceosoft/github.md#items-in-1password)).
 
 ## 1. Define the repo
 
-| Data | Example | Purpose |
+| Field | Example | Purpose |
 |---|---|---|
-| Name | `web-clientes` | Name of the repo in `maceosoft` |
-| Description | `Sitio de clientes` | Description in GitHub |
-| Stack | `node` or `php` | Which CI workflow of `core-pipelines` it uses |
-| Does it deploy via FTP to cPanel? | yes / no | If yes, create the environments `dev` and `prod` with their credentials |
+| Name | `web-clientes` | Repo name in `maceosoft` |
+| Description | `Sitio de clientes` | Description on GitHub |
+| Stack | `node` or `php` | Which `core-pipelines` CI workflow to use |
+| Deploys via FTP to cPanel? | yes / no | If yes, create the `dev` and `prod` environments with their credentials |
 
 ## 2. Only if it deploys: FTP credentials in 1Password
 
-Create the item **`ftp-<repo>`** (for example `ftp-web-clientes`) in the vault `HomeLab`, type Secure Note, with these 8 fields
-([how to create an item](../maceosoft/github.md#how-to-create-an-item-with-custom-fields)):
+Create the item **`ftp-<repo>`** (e.g. `ftp-web-clientes`) in the
+`HomeLab` vault, type Secure Note, with these 8 fields
+([how to create an item](../maceosoft/github.md#como-crear-un-item-con-campos-propios)):
 
 === "🖱️ From the UI"
 
@@ -35,7 +42,8 @@ Create the item **`ftp-<repo>`** (for example `ftp-web-clientes`) in the vault `
 
 === "⌨️ From the console"
 
-    Passwords are read without echo (`read -rs`) so they do not appear on screen or in history. Replace `web-clientes` with your repo and the example values with those of your cPanel. If you have more than one 1Password account, export `OP_ACCOUNT` first.
+    Passwords are read without echo (`read -rs`) so they don't remain on screen or in history. Change `web-clientes` to your repo
+    and the example values to your cPanel's. If you have more than one 1Password account, export `OP_ACCOUNT` first.
 
     ```bash
     # pega cada contraseña y Enter
@@ -48,22 +56,16 @@ Create the item **`ftp-<repo>`** (for example `ftp-web-clientes`) in the vault `
     unset FTP_DEV_PASS FTP_PROD_PASS
     ```
 
-Check that it reads correctly and take it to the cluster, from the root of `homelab`.
-The OpenTofu runner receives these credentials as `TF_VAR_ftp` from the cluster, so this step goes **before** the PR (pull request): if not, the pipeline fails for lack of credentials.
-
-```bash
-# tu cuenta
-export ONEPASSWORD_ACCOUNT_NAME="Mi Cuenta"
-.venv/bin/python ansible/scripts/apply_platform_secrets.py --check
-cd ansible
-ansible-playbook -i inventory.ini playbook-platform-secrets.yml
-```
-
-`--check` has to show the item `ftp-<repo>` with its 8 fields in ✓.
+!!! warning "These credentials no longer reach the runner"
+    Previously `playbook-platform-secrets.yml` gathered all `ftp-<repo>` items into the `arc-runners/tofu-vars` Secret and the
+    OpenTofu runner received them as `TF_VAR_ftp` in its environment. That left them within reach of any job of
+    any repo, including a PR's code, so the playbook no longer creates it (and deletes it if it exists). Until
+    `tofu.yml` receives the credentials as GitHub Actions secrets from the repo that calls it, the `infra` pipeline
+    has no `TF_VAR_ftp`: still save the item in 1Password, which remains the credentials source.
 
 ## 3. Add the repo to the map (PR in `infra`)
 
-In the repo `infra`, add an entry to `local.repos` in
+In the `infra` repo, add an entry to `local.repos` in
 [`github/repos.tf`](https://github.com/maceosoft/infra/blob/main/github/repos.tf):
 
 ```hcl
@@ -83,7 +85,8 @@ locals {
 Optional fields: `ftp_protocol` (`ftp`, `ftps` or `sftp`; default
 `ftps`) and `visibility` (`private` or `internal`; default `private`).
 
-Open a PR in `infra`: the pipeline `tofu` shows the `plan` with what it will create. Review it and merge; when it reaches `main`, the pipeline does the `apply`.
+Open a PR in `infra`: the `tofu` pipeline shows the `plan` with what it will
+create. Review and merge; when it reaches `main`, the pipeline does the `apply`.
 
 ??? tip "With the GitHub CLI (`gh`)"
     From your local copy of `infra`, with `gh auth login` done:
@@ -104,7 +107,8 @@ Open a PR in `infra`: the pipeline `tofu` shows the `plan` with what it will cre
 
 ## 4. Push the code
 
-The repo is born with a README (`auto_init`). To push a project that you already have on your machine:
+The repo is born with a README (`auto_init`). To push a project you already
+have on your machine:
 
 ```bash
 cd <carpeta-del-proyecto>
@@ -119,7 +123,9 @@ git push -u origin main
 
 ## 5. Only if it has CI/CD: the workflow
 
-Create `.github/workflows/ci-cd.yml` in the new repo calling the workflows of `core-pipelines` (same schema as the repo `api`). For a Node project that deploys (`develop` → dev, `main` → prod):
+Create `.github/workflows/ci-cd.yml` in the new repo calling the
+workflows of `core-pipelines` (same scheme as the `api` repo). For a Node
+project that deploys (`develop` → dev, `main` → prod):
 
 ```yaml
 name: CI/CD
@@ -154,9 +160,10 @@ jobs:
     secrets: inherit
 ```
 
-For PHP use `ci-php.yml` and `stack: php`. The job name (`ci-cd`) is the check that enforces the protection of `main` if you set
-`required_status_check = "ci-cd"`. When `core-pipelines` starts using the tag
-`v1`, change `@main` to `@v1` ([versioning](https://github.com/maceosoft/core-pipelines#versionado)).
+For PHP use `ci-php.yml` and `stack: php`. The job name (`ci-cd`) is the
+check required by `main` protection if you set
+`required_status_check = "ci-cd"`. When `core-pipelines` switches to using the
+`v1` tag, change `@main` to `@v1` ([versioning](https://github.com/maceosoft/core-pipelines#versionado)).
 
 ## 6. Verify
 
@@ -164,15 +171,15 @@ For PHP use `ci-php.yml` and `stack: php`. The job name (`ci-cd`) is the check t
 
     In GitHub, in the new repo:
 
-    - *Settings → Environments*: exist `dev` and `prod` (only if it deploys).
+    - *Settings → Environments*: `dev` and `prod` exist (only if it deploys).
     - In each environment, the secrets `FTP_HOST`, `FTP_USER`, `FTP_PASSWORD` and
       `FTP_REMOTE_DIR`, and the variables `PROJECT_STACK` and `FTP_PROTOCOL`.
     - *Settings → Branches*: `main` protected.
-    - *Actions*: the first push runs the workflow on the runner `arc-runners`.
+    - *Actions*: the first push runs the workflow on the `arc-runners` runner.
 
 === "⌨️ From the console"
 
-    The same with `gh` (change `web-clientes` to your repo):
+    Same with `gh` (change `web-clientes` to your repo):
 
     ```bash
     # dev, prod
@@ -187,9 +194,9 @@ For PHP use `ci-php.yml` and `stack: php`. The job name (`ci-cd`) is the check t
 
 ## If it fails
 
-| Symptom | To check |
+| Symptom | Check |
 |---|---|
-| The `plan` of `infra` fails with *deploy = true requires FTP credentials* | Missing item `ftp-<repo>` or did not rerun `playbook-platform-secrets.yml` (step 2) |
-| `--check` marks fields with ✗ | Exact names of the 8 fields, no section ([details](../maceosoft/github.md#how-to-create-an-item-with-custom-fields)) |
-| The `git push` to `main` is rejected | Only owners of the org can bypass the protection of `main`; otherwise, push the code via PR |
-| The deploy fails to connect | Data of the item `ftp-<repo>` and `ftp_protocol` in `repos.tf`; after fixing the item, repeat step 2 and relaunch the pipeline of `infra` |
+| The `plan` of `infra` fails with *deploy = true requires ftp credentials* | The runner no longer carries `TF_VAR_ftp` (see the warning in step 2) |
+| `--check` marks fields with ✗ | Exact names of the 8 fields, no section ([detail](../maceosoft/github.md#como-crear-un-item-con-campos-propios)) |
+| The `git push` to `main` is rejected | Only org owners can bypass `main` protection; if not, push the code via PR |
+| Deploy fails to connect | Data of the `ftp-<repo>` item and `ftp_protocol` in `repos.tf`; after fixing the item, re-run the `infra` pipeline |

@@ -1,0 +1,27 @@
+---
+# S3 de Incus para los respaldos de PostgreSQL (CloudNativePG), con un certificado de la CA del HomeLab.
+# Guía, decisión y comandos del operador: docs/storage/postgres.md
+#
+# Qué hace en invincible (el miembro que guarda los buckets del pool "local"):
+#   1. core.storage_buckets_address = 127.0.0.1:8556 (S3 de Incus solo en loopback; idempotente)
+#   2. HAProxy publica https://192.168.20.6:8555 con un certificado firmado por el ClusterIssuer homelab-ca: la llave
+#      se genera en el nodo, cert-manager firma un CSR (CertificateRequest) y la llave de la CA no sale del clúster.
+#   3. Verifica TLS con la CA del HomeLab y que detrás conteste el S3 de Incus.
+# NO toca el certificado de la API de Incus (8443) ni crea el bucket o sus llaves (eso lo hace una persona).
+#
+# Requiere: kubectl con el kubeconfig del homelab en la estación (KUBECONFIG o ~/.kube/homelab-k3s.yaml).
+#
+#   cd ansible
+#   ansible-playbook -i inventory.ini playbook-incus-s3.yml                              # preflight, no cambia nada
+#   ansible-playbook -i inventory.ini playbook-incus-s3.yml -C --diff                    # muestra qué cambiaría
+#   ansible-playbook -i inventory.ini playbook-incus-s3.yml -e incus_s3_confirm=true     # aplica
+#
+# Renovación: el certificado dura 1 año. Volver a correrlo con -e incus_s3_confirm=true lo renueva solo si vence en
+# menos de 30 días (incus_s3_tls_renew_days), si no lo firmó la CA actual o si cambian los SAN; forzar:
+# -e incus_s3_tls_force_renew=true. El firewall (puerto 8555) es aparte: playbook-firewall.yml.
+- name: S3 de Incus con certificado de la CA del HomeLab
+  hosts: invincible
+  become: true
+  gather_facts: false
+  roles:
+    - role: incus_s3

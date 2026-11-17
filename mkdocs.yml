@@ -215,6 +215,7 @@ plugins:
             Catálogo de roles: Role catalog
             Catálogo y troubleshooting: Catalog and troubleshooting
             Secretos: Secrets
+            PostgreSQL y respaldos en Incus: PostgreSQL and backups on Incus
             Plataforma maceosoft — GitHub: maceosoft platform — GitHub
             Plataforma maceosoft — Discord y healthchecks.io: maceosoft platform — Discord and healthchecks.io
             Glosario: Glossary
@@ -346,6 +347,7 @@ nav:
           - vCluster Platform: vcluster/index.md
       - CAPN: capn/index.md
       - Storage: storage/index.md
+      - PostgreSQL y respaldos en Incus: storage/postgres.md
       - Secretos: secrets/index.md
       - "Plataforma maceosoft — GitHub": maceosoft/github.md
       - "Plataforma maceosoft — Discord y healthchecks.io": maceosoft/discord-healthchecks.md

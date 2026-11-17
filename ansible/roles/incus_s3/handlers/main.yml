@@ -1,0 +1,6 @@
+---
+# reload y no restart: HAProxy relee configuración y certificado sin cortar las subidas en curso.
+- name: Recargar HAProxy
+  ansible.builtin.systemd_service:
+    name: haproxy
+    state: reloaded

@@ -36,6 +36,9 @@ flowchart TB
 - **[OpenEBS](https://openebs.io/docs)** — LocalPV default; todos los nodos; sin replicación.
 - **[Longhorn](https://longhorn.io/docs/)** — Replicado x86↔arm64; pensado para invincible + deborah (ver [Longhorn v1](#longhorn-v1-ha-selectiva-cross-arch)).
 
+El PostgreSQL compartido de la plataforma (CloudNativePG) y sus respaldos en un bucket de Incus tienen su propia
+página: [PostgreSQL y respaldos en Incus](postgres.md).
+
 ## OpenEBS LocalPV (default)
 
 DaemonSet en todos los nodos. StorageClass por defecto para casi todo.

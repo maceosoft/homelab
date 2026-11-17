@@ -1,0 +1,126 @@
+---
+# Emite el certificado del proxy con un CSR: la llave privada se genera aquí y nunca sale del nodo (Ansible solo lee el
+# CSR y el certificado, que son públicos); cert-manager firma con homelab-ca sin que su llave salga del clúster.
+# Todo se escribe en *.new y solo se instala tras verificar la cadena y que el certificado corresponde a la llave.
+- name: Generar la llave y el CSR en el nodo
+  ansible.builtin.shell: |
+    set -euo pipefail
+    umask 077
+    cd {{ incus_s3_dir }}
+    rm -f tls.key.new tls.csr.new tls.crt.new tls.pem.new
+    openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out tls.key.new
+    openssl req -new -key tls.key.new -subj "/CN={{ incus_s3_tls_common_name }}" \
+      -addext "subjectAltName={{ incus_s3_tls_sans | join(',') }}" -out tls.csr.new
+  args:
+    executable: /bin/bash
+  changed_when: true
+
+- name: Leer el CSR (público)
+  ansible.builtin.slurp:
+    src: "{{ incus_s3_dir }}/tls.csr.new"
+  register: incus_s3_csr
+
+- name: Firmar con cert-manager
+  delegate_to: localhost
+  become: false
+  environment:
+    KUBECONFIG: "{{ incus_s3_kubeconfig }}"
+  block:
+    # spec.request es el PEM del CSR en base64: justo lo que devuelve slurp.
+    - name: Crear el CertificateRequest
+      ansible.builtin.command:
+        argv: [kubectl, create, -o, name, -f, "-"]
+        stdin: "{{ incus_s3_cr | to_json }}"
+      vars:
+        incus_s3_cr:
+          apiVersion: cert-manager.io/v1
+          kind: CertificateRequest
+          metadata:
+            generateName: "incus-s3-{{ inventory_hostname }}-"
+            namespace: "{{ incus_s3_ca_namespace }}"
+            labels:
+              app.kubernetes.io/managed-by: homelab-playbook-incus-s3
+          spec:
+            request: "{{ incus_s3_csr.content }}"
+            duration: "{{ incus_s3_tls_duration }}"
+            usages: [digital signature, key encipherment, server auth]
+            issuerRef:
+              name: "{{ incus_s3_issuer }}"
+              kind: ClusterIssuer
+              group: cert-manager.io
+      register: incus_s3_cr_name
+      changed_when: true
+
+    - name: Esperar la firma (el aprobador interno de cert-manager aprueba los pedidos a sus emisores)
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - -n
+          - "{{ incus_s3_ca_namespace }}"
+          - wait
+          - --for=condition=Ready
+          - --timeout=120s
+          - "{{ incus_s3_cr_name.stdout | trim }}"
+      changed_when: false
+
+    - name: Leer el certificado firmado
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - -n
+          - "{{ incus_s3_ca_namespace }}"
+          - get
+          - "{{ incus_s3_cr_name.stdout | trim }}"
+          - -o
+          - jsonpath={.status.certificate}
+      register: incus_s3_signed
+      changed_when: false
+  always:
+    # El CertificateRequest solo tiene datos públicos, pero no se deja basura en el namespace de cert-manager.
+    - name: Borrar el CertificateRequest
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - -n
+          - "{{ incus_s3_ca_namespace }}"
+          - delete
+          - --ignore-not-found
+          - "{{ incus_s3_cr_name.stdout | trim }}"
+      changed_when: true
+      when: incus_s3_cr_name.stdout | default('') | length > 0
+
+- name: Escribir el certificado nuevo
+  ansible.builtin.copy:
+    content: "{{ incus_s3_signed.stdout | b64decode }}"
+    dest: "{{ incus_s3_dir }}/tls.crt.new"
+    owner: root
+    group: root
+    mode: "0644"
+
+# HAProxy lee certificado y llave de un solo PEM; se arma en el nodo para que la llave no pase por Ansible. El anterior
+# queda como *.prev (volver atrás: renombrarlo a tls.pem y recargar HAProxy).
+- name: Verificar e instalar el certificado
+  ansible.builtin.shell: |
+    set -euo pipefail
+    umask 077
+    cd {{ incus_s3_dir }}
+    fail() { echo "$1" >&2; rm -f tls.key.new tls.csr.new tls.crt.new tls.pem.new; exit 1; }
+    openssl verify -CAfile homelab-ca.crt tls.crt.new >/dev/null || fail "el certificado no lo firmó la CA del HomeLab"
+    [ "$(openssl x509 -in tls.crt.new -noout -pubkey)" = "$(openssl pkey -in tls.key.new -pubout)" ] \
+      || fail "el certificado no corresponde a la llave generada"
+    cat tls.crt.new tls.key.new > tls.pem.new
+    [ -f tls.pem ] && cp -p tls.pem tls.pem.prev
+    mv tls.key.new tls.key
+    mv tls.crt.new tls.crt
+    mv tls.pem.new tls.pem
+    rm -f tls.csr.new
+    openssl x509 -in tls.crt -noout -subject -enddate
+  args:
+    executable: /bin/bash
+  register: incus_s3_installed
+  changed_when: true
+  notify: Recargar HAProxy
+
+- name: Certificado instalado
+  ansible.builtin.debug:
+    msg: "{{ incus_s3_installed.stdout_lines }}"

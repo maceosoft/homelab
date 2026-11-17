@@ -1,25 +1,25 @@
-# K3s — Manual Installation (Reference)
+# K3s — Manual installation (reference)
 
-!!! info "Recommended Path"
+!!! info "Recommended path"
     Use **[Phase 3 — K3s](../implementacion/fase-3-k3s.md)** with
-    `playbook-k3s.yml`. This page documents **manual** steps (curl) as
-    an alternative legacy approach.
+    `playbook-k3s.yml`. This page documents **manual** steps (curl) as a
+    legacy alternative.
 
-K3s (lightweight Kubernetes distribution) hybrid cluster across the 4 nodes of the Homelab.
+Hybrid K3s cluster (lightweight Kubernetes distribution) across the 4 HomeLab nodes.
 
-> The Homelab hostnames follow the *Invincible* series — see
+> HomeLab hostnames follow the *Invincible* series — see
 > [characters](https://invincible.fandom.com/es/wiki/Categor%C3%ADa:Personajes).
 
-## Cluster Nodes
+## Cluster nodes
 
-| Node | IP | K3s Role |
+| Node | IP | K3s role |
 |---|---|---|
 | deborah | 192.168.20.5 | server (control plane) |
 | invincible | 192.168.20.6 | agent (worker) |
 | oliver | 192.168.20.7 | agent (worker) |
 | eve | 192.168.20.8 | agent (worker) |
 
-Verification from a node with API (Application Programming Interface) server access:
+Verification from a node with access to the API (Application Programming Interface) server:
 
 ```bash
 kubectl get nodes -o wide
@@ -27,12 +27,12 @@ kubectl get pods -A
 ```
 
 !!! warning "Residual Traefik"
-    The cluster was installed with `--disable traefik`, but residual pods
-    `svclb-traefik-*` (K3s ServiceLB) persist. Remove them with the role
-    `k3s_cleanup_traefik` or `ansible-playbook playbook-k3s.yml --tags traefik`.
+    The cluster was installed with `--disable traefik`, but
+    `svclb-traefik-*` pods persist (K3s ServiceLB). Remove them with the
+    `k3s_cleanup_traefik` or `ansible-playbook playbook-k3s.yml --tags traefik` role.
 
 !!! warning "Control-plane after reboot"
-    If `deborah` does not expose `:6443` after reboot, verify:
+    If `deborah` does not expose `:6443` after reboot, check:
     `sudo systemctl enable --now k3s && sudo journalctl -u k3s -n 50`
 
 ## 1. Prerequisites (all nodes)
@@ -56,12 +56,12 @@ EOF
 sudo sysctl --system
 ```
 
-Disable swap (K3s requires this for predictable scheduling), load
-the kernel modules needed by the CNI (Container Network Interface) to route traffic between pods,
+Disable swap (K3s requires it for predictable scheduling), load the
+kernel modules the CNI (Container Network Interface) needs to route traffic between pods,
 and enable IP forwarding so each node can act as a pod router.
 
 !!! note "Network"
-    If these nodes run Incus cluster instances (see
+    If these nodes run instances inside the Incus cluster (see
     [Incus Cluster](../incus/cluster-setup.md)), use the same bridge/cluster
     group already defined — no need for an additional bridge just for K3s.
 
@@ -71,7 +71,7 @@ Bootstrap options (kube-vip, Argo CD controller, labels, …):
 [`playbook-options.md`](playbook-options.md). GitOps:
 [`Fase 4 — GitOps`](../implementacion/fase-4-gitops.md).
 
-## 2. Control Plane Installation (deborah)
+## 2. Control plane installation (deborah)
 
 ```bash
 curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=v1.36.5+k3s1 \
@@ -84,8 +84,8 @@ curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=v1.36.5+k3s1 \
   --tls-san deborah" sh -
 ```
 
-- `--disable traefik/servicelb`: installed later with control
-  (or replaced by a Gateway API controller + MetalLB) to retain control
+- `--disable traefik/servicelb`: installed in a controlled manner later
+  (or replaced by a Gateway API controller + MetalLB) to avoid losing control
   over versions.
 - `--write-kubeconfig-mode 600`: kubeconfig readable only by root (hardened
   vs 644).
@@ -100,7 +100,7 @@ sudo cat /var/lib/rancher/k3s/server/node-token
 
 Automatable with: `ansible-playbook -i inventory.ini playbook-k3s.yml --limit k3s_server`
 
-## 3. Joining Workers
+## 3. Worker join
 
 **invincible (15.5 GB — also runs CAPN as management cluster):**
 
@@ -129,7 +129,7 @@ kubectl get nodes -o wide
 kubectl get pods -A
 ```
 
-Label the nodes by architecture and capacity to use
+Label nodes by architecture and capacity to use
 `nodeSelector`/`nodeAffinity` in manifests:
 
 ```bash
@@ -142,24 +142,24 @@ kubectl label node oliver node.longhorn.io/create-default-disk=false
 
 !!! warning "Multi-arch"
     Any container image must support `arm64/v8`
-    (`docker manifest inspect <imagen>`) before scheduling without
+    (`docker manifest inspect <imagen>`) before scheduling it without
     `nodeSelector`, or it will fail on `deborah`.
 
 ## 5. Storage
 
-See [Storage](../storage/index.md) for the details of replicated OpenEBS/Longhorn
-x86↔arm64. GitOps manifests in [`gitops/storage/`](https://github.com/maceosoft/gitops/tree/main/storage).
+See [Storage](../storage/index.md) for OpenEBS/Longhorn details
+replicated x86↔arm64. GitOps manifests in [`gitops/addons/storage/classes/`](https://github.com/maceosoft/gitops/tree/main/addons/storage/classes).
 
-## 6. Automated Upgrade Plan
+## 6. Automated upgrade plan
 
-Versioned manifests in [`gitops/k3s-upgrade/`](https://github.com/maceosoft/gitops/tree/main/k3s-upgrade).
+Versioned manifests in [`gitops/addons/cluster/k3s-upgrade/`](https://github.com/maceosoft/gitops/tree/main/addons/cluster/k3s-upgrade).
 
 ### 6.1 K3s (server + agents) — `system-upgrade-controller`
 
 ```bash
 kubectl apply -f https://github.com/rancher/system-upgrade-controller/releases/latest/download/system-upgrade-controller.yaml
 kubectl apply -f https://github.com/rancher/system-upgrade-controller/releases/latest/download/crd.yaml
-kubectl apply -f gitops/k3s-upgrade/
+kubectl apply -f gitops/addons/cluster/k3s-upgrade/
 ```
 
 `concurrency: 1` is intentional in a 4-node cluster: it never leaves the
@@ -168,30 +168,32 @@ cluster without full failover capacity. The controller checks the
 drains one node at a time — `deborah` (control plane) first, then
 `invincible`/`oliver`/`eve`.
 
-### 6.2 Base Operating System (all nodes)
+### 6.2 Base operating system (all nodes)
 
-In this Homelab, Debian updates **do not install automatically**: each node publishes how many are pending and
-monitoring alerts on Discord. The procedure is in [Patching the Nodes](../operacion/parchear-nodos.md).
+In this HomeLab, Debian patches **are not installed automatically**: each node publishes how many are pending and
+monitoring alerts via Discord. The procedure is in [Patch the nodes](../operacion/parchear-nodos.md).
 
 ### 6.3 Incus
 
-Follows the package cycle from the Zabbly repo:
+Follow the Zabbly repo package cycle:
 
 ```bash
 sudo apt update && sudo apt upgrade -y incus incus-client
 ```
 
-If Incus clustering is active, verify that all members have matching major versions before updating — a version mismatch between Incus cluster members can break quorum.
+If Incus clustering is active, verify that major versions
+of all members match before upgrading — a major version mismatch between
+Incus cluster members can break quorum.
 
-### 6.4 Summary of Cadence
+### 6.4 Cadence summary
 
 | Component | Mechanism | Frequency | Window |
 |---|---|---|---|
-| K3s (server/agents) | system-upgrade-controller, stable channel | Automatic upon release detection | Continuous, one node at a time, control plane first |
-| Base OS | Metric alert + [Patching the Nodes](../operacion/parchear-nodos.md) | Upon alert arrival | One node at a time |
+| K3s (server/agents) | system-upgrade-controller, stable channel | Automatic on release detection | Continuous, 1 node at a time, control plane first |
+| Base OS | Alert via metrics + [Patch the nodes](../operacion/parchear-nodos.md) | On alert arrival | One node at a time |
 | Incus | Manual apt or monthly cron | Monthly | Scheduled maintenance |
 
-## 7. Post-Installation Checklist
+## 7. Post-install checklist
 
 - [x] K3s v1.36.5+k3s1 installed (stable channel)
 - [x] Workers invincible/oliver/eve joined to API at `192.168.20.5:6443`

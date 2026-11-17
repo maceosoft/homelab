@@ -61,6 +61,7 @@ node_ports:
   - { port: 6443, proto: tcp, reason: "API de K3s; firewall: nodos, pods y operador." }
   - { port: 10250, proto: tcp, reason: "Kubelet (authn/authz propios); firewall: nodos y pods." }
   - { port: 8443, proto: tcp, reason: "Incus (OIDC/certificados); firewall: nodos, pods y operador." }
+  - { port: 8555, proto: tcp, reason: "S3 de Incus vía HAProxy (invincible): llaves de acceso por bucket; firewall: nodos, pods y operador." }
   - { port: 9100, proto: tcp, reason: "node-exporter; firewall: nodos y pods." }
   - { port: 9120, proto: tcp, reason: "Métricas MetalLB/FRR; firewall: nodos y pods." }
   - { port: 9140, proto: tcp, reason: "Métricas MetalLB/FRR; firewall: nodos y pods." }

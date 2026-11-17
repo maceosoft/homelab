@@ -30,6 +30,7 @@
 *[CRs]: Custom Resource — Objeto de Kubernetes definido por un operador (p. ej. un Plan de SUC).
 *[CRD]: Custom Resource Definition — Definición de un tipo de objeto nuevo en Kubernetes (la instala un operador, p. ej. el SUC).
 *[CRDs]: Custom Resource Definition — Definición de un tipo de objeto nuevo en Kubernetes (la instala un operador, p. ej. el SUC).
+*[CSR]: Certificate Signing Request — Pedido de firma de un certificado: lleva la llave pública y los nombres, nunca la llave privada.
 *[CSV]: Comma-Separated Values — Archivo de datos en texto donde las columnas se separan con comas.
 *[Dex]: Dex — Proveedor de identidad OIDC del HomeLab: permite entrar con la cuenta de GitHub (team `devops`) a Argo CD, Grafana, Open WebUI y SSH.
 *[DHCP]: Dynamic Host Configuration Protocol — Protocolo con el que el router asigna IPs automáticamente.
@@ -107,6 +108,7 @@
 *[RAM]: memoria RAM — Memoria de trabajo del equipo.
 *[RBAC]: Role-Based Access Control — Control de acceso por roles: qué puede hacer cada usuario o cuenta de servicio.
 *[RWX]: ReadWriteMany — Modo de acceso de un volumen que varios pods pueden montar a la vez, incluso en nodos distintos.
+*[S3]: Simple Storage Service — Protocolo de almacenamiento de objetos (buckets) creado por Amazon; Incus lo ofrece para sus buckets.
 *[SAN]: Subject Alternative Name — Nombre o IP extra que acepta un certificado TLS (singular de SANs).
 *[SANs]: Subject Alternative Names — Nombres e IPs extra que acepta un certificado TLS.
 *[SATA]: Serial ATA — Interfaz de los discos y SSD de 2,5 pulgadas (invincible y oliver).
@@ -126,6 +128,7 @@
 *[SSO]: inicio de sesión único — Single Sign-On: entrar a varios servicios con la misma cuenta (aquí, GitHub vía Dex).
 *[SUC]: System Upgrade Controller — Controlador de Rancher que actualiza K3s nodo por nodo.
 *[T2]: chip Apple T2 — Coprocesador de seguridad de las Mac Intel 2018-2020; maneja teclado, trackpad, audio y Touch ID, y en Linux necesita el kernel linux-t2 (nodo eve).
+*[TCP]: Transmission Control Protocol — Protocolo de transporte con conexión y entrega ordenada; sobre él viajan HTTP, TLS y SSH.
 *[TLS]: Transport Layer Security — Cifrado de las conexiones (lo que pone la S en HTTPS).
 *[TTL]: Time To Live — Tiempo que se guarda un dato en caché antes de volver a pedirlo.
 *[UDP]: User Datagram Protocol — Protocolo de transporte sin conexión; lo usan, por ejemplo, el DNS y VXLAN.
@@ -146,4 +149,5 @@
 *[VMs]: máquina virtual — Virtual machine.
 *[VPN]: red privada virtual — Virtual Private Network: acceso cifrado a la red de la casa desde afuera.
 *[VXLAN]: Virtual Extensible LAN — Red de capa 2 encapsulada sobre UDP; con ella Flannel y Calico conectan los pods entre nodos.
+*[WAL]: Write-Ahead Log — Registro donde PostgreSQL anota cada cambio antes de aplicarlo; archivarlo permite restaurar a cualquier momento.
 *[YAML]: YAML Ain't Markup Language — Formato de texto de configuración que usan Kubernetes y Ansible.

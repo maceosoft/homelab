@@ -27,6 +27,12 @@ GitOps, y que no pueden vivir en git:
   ai/nvidia-api-key                        API key de NVIDIA para Open WebUI (opcional; clave "api_key")
   ai-sandbox/open-terminal-api-key         API key de Open Terminal (opcional; clave "api_key"; el namespace y su PSA son de GitOps)
   ai/open-terminal-api-key                 el mismo valor, para Open WebUI (clave "api_key")
+  postgres/postgres-homelab-agent          rol homelab_agent del PostgreSQL de la plataforma (CloudNativePG):
+                                           kubernetes.io/basic-auth, etiqueta cnpg.io/reload
+  ai/homelab-agent-postgres                DATABASE_URL de homelab-agent (misma contraseña)
+  postgres/postgres-s3                     llave del bucket postgres-backups de Incus (opcional; respaldos)
+  postgres/incus-s3-ca                     CA del HomeLab (solo el certificado público, ca.crt de
+                                           cert-manager/homelab-ca): valida el S3 de Incus
   namespace terraform                      state de OpenTofu (lo escribe el runner)
 
 Además BORRA de arc-runners los Secrets terraform-app, tofu-vars y argocd-ci si
@@ -60,6 +66,10 @@ docs/maceosoft/github.md:
   Anthropic-apikey      (opcional, IA) api-key: API key de Claude (console.anthropic.com, workspace con tope de gasto)
   Nvidia-Apikey         (opcional, IA) password: API key de NVIDIA (build.nvidia.com)
   open-terminal         (opcional, IA) api_key: API key de Open Terminal (>= 32 caracteres sin espacios; openssl rand -hex 32)
+  postgres-homelab-agent  password: contraseña del rol homelab_agent. Si falta, al aplicar se GENERA (64 hex) y se
+                        guarda en el item (con --dry-run no se escribe nada en 1Password)
+  postgres-s3           (opcional, respaldos) access_key, secret_key: la llave del bucket postgres-backups de Incus
+                        (la crea el operador: docs/storage/postgres.md)
 
 Uso:
   python3 ansible/scripts/apply_platform_secrets.py            # aplica
@@ -70,16 +80,19 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import base64
 import json
 import re
+import secrets
 import subprocess
 import sys
 import textwrap
 from pathlib import Path
+from urllib.parse import quote
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from onepassword_homelab import VAULT_NAME, create_client, find_vault_id  # noqa: E402
+from onepassword_homelab import VAULT_NAME, create_client, find_vault_id, set_item_field  # noqa: E402
 
 # Tiene que coincidir con el repoURL de las Applications de maceosoft/gitops.
 GITOPS_REPO_URL = "https://github.com/maceosoft/gitops.git"
@@ -146,6 +159,30 @@ SINGLE_TOKEN_ITEMS = {
 }
 # Un token corto o con espacios sería adivinable o rompería la cabecera Authorization.
 TOKEN_MIN_LEN = 32
+# PostgreSQL de la plataforma (gitops: addons/storage/postgres, Cluster CNPG "postgres"). El namespace y sus etiquetas
+# son de GitOps: aquí solo se asegura que exista para poder crear los Secrets antes que el Cluster.
+POSTGRES_NAMESPACE = "postgres"
+# Rol y base de homelab-agent. La contraseña vive solo en 1Password; si falta, se genera al aplicar.
+POSTGRES_APP_ITEM = "postgres-homelab-agent"
+POSTGRES_APP_FIELD = "password"
+POSTGRES_APP_USER = "homelab_agent"
+POSTGRES_APP_DB = "homelab_agent"
+POSTGRES_APP_SECRET = "postgres-homelab-agent"
+POSTGRES_RW_HOST = "postgres-rw.postgres.svc:5432"
+# La app corre en "ai" y los Secrets no cruzan namespaces: su cadena de conexión va en su propio Secret.
+POSTGRES_APP_URL_SECRET = (AI_NAMESPACE, "homelab-agent-postgres")
+# Con esta etiqueta CNPG recarga el Secret al cambiar (rotar la contraseña o la llave S3 sin reiniciar).
+CNPG_RELOAD_LABELS = {"cnpg.io/reload": "true"}
+# Respaldos a S3 (bucket postgres-backups de Incus, rol incus_s3): llave del bucket y CA que firma el endpoint.
+POSTGRES_S3_ITEM = "postgres-s3"
+POSTGRES_S3_FIELDS = {"access_key": "ACCESS_KEY_ID", "secret_key": "ACCESS_SECRET_KEY"}
+POSTGRES_S3_SECRET = "postgres-s3"
+INCUS_S3_CA_SECRET = "incus-s3-ca"
+S3_KEY_MIN_LEN = 16
+# CA del HomeLab: se lee SOLO la clave ca.crt (pública). El mismo Secret guarda la llave de la CA: nunca se pide entera.
+HOMELAB_CA = ("cert-manager", "homelab-ca")
+# Valor de muestra en --dry-run cuando la contraseña todavía no existe (no se imprime: redact() oculta los valores).
+PENDING_PASSWORD = "<se genera al aplicar>"
 HEARTBEAT_ITEM = "healthchecks-ping"
 GRAFANA_ITEM = "grafana-admin"
 # Un webhook de Discord con otro destino mandaría las alertas a un tercero: se valida el formato.
@@ -323,13 +360,79 @@ async def read_ollama_tokens(client) -> dict[str, str] | None:
     return {f: check_token(v, ref(f)) for f, v in values.items()}
 
 
+def check_public_cert(pem: str, source: str) -> str:
+    """Acepta solo certificados PEM públicos: un bloque CERTIFICATE o más y ninguna llave privada."""
+    if "PRIVATE KEY" in pem:
+        raise RuntimeError(f"{source}: contiene una llave privada; solo se copia el certificado público. No se aplica.")
+    blocks = re.findall(r"-----BEGIN CERTIFICATE-----.+?-----END CERTIFICATE-----", pem, re.S)
+    leftover = re.sub(r"-----BEGIN CERTIFICATE-----.+?-----END CERTIFICATE-----", "", pem, flags=re.S).strip()
+    if not blocks or leftover:
+        raise RuntimeError(f"{source}: no es un certificado PEM (-----BEGIN CERTIFICATE-----).")
+    return "\n".join(blocks) + "\n"
+
+
+def read_homelab_ca(run=None) -> str:
+    """ca.crt de cert-manager/homelab-ca (solo esa clave, con jsonpath: la llave de la CA no se lee)."""
+    ns, name = HOMELAB_CA
+    result = (run or subprocess.run)(
+        ["kubectl", "-n", ns, "get", "secret", name, "-o", r"jsonpath={.data.ca\.crt}"],
+        check=True, capture_output=True, text=True,
+    )
+    try:
+        pem = base64.b64decode(result.stdout.strip(), validate=True).decode()
+    except (ValueError, UnicodeDecodeError) as exc:
+        raise RuntimeError(f"{ns}/{name}: ca.crt no es base64 válido ({exc}).") from exc
+    return check_public_cert(pem, f"{ns}/{name} ca.crt")
+
+
+async def ensure_generated_password(client, item: str, field: str, *, dry_run: bool) -> str | None:
+    """Lee una contraseña de 1Password; si falta, la genera (64 hex) y la guarda en el item. Nunca la imprime.
+
+    Con dry_run no escribe en 1Password y devuelve None si todavía no existe.
+    """
+    ref = f"op://{VAULT_NAME}/{item}/{field}"
+    value = (await read_optional(client, ref)).strip()
+    if value:
+        return check_token(value, ref)
+    if dry_run:
+        print(f"Aviso: falta {ref}: al aplicar se genera y se guarda en 1Password (--dry-run no escribe).", file=sys.stderr)
+        return None
+    value = secrets.token_hex(32)
+    await set_item_field(client, field, value, vault_id=await find_vault_id(client), item_title=item)
+    print(f"Generado {ref} y guardado en 1Password.", file=sys.stderr)
+    return value
+
+
+async def read_postgres_s3(client) -> dict[str, str] | None:
+    """Llave del bucket de respaldos, o None si no existe el item (opcional). Error si está incompleta o mal formada."""
+    ref = lambda field: f"op://{VAULT_NAME}/{POSTGRES_S3_ITEM}/{field}"  # noqa: E731
+    values = {f: (await read_optional(client, ref(f))).strip() for f in POSTGRES_S3_FIELDS}
+    if not any(values.values()):
+        return None
+    missing = [ref(f) for f, v in values.items() if not v]
+    if missing:
+        raise RuntimeError("Item de la llave S3 incompleto en 1Password: faltan " + ", ".join(missing) + " (revisa con --check).")
+    for f, v in values.items():
+        if len(v) < S3_KEY_MIN_LEN or re.search(r"\s", v):
+            raise RuntimeError(f"{ref(f)}: tiene que tener al menos {S3_KEY_MIN_LEN} caracteres sin espacios.")
+    return {POSTGRES_S3_FIELDS[f]: v for f, v in values.items()}
+
+
+def database_url(password: str) -> str:
+    """Cadena de conexión de homelab-agent (sslmode=require: la CA del servidor es la propia de CNPG)."""
+    return (
+        f"postgresql://{POSTGRES_APP_USER}:{quote(password, safe='')}@{POSTGRES_RW_HOST}/{POSTGRES_APP_DB}"
+        "?sslmode=require"
+    )
+
+
 def ensure_namespace(manifests: list[dict], name: str, **kwargs) -> None:
     """Añade el Namespace solo si todavía no está en la lista (varios bloques comparten namespace)."""
     if not any(m["kind"] == "Namespace" and m["metadata"]["name"] == name for m in manifests):
         manifests.append(namespace(name, **kwargs))
 
 
-async def build_manifests() -> list[dict]:
+async def build_manifests(dry_run: bool = False) -> list[dict]:
     client = await create_client()
 
     argocd = await read_app(client, "maceosoft-argocd")
@@ -487,6 +590,30 @@ async def build_manifests() -> list[dict]:
                 manifests.append(secret(ns, name, {key: value}))
         else:
             print(f"Aviso: sin item {item!r} en 1Password: no se crean sus Secrets (opcional: IA).", file=sys.stderr)
+
+    # PostgreSQL de la plataforma: rol de homelab-agent (contraseña generada si falta) y su cadena de conexión.
+    ensure_namespace(manifests, POSTGRES_NAMESPACE, keep=True)
+    password = await ensure_generated_password(client, POSTGRES_APP_ITEM, POSTGRES_APP_FIELD, dry_run=dry_run)
+    password = password or PENDING_PASSWORD
+    manifests.append(
+        secret(
+            POSTGRES_NAMESPACE,
+            POSTGRES_APP_SECRET,
+            {"username": POSTGRES_APP_USER, "password": password},
+            labels=dict(CNPG_RELOAD_LABELS),
+            type_="kubernetes.io/basic-auth",
+        )
+    )
+    url_ns, url_name = POSTGRES_APP_URL_SECRET
+    ensure_namespace(manifests, url_ns, keep=True)
+    manifests.append(secret(url_ns, url_name, {"DATABASE_URL": database_url(password)}))
+    # CA pública del endpoint S3 (siempre: no es secreta) y llave del bucket (si el operador ya la creó).
+    manifests.append(secret(POSTGRES_NAMESPACE, INCUS_S3_CA_SECRET, {"ca.crt": read_homelab_ca()}))
+    s3 = await read_postgres_s3(client)
+    if s3:
+        manifests.append(secret(POSTGRES_NAMESPACE, POSTGRES_S3_SECRET, s3, labels=dict(CNPG_RELOAD_LABELS)))
+    else:
+        print(f"Aviso: sin item {POSTGRES_S3_ITEM!r} en 1Password: PostgreSQL queda sin respaldos a S3 (opcional).", file=sys.stderr)
     return manifests
 
 
@@ -652,6 +779,28 @@ async def check() -> int:
             good = len(value) >= TOKEN_MIN_LEN and not re.search(r"\s", value)
             print(f"    {'✓' if good else '✗'} {name}" + ("" if good else f" (falta o no es un token de {TOKEN_MIN_LEN}+ caracteres sin espacios)"))
             ok = ok and good
+    # PostgreSQL de la plataforma: la contraseña se genera si falta; la llave S3 es opcional (respaldos).
+    if POSTGRES_APP_ITEM in by_title:
+        item = await client.items.get(vault_id, by_title[POSTGRES_APP_ITEM].id)
+        value = (({f.title: f.value for f in item.fields}).get(POSTGRES_APP_FIELD) or "").strip()
+        good = not value or (len(value) >= TOKEN_MIN_LEN and not re.search(r"\s", value))
+        state = "✓" if value and good else "·" if not value else "✗"
+        note = "" if value and good else " (falta: se genera al aplicar)" if not value else f" ({TOKEN_MIN_LEN}+ caracteres sin espacios)"
+        print(f"  {POSTGRES_APP_ITEM}\n    {state} {POSTGRES_APP_FIELD}{note}")
+        ok = ok and good
+    else:
+        print(f"  · sin item {POSTGRES_APP_ITEM} (se crea con la contraseña generada al aplicar)")
+    if POSTGRES_S3_ITEM in by_title:
+        item = await client.items.get(vault_id, by_title[POSTGRES_S3_ITEM].id)
+        found = {f.title: f.value for f in item.fields}
+        print(f"  {POSTGRES_S3_ITEM}  (opcional: respaldos de PostgreSQL)")
+        for name in POSTGRES_S3_FIELDS:
+            value = (found.get(name) or "").strip()
+            good = len(value) >= S3_KEY_MIN_LEN and not re.search(r"\s", value)
+            print(f"    {'✓' if good else '✗'} {name}" + ("" if good else f" (falta o no tiene {S3_KEY_MIN_LEN}+ caracteres sin espacios)"))
+            ok = ok and good
+    else:
+        print(f"  · sin item {POSTGRES_S3_ITEM} (opcional: PostgreSQL sin respaldos a S3)")
     return 0 if ok else 1
 
 
@@ -664,7 +813,7 @@ async def main() -> int:
     if args.check:
         return await check()
 
-    manifests = await build_manifests()
+    manifests = await build_manifests(dry_run=args.dry_run)
     if args.dry_run:
         print(json.dumps([redact(m) for m in manifests], indent=2))
         obsolete = ", ".join(f"{RUNNER_NAMESPACE}/{n}" for n in OBSOLETE_RUNNER_SECRETS)

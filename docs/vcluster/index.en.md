@@ -1,31 +1,33 @@
 # vCluster Platform
 
 !!! info "Part of the implementation guide"
-    **[Phase 5 — vCluster](../implementacion/fase-5-vcluster.md)** — executable steps.
+    **[Phase 5 — vCluster](../implementacion/fase-5-vcluster.md)** — actionable steps.
     Requires **[Phase 4 — GitOps](../implementacion/fase-4-gitops.md)** (Dex, Gateway).
 
-Deep dive supplement. vCluster Platform offers **UI (web interface)**, **SSO (single sign-on) via Argo CD Dex**, and **kubeconfig download** for the management K3s (connected cluster) and vClusters, without relying solely on CLI.
+Deep-dive add-on. vCluster Platform provides a **web UI**, **SSO (single sign-on) via
+Argo CD Dex**, and **kubeconfig download** for the management K3s (connected
+cluster) and vClusters, without relying solely on the CLI (command-line interface).
 
-## What it does
+## What it's for
 
 | Capability | Description |
 |---|---|
-| Virtual clusters | Isolated Kubernetes API within the management K3s, without lifting Incus VMs |
+| Virtual clusters | Isolated Kubernetes API inside management K3s, no Incus VMs needed |
 | Web UI | Create/delete vClusters, view status, connect from browser |
-| SSO | Login OIDC via **Dex** → **GitHub** (team `devops` of org `maceosoft`); credentials in 1Password |
-| Kubeconfig | **Download kubeconfig** / **Connect** for the **host K3s** (connected cluster) and for each **vCluster** |
+| SSO | OIDC login via **Dex** → **GitHub** (team `devops` of org `maceosoft`); credentials in 1Password |
+| Kubeconfig | **Download kubeconfig** / **Connect** for the **host K3s** (connected cluster) and each **vCluster** |
 
-Sync **manual** — Application `vcluster-platform` (commented in the ApplicationSet `homelab-root`: manually activated).
+Manual **sync** — Application `vcluster-platform` (in `gitops/bootstrap/components/apagadas/`: activated by moving it to `bootstrap/components/` and synced manually).
 
 ## Components involved
 
 | Resource | Purpose |
 |---|---|
-| [`vcluster-platform.yaml`](https://github.com/maceosoft/gitops/blob/main/argocd/apps/vcluster-platform.yaml) | Helm Application that installs Loft Platform in `vcluster-platform` |
-| [`vcluster/values/platform.yaml`](https://github.com/maceosoft/gitops/blob/main/vcluster/values/platform.yaml) | HTTPRoute `vcluster.homelab.local` (`vcluster/route`), OIDC issuer → Argo CD Dex |
-| [`argocd/config/dex.config`](https://github.com/maceosoft/gitops/blob/main/argocd/config/dex.config) | GitHub connector + OAuth client `vcluster-platform` |
-| [`argocd/secrets/1password.md`](https://github.com/maceosoft/gitops/blob/main/argocd/secrets/1password.md) | 1Password items → `argocd-secret` |
-| **`argocd-route`** | Publishes Argo CD/Dex in `argocd.homelab.local` (see [GitOps](../gitops/index.md)) |
+| [`vcluster-platform.yaml`](https://github.com/maceosoft/gitops/blob/main/bootstrap/components/apagadas/vcluster-platform.yaml) | Helm Application that installs Loft Platform in `vcluster-platform` |
+| [`addons/cluster/vcluster/values/platform.yaml`](https://github.com/maceosoft/gitops/blob/main/addons/cluster/vcluster/values/platform.yaml) | HTTPRoute `vcluster.homelab.local` (`addons/cluster/vcluster/route`), OIDC issuer → Argo CD Dex |
+| [`addons/argocd/config/dex.config`](https://github.com/maceosoft/gitops/blob/main/addons/argocd/config/dex.config) | GitHub Connector + OAuth client `vcluster-platform` |
+| [`addons/argocd/secrets/1password.md`](https://github.com/maceosoft/gitops/blob/main/addons/argocd/secrets/1password.md) | 1Password Items → `argocd-secret` |
+| **`argocd-route`** | Exposes Argo CD/Dex at `argocd.homelab.local` (see [GitOps](../gitops/index.md)) |
 
 ## Authentication flow
 
@@ -43,16 +45,18 @@ sequenceDiagram
 
 | URL | Role |
 |---|---|
-| [`https://argocd.homelab.local`](https://argocd.homelab.local) | Argo CD UI; Dex issuer in `/api/dex` |
+| [`https://argocd.homelab.local`](https://argocd.homelab.local) | Argo CD UI; Dex issuer at `/api/dex` |
 | [`https://vcluster.homelab.local`](https://vcluster.homelab.local) | vCluster Platform UI |
 
 ## Implementation (summary)
 
-Follow the **[Phase 4 — GitOps](../implementacion/fase-4-gitops.md)** until OAuth Dex and the Gateway are complete. Then:
+Follow **[Phase 4 — GitOps](../implementacion/fase-4-gitops.md)** until
+completing Dex OAuth and the Gateway. Then:
 
-### 1. OAuth Secrets (step 4.7 of the GitOps guide)
+### 1. OAuth secrets (step 4.7 of the GitOps guide)
 
-Ansible generates and applies the local secrets; manually create `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` in 1Password:
+Ansible generates and applies the local secrets; in 1Password you only need to
+manually create `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET`:
 
 ```bash
 cd ansible
@@ -64,9 +68,8 @@ ansible-playbook -i inventory.ini playbook-dex-oauth-secrets.yml \
 
 ### 2. Deploy Platform
 
-```bash
-kubectl apply -f gitops/argocd/apps/vcluster-platform.yaml
-```
+In the `gitops` repo, move `bootstrap/components/apagadas/vcluster-platform.yaml` to `bootstrap/components/` and merge into
+`main`. The ApplicationSet `homelab` creates the Application with wave `manual` (no auto-sync): sync it manually.
 
 === "🖱️ From the UI"
 
@@ -83,16 +86,18 @@ kubectl apply -f gitops/argocd/apps/vcluster-platform.yaml
 
 ### 3. Validate GitHub SSO
 
-After syncing `argocd`, login to Argo CD or Platform should offer **GitHub**. If it fails, check the Redirect URIs of the OAuth App and the team `maceosoft/devops` in
-[`dex.config`](https://github.com/maceosoft/gitops/blob/main/argocd/config/dex.config).
+After `argocd` sync, login in Argo CD or Platform should offer **GitHub**.
+If it fails, check the OAuth App Redirect URIs and team `maceosoft/devops` in
+[`dex.config`](https://github.com/maceosoft/gitops/blob/main/addons/argocd/config/dex.config).
 
-With SSO established, put `auth.password.disabled: true` in `platform.yaml`.
+With stable SSO, put `auth.password.disabled: true` in `platform.yaml`.
 
 ### 4. DNS
 
-`vcluster.homelab.local` and `argocd.homelab.local` are resolved by the LAN DNS (BIND in `deborah`) to the fixed IP of the Gateway, `192.168.23.200`
+`vcluster.homelab.local` and `argocd.homelab.local` are resolved by the LAN DNS
+(BIND on `deborah`) to the Gateway's fixed IP, `192.168.23.200`
 ([Phase 4 — 4.8](../implementacion/fase-4-gitops.md#48-homelablocal-dns)). Use
-`192.168.20.5` as DNS; if not possible, the backup is `/etc/hosts`:
+`192.168.20.5` as DNS; if you can't, the fallback is `/etc/hosts`:
 
 ```
 192.168.23.200  argocd.homelab.local vcluster.homelab.local
@@ -107,13 +112,16 @@ With SSO established, put `auth.password.disabled: true` in `platform.yaml`.
 4. In the vcluster: **Connect** / **Download kubeconfig**
 5. `export KUBECONFIG=~/Downloads/kubeconfig.yaml` and `kubectl get nodes`
 
-### Kubeconfig of the management K3s (connected cluster)
+### Management K3s kubeconfig (connected cluster)
 
-The host cluster where Platform runs appears in **Clusters** as connected cluster. Same SSO flow → **Connect** / **Download kubeconfig**. Without **Cluster Access** explicitly granted, the authenticated user **does not see the cluster** (default deny). Grant permissions to the user/team `loft-*` in the Platform UI.
+The host cluster where Platform runs appears in **Clusters** as a connected
+cluster. Same SSO flow → **Connect** / **Download kubeconfig**. Without explicit
+**Cluster Access**, the authenticated user **does not see the cluster** (deny by
+default). Assign permissions to the user/team `loft-*` in the Platform UI.
 
 Alternative without web: [`fase-4-gitops.md` 4.1](../implementacion/fase-4-gitops.md#41-kubectl-access).
 
-CLI alternative:
+Alternative CLI:
 
 ```bash
 vcluster connect <nombre> -n <namespace>
@@ -123,7 +131,7 @@ vcluster connect <nombre> -n <namespace>
 
 | | vCluster Platform | CAPN |
 |---|---|---|
-| Auth | Dex Argo CD + UI kubeconfig | Secret Incus sealed |
+| Auth | Argo CD Dex + UI kubeconfig | Sealed Incus secret |
 | Runtime | Pods in management K3s | Incus instances |
 | RAM | Moderate (1 vcluster) | High per kubeadm node |
 | Argo CD Sync | manual | manual |
@@ -133,13 +141,13 @@ vcluster connect <nombre> -n <namespace>
   <div class="option-grid">
     <div class="card-col">
       <div class="card-title">vCluster Platform</div>
-      <div class="text-muted">Pods in K3s; web kubeconfig; SSO Dex</div>
+      <div class="text-muted">Pods in K3s; web kubeconfig; Dex SSO</div>
       <div class="text-muted">Overhead per vcluster; Platform permissions</div>
     </div>
     <div class="card-col">
       <div class="card-title">CAPN</div>
       <div class="text-muted">Real kubeadm clusters in Incus</div>
-      <div class="text-muted">High RAM per node; secret Incus sealed</div>
+      <div class="text-muted">Lots of RAM per node; sealed Incus secret</div>
     </div>
     <div class="card-col">
       <div class="card-title">Web kubeconfig (Platform)</div>

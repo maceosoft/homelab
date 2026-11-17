@@ -134,6 +134,7 @@ Lo que **no puede o no debe** llevar autenticación propia queda solo con una re
 | Salida de Open Terminal (`ai-sandbox`) | Ejecuta código arbitrario y necesita bajar paquetes | NetworkPolicy de egreso solo a internet por 80/443, sin acceso al clúster ni a la red interna; sin `docker.sock` |
 | VXLAN de Calico (UDP `4789`), Geneve de OVN (UDP `6081`), etcd (`2379`, `2380`), métricas de calico-node (`9091`), healthz de kube-proxy (`10256`) | Tráfico interno del clúster, sin autenticación de usuario | `nftables`: solo nodos (y pods donde hace falta); Geneve solo entre nodos |
 | SSH `22`, API de K3s `6443`, kubelet `10250`, Incus `8443` | Tienen su propia autenticación (llaves y Dex, certificados, authn/authz del kubelet, OIDC), pero escuchan en la red | `nftables`: LAN y estación del operador (SSH), nodos, pods y operador (el resto) |
+| S3 de Incus `8555` (HAProxy en `invincible`) | Protocolo S3 con llave de acceso por bucket (sin Dex: lo usan máquinas) | Llaves por bucket en 1Password; TLS con la CA del HomeLab; `nftables`: nodos, pods y operador ([detalle](../storage/postgres.md)) |
 | Servicio `kong-gateway-proxy` (LoadBalancer `192.168.23.200`) | Es la puerta de entrada del HomeLab; cada ruta lleva su propia autenticación | Los listeners HTTP solo redirigen a HTTPS |
 | Dex (`/api/dex`) y los listeners HTTP de Kong | Dex es el propio mecanismo de login; el HTTP solo redirige a HTTPS | Por diseño |
 

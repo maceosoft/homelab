@@ -1,9 +1,9 @@
 # CAPN (Cluster API Provider Incus)
 
 !!! info "Part of the implementation guide"
-    **[Phase 6 — CAPN](../implementacion/fase-6-capn.md)** — runnable walkthrough.
+    **[Phase 6 — CAPN](../implementacion/fase-6-capn.md)** — executable walkthrough.
 
-The existing K3s (lightweight Kubernetes distribution) acts as the *management cluster* for [Cluster API](https://cluster-api.sigs.k8s.io/).
+The existing K3s (lightweight Kubernetes distribution) acts as the Cluster API *management cluster* [Cluster API](https://cluster-api.sigs.k8s.io/).
 Provider: [CAPN](https://capn.linuxcontainers.org/).
 
 ## Installation
@@ -17,10 +17,10 @@ curl -o ~/.cluster-api/clusterctl.yaml https://capn.linuxcontainers.org/static/v
 clusterctl init -i incus
 ```
 
-## Incus credentials as a Secret
+## Incus credentials as Secret
 
-See [`gitops/sealed-secrets/`](https://github.com/maceosoft/gitops/tree/main/sealed-secrets) — the
-`lxc-secret` secret is encrypted with Sealed Secrets before committing, never in plain text.
+See [`gitops/addons/security/sealed-secrets/`](https://github.com/maceosoft/gitops/tree/main/addons/security/sealed-secrets) — the secret
+`lxc-secret` is encrypted with Sealed Secrets before committing, never in plain text.
 
 ## Generate a workload cluster
 
@@ -38,13 +38,13 @@ export WORKER_MACHINE_TYPE=container
 clusterctl generate cluster demo -i incus \
   --kubernetes-version v1.36.2 \
   --control-plane-machine-count 1 \
-  --worker-machine-count 2 > gitops/capn/clusters/demo.yaml
+  --worker-machine-count 2 > gitops/addons/cluster/capn/clusters/demo.yaml
 
-kubectl apply -f gitops/capn/clusters/demo.yaml
+kubectl apply -f gitops/addons/cluster/capn/clusters/demo.yaml
 ```
 
 > Note: CAPN provisions vanilla **kubeadm** clusters (not nested K3s) — heavier
 > per node. Good for ephemeral dev/test clusters, not for 24/7 on oliver.
 
-The generated manifest is synced by Argo CD with manual sync — see
-[`capn-demo.yaml`](https://github.com/maceosoft/gitops/blob/main/argocd/apps/capn-demo.yaml).
+The generated manifest syncs via Argo CD with manual sync — see
+[`capn-demo.yaml`](https://github.com/maceosoft/gitops/blob/main/bootstrap/components/apagadas/capn-demo.yaml).

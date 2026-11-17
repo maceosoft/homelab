@@ -2,7 +2,7 @@
 
 Appendix to **[Phase 3 — K3s](../implementacion/fase-3-k3s.md)**.
 
-The playbook [`playbook-k3s.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-k3s.yml) installs **only what Argo CD cannot do**: K3s binary (lightweight Kubernetes distribution), kube-vip CP (control plane), Argo CD controller, node labels, etc. Addons (MetalLB, Gateway, Longhorn, vCluster, …) live in the [`gitops`](https://github.com/maceosoft/gitops) repo.
+The playbook [`playbook-k3s.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-k3s.yml) installs **only what Argo CD cannot do**: K3s binary (lightweight Kubernetes distribution), kube-vip CP (control plane), Argo CD controller, node labels, etc. Add-ons (MetalLB, Gateway, Longhorn, vCluster, …) live in the [`gitops`](https://github.com/maceosoft/gitops) repo.
 
 Configuration: [`ansible/group_vars/incus_cluster/k3s_install.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/group_vars/incus_cluster/k3s_install.yml)
 
@@ -77,13 +77,13 @@ ansible-playbook -i inventory.ini playbook-k3s.yml
 
 ## CNI
 
-K3s ships with **Flannel** embedded. Canal, Calico and Cilium require
+K3s ships with **embedded Flannel**. Canal, Calico and Cilium require
 `--flannel-backend=none` and `--disable-network-policy` (role [`k3s_cni`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/k3s_cni/README.md),
 tag `cni`, **after** server and **before** agents).
 
 | CNI | `k3s_install.core.cni` | Installation |
 |---|---|---|
-| [Flannel](https://github.com/flannel-io/flannel) | `flannel` (default) | Embedded; adjusts `flannel_backend` |
+| [Flannel](https://github.com/flannel-io/flannel) | `flannel` (default) | Embedded; tune `flannel_backend` |
 | [Canal](https://docs.tigera.io/calico/latest/getting-started/kubernetes/flannel/flannel) | `canal` | Canal manifest (Ansible or Application `canal`) |
 | [Calico](https://docs.tigera.io/calico/latest/about/) | `calico` | Tigera operator + custom resources |
 | [Cilium](https://docs.cilium.io/) | `cilium` | Official Helm chart |
@@ -98,8 +98,8 @@ ansible-playbook -i inventory.ini playbook-k3s.yml
 !!! warning "`-e k3s_install.x.y=valor` does not work"
     Ansible does not merge dotted keys into an existing dict — it creates a
     separate new variable (literally named `"k3s_install.x.y"`) and
-    `k3s_install` remains untouched: **the default CNI was installed without warning**. A `-e` with
-    JSON doesn't help either: it **replaces** the entire dict, so `core.version`,
+    `k3s_install` remains untouched: **the default CNI was installed silently**. A `-e` with
+    JSON does not help either: it **replaces** the entire dict, so `core.version`,
     `cluster_cidr`, etc. are lost. The playbook now detects both cases and **fails** before touching the nodes.
 
 To change a single option from the command line there are top-level variables:
@@ -120,9 +120,10 @@ ansible-playbook -i inventory.ini playbook-k3s.yml \
 The CNI is chosen **before creating the cluster**: changing it later on a running cluster does not reinstall the network and can leave two CNIs fighting. If you already installed with another, the change is a migration, not a flag.
 
 Calico is managed by Argo CD after bootstrap (Applications `calico-operator` + `calico-config`, manual sync; see
-[Calico with Argo CD](../operacion/actualizar-calico.md)). GitOps alternatives (manual sync):
-`canal` or `cilium` in [`gitops/argocd/apps/`](https://github.com/maceosoft/gitops/tree/main/argocd/apps) —
-only if you installed K3s with `cni` different from `flannel` via Ansible **or** you apply the manifest after `--flannel-backend=none`. **Do not** enable more than one CNI (Container Network Interface) app at a time.
+[Calico with Argo CD](../operacion/actualizar-calico.md)). Alternative GitOps (manual sync):
+`canal` or `cilium` in [`gitops/bootstrap/components/apagadas/`](https://github.com/maceosoft/gitops/tree/main/bootstrap/components/apagadas) —
+only if you installed K3s with `cni` different from `flannel` via Ansible **or** you apply the
+manifest after `--flannel-backend=none`. **Do not** enable more than one CNI (Container Network Interface) app at a time.
 
 ### Trade-off Analysis — CNI
 
@@ -197,7 +198,7 @@ Full catalog and step-by-step guide in [Phase 4 — GitOps](../implementacion/fa
 | K3s upgrades | `k3s-upgrade` | auto (wave 3) |
 | vCluster Platform | `vcluster-platform` | manual |
 | CAPN demo | `capn-demo` | manual |
-| CNI Calico | `calico-operator`, `calico-config` | manual (active) |
+| CNI Calico | `calico-operator`, `calico-config` | manual (enabled) |
 | Alternative CNIs (optional) | `canal`, `cilium` | manual |
 
 ### Trade-off Analysis — kube-vip vs MetalLB
@@ -250,14 +251,14 @@ ansible-playbook -i inventory.ini playbook-k3s.yml
 # habilitadas en group_vars/incus_cluster/k3s_install.yml:
 ansible-playbook -i inventory.ini playbook-k3s.yml --tags kube_vip
 
-# Post-install GitOps
-kubectl apply -f gitops/bootstrap/root-appset.yaml
+# Post-install GitOps (una vez, tras playbook-platform-secrets.yml; o desde gitops: kubectl apply -k bootstrap/)
+ansible-playbook -i inventory.ini playbook-k3s.yml --tags argocd -e k3s_argocd_bootstrap_confirm=true
 ```
 
 For VIP + Argo CD controller: enable `kube_vip.enabled: true` and
 `gitops_argocd.enabled: true` in `group_vars/incus_cluster/k3s_install.yml`
-before running the playbook (see the warning above about why `-e` does
-not work for this).
+before running the playbook (see the warning above about why `-e` does not
+work for this).
 
 ## kube-vip vs MetalLB
 

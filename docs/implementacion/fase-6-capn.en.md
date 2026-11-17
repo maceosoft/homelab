@@ -2,27 +2,27 @@
 
 ## Objective
 
-Provision **workload clusters** kubeadm on Incus instances via
+Provision **kubeadm workload clusters** on Incus instances via
 [Cluster API](https://cluster-api.sigs.k8s.io/) and [CAPN (Cluster API Provider for Incus)](https://capn.linuxcontainers.org/).
 
-## What You Learn
+## What you learn
 
 CAPI (Cluster API) declares clusters as Kubernetes resources; CAPN translates `LXCMachine` into
-Incus instances — ephemeral clusters that do not touch the management K3s (lightweight Kubernetes distribution).
+Incus instances — ephemeral clusters without touching the management K3s (lightweight Kubernetes distribution).
 
 !!! abstract "Learn this phase"
-    **In simple terms:** Cluster API is a 3D printer for clusters: instead of building each cluster by hand,
-    you write a description and the system fabricates it. CAPN is the "accessory" that uses Incus as
+    **In short:** Cluster API is a 3D printer for clusters: instead of assembling each cluster by hand,
+    you write a description and the system fabricates it. CAPN is the "attachment" that uses Incus as
     the factory: each node of the new cluster is an Incus instance.
 
     **Key concepts**
 
-    - **Management cluster and workload cluster:** the former manages; the latter is the one that is created and used.
+    - **Management cluster and workload cluster:** the former manages; the latter is the one created and used.
     - **Provider:** the plugin that knows how to create machines on a specific platform (here, Incus).
     - **Declarative resources:** a cluster is described as a Kubernetes object (for example `LXCMachine`).
     - **Ephemeral clusters:** created for a test and destroyed afterward.
 
-    **Practical challenge (safe):** generate the description of a cluster and read it, **without applying it**. First export
+    **Safe hands-on challenge:** generate a cluster description and read it, **without applying it**. First export
     the variables that appear in the "Run" section of this phase; then:
 
     ```bash
@@ -34,13 +34,13 @@ Incus instances — ephemeral clusters that do not touch the management K3s (lig
     less /tmp/demo.yaml
     ```
 
-    ??? question "Why create clusters from a manifest and not by hand?"
-        They repeat the same way every time, they stay in Git and can be destroyed and recreated without effort.
+    ??? question "Why create clusters from a manifest instead of manually?"
+        They repeat identically every time, live in Git, and can be destroyed and recreated effortlessly.
 
-    ??? question "What is the difference between a management cluster and a workload cluster?"
-        The management cluster creates and monitors the others; workload clusters run the applications.
+    ??? question "What is the difference between the management cluster and a workload cluster?"
+        The management cluster creates and watches the others; workload clusters run the applications.
 
-    Questions? Use the **Learn with AI** button next to each title, or the page [Learn](../aprende.md).
+    Questions? Use the **Learn with AI** button next to each heading, or the [Learn](../aprende.md) page.
 
 ## Stack for this phase
 
@@ -60,35 +60,37 @@ sequenceDiagram
   Op->>WL: kubectl_workload
 ```
 
-- **[Cluster API](https://cluster-api.sigs.k8s.io/)** — Declarative API; Phase 6.
-- **[CAPN](https://capn.linuxcontainers.org/)** — Incus provider; Phase 6.
-- **[clusterctl](https://cluster-api.sigs.k8s.io/user/quick-start.html)** — Bootstrap CAPI in the management cluster.
+- **[Cluster API](https://cluster-api.sigs.k8s.io/)** — Declarative API (Application Programming Interface); Phase 6.
+- **[CAPN](https://capn.linuxcontainers.org/)** — Incus Provider; Phase 6.
+- **[clusterctl](https://cluster-api.sigs.k8s.io/user/quick-start.html)** — Bootstrap CAPI on the management cluster.
 - **[Incus](https://linuxcontainers.org/incus/docs/main/)** — Instance runtime; Phase 2.
 - **[Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets)** — Encrypted Incus credentials in Git.
 
-Further reading: [CAPN](../capn/index.md) · [Secrets](../secrets/index.md)
+Deep dive: [CAPN](../capn/index.md) · [Secrets](../secrets/index.md)
 
 **This decision in other environments**
 
 === "🏠 At home"
 
-    Cluster API with [CAPN](https://github.com/lxc/cluster-api-provider-incus) creates kubeadm test clusters as
-    Incus instances from a manifest in Git, and deletes them when done. It serves to learn the same model
+    Cluster API with [CAPN](https://github.com/lxc/cluster-api-provider-incus) creates test kubeadm clusters as
+    Incus instances, from a manifest in Git, and deletes them when you're done. It serves to learn the same model
     that large platforms use, without paying for cloud.
 
 === "🏢 In a company"
 
-    - **Benefits:** clusters are declared as code: they are created the same way every time, versioned and audited
-      in Git, updated node by node with a version change, and replaced instead of being fixed by hand. With the
-      same API, clusters are managed in the data center and across multiple clouds.
-    - **Fleet scale:** with dozens or hundreds of clusters, inventory, policies, and centralized updates are needed;
-      a fleet console is often added, such as
+    - **Benefits:** clusters are declared as code: they are created identically every time, versioned and audited
+      in Git, updated node by node with a version change, and replaced instead of repaired manually. With the
+      same API you manage clusters in the datacenter and across multiple clouds.
+    - **Fleet scale:** with dozens or hundreds of clusters you need inventory, policies, and centralized
+      updates; a fleet console such as
       [SUSE Rancher Prime](https://www.suse.com/products/rancher/) or
-      [Red Hat Advanced Cluster Management](https://www.redhat.com/en/technologies/management/advanced-cluster-management).
-    - **The management cluster is critical:** if it is lost, the clusters keep running but no one can update or scale them; in production, it is given high availability and backup, and it is moved with `clusterctl move`.
-    - **Support:** CAPN is a community project of [Linux Containers](https://linuxcontainers.org/); cloud providers
-      have more users and vendor support.
-    - **When the same applies as in a HomeLab:** private cloud on Incus, edge sites, and test environments that are created and destroyed often, where a managed cloud cluster is not available or does not make sense.
+      [Red Hat Advanced Cluster Management](https://www.redhat.com/en/technologies/management/advanced-cluster-management) is often added.
+    - **The management cluster is critical:** if lost, clusters keep running but no one can update or scale
+      them; in production it gets high availability and backup, and is moved with `clusterctl move`.
+    - **Support:** CAPN is a community project from [Linux Containers](https://linuxcontainers.org/); major cloud
+      providers have more users and vendor backing.
+    - **When the same as HomeLab makes sense:** private cloud on Incus, edge sites, and test environments that
+      are created and destroyed often, where a managed cloud cluster isn't available or doesn't make sense.
 
 === "☁️ In the cloud"
 
@@ -99,19 +101,21 @@ Further reading: [CAPN](../capn/index.md) · [Secrets](../secrets/index.md)
     | Azure | Provider [CAPZ](https://github.com/kubernetes-sigs/cluster-api-provider-azure); fleet with [Azure Arc-enabled Kubernetes](https://learn.microsoft.com/en-us/azure/azure-arc/kubernetes/overview) |
     | Oracle Cloud (OCI) | Provider [CAPOCI](https://github.com/oracle/cluster-api-provider-oci) |
 
-    Replacing CAPN with a cloud provider gives you managed machines, networks, and load balancers, with SLAs and near-unlimited scale. You lose control of the hardware, pay for every node that is running, and the manifests use cloud-specific resources, so they do not move as-is to another cloud.
+    Swapping CAPN for a cloud provider gives you managed machines, networks, and load balancers, with SLA and near
+    unlimited scale. You lose hardware control, pay for every running node, and manifests use cloud-specific
+    resources, so they don't move as-is to another cloud.
 
-## Before You Start
+## Before you start
 
-- [ ] [Phase 2 — Incus](fase-2-incus.md) with the healthy cluster.
+- [ ] [Phase 2 — Incus](fase-2-incus.md) with a healthy cluster.
 - [ ] [Phase 4 — GitOps](fase-4-gitops.md) with Sealed Secrets operational.
 - [ ] Sealed Incus credential (`lxc-secret`).
 
-The [Phase 5 — vCluster](fase-5-vcluster.md) is optional: it is not required for this phase.
+[Phase 5 — vCluster](fase-5-vcluster.md) is optional: not required for this phase.
 
 !!! note "Control plane load balancer"
     Each CAPN cluster creates its own load balancer for the API (`LOAD_BALANCER='lxc: {}'`, a container inside
-    Incus). It is independent of the Incus network load balancers, which only exist in the OVN network `ovn-lan`: see
+    Incus). It is independent of the Incus network load balancers, which only exist on the OVN network `ovn-lan`: see
     [Load Balancing and OVN](../incus/cluster-setup.md#load-balancing-and-ovn).
 
 ## Run
@@ -128,11 +132,10 @@ clusterctl init -i incus
 
 ### Generate and apply demo cluster
 
-See full commands in [CAPN — further reading](../capn/index.md).
+See full commands in [CAPN — deep dive](../capn/index.md).
 
-```bash
-kubectl apply -f gitops/argocd/apps/capn-demo.yaml
-```
+In the repo `gitops`, move `bootstrap/components/apagadas/capn-demo.yaml` to `bootstrap/components/` and merge into `main`.
+The ApplicationSet `homelab` creates the Application with wave `manual` (no auto-sync):
 
 === "🖱️ From the UI"
 
@@ -159,18 +162,18 @@ kubectl apply -f gitops/argocd/apps/capn-demo.yaml
   <div class="option-grid">
     <div class="card-col">
       <div class="card-title">Manual sync</div>
-      <div class="text-muted">Ephemeral clusters do not delete themselves</div>
-      <div class="text-muted">Apply + Sync in UI each time</div>
+      <div class="text-muted">Ephemeral clusters don't self-delete</div>
+      <div class="text-muted">Apply + Sync in UI every time</div>
     </div>
     <div class="card-col">
       <div class="card-title">Workers on <code>@arm64-nodes</code></div>
-      <div class="text-muted">Leverages 31 GB of deborah</div>
-      <div class="text-muted">Less margin if deborah is already a CP K3s</div>
+      <div class="text-muted">Leverages 31 GB from deborah</div>
+      <div class="text-muted">Less headroom if deborah is already K3s CP</div>
     </div>
     <div class="card-col">
       <div class="card-title">CP on <code>@x86-nodes</code></div>
-      <div class="text-muted">Separates CP workload / management</div>
-      <div class="text-muted">More RAM on limited x86 nodes</div>
+      <div class="text-muted">Separation of CP workload / management</div>
+      <div class="text-muted">More RAM on constrained x86 nodes</div>
     </div>
     <div class="card-col">
       <div class="card-title">CAPN vs vCluster</div>
@@ -191,9 +194,9 @@ kubectl get machines
 
 | Symptom | Check |
 |---|---|
-| The `Machine` does not advance | Secret Incus, Incus IP in `lxc-secret` |
+| The `Machine` doesn't progress | Incus secret, Incus IP in `lxc-secret` |
 | Image pull | [images.linuxcontainers.org](https://images.linuxcontainers.org/) |
 
 ## Next
 
-**[→ HomeLab Summary](resumen-homelab.md)** · [Tech Stack](stack-tecnologico.md)
+**[→ HomeLab Summary](resumen-homelab.md)** · [Tech stack](stack-tecnologico.md)

@@ -1,0 +1,220 @@
+---
+# --- Preflight (solo lectura: también corre con -C y sin incus_s3_confirm) -----------------------------------------
+- name: Leer la CA del HomeLab (solo ca.crt de cert-manager/homelab-ca, nunca la llave)
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ incus_s3_ca_namespace }}"
+      - get
+      - secret
+      - "{{ incus_s3_ca_secret }}"
+      - -o
+      - jsonpath={.data.ca\.crt}
+  environment:
+    KUBECONFIG: "{{ incus_s3_kubeconfig }}"
+  delegate_to: localhost
+  become: false
+  run_once: true
+  register: incus_s3_ca_b64
+  changed_when: false
+  check_mode: false
+
+- name: Guardar la CA leída
+  ansible.builtin.set_fact:
+    incus_s3_ca_pem: "{{ incus_s3_ca_b64.stdout | b64decode }}"
+
+- name: Comprobar que lo leído es un certificado público y nada más
+  ansible.builtin.assert:
+    that:
+      - incus_s3_ca_pem is search('-----BEGIN CERTIFICATE-----')
+      - incus_s3_ca_pem is not search('PRIVATE KEY')
+    fail_msg: >-
+      No se pudo leer ca.crt de {{ incus_s3_ca_namespace }}/{{ incus_s3_ca_secret }} (¿KUBECONFIG apunta al clúster
+      del homelab y cert-manager-config está Healthy?).
+    quiet: true
+
+- name: Listener S3 actual de este miembro (core.storage_buckets_address)
+  ansible.builtin.command: incus config get core.storage_buckets_address --target {{ inventory_hostname }}
+  register: incus_s3_buckets_address
+  changed_when: false
+  check_mode: false
+
+- name: Buckets del pool
+  ansible.builtin.command: incus storage bucket list {{ incus_s3_pool }} --format csv
+  register: incus_s3_buckets
+  changed_when: false
+  check_mode: false
+
+- name: ¿HAProxy instalado?
+  ansible.builtin.command: dpkg-query -W -f=${Status} haproxy
+  register: incus_s3_haproxy_pkg
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+# Un solo veredicto: missing | expiring | other-ca | san | ok. El certificado que se compara es el que sirve HAProxy.
+- name: Estado del certificado del proxy
+  ansible.builtin.shell: |
+    set -uo pipefail
+    crt="{{ incus_s3_dir }}/tls.crt"
+    [ -f "$crt" ] || { echo missing; exit 0; }
+    openssl x509 -in "$crt" -noout -enddate
+    openssl x509 -in "$crt" -noout -checkend {{ (incus_s3_tls_renew_days | int) * 86400 }} >/dev/null || { echo expiring; exit 0; }
+    openssl verify -CAfile /dev/stdin "$crt" >/dev/null 2>&1 || { echo other-ca; exit 0; }
+    sans=$(openssl x509 -in "$crt" -noout -ext subjectAltName)
+    {% for san in incus_s3_tls_sans %}
+    grep -qF -- "{{ san | regex_replace('^IP:', 'IP Address:') }}" <<<"$sans" || { echo san; exit 0; }
+    {% endfor %}
+    echo ok
+  args:
+    executable: /bin/bash
+    stdin: "{{ incus_s3_ca_pem }}"
+  register: incus_s3_cert_check
+  changed_when: false
+  check_mode: false
+
+- name: Resumir el preflight
+  ansible.builtin.set_fact:
+    incus_s3_cert_state: "{{ incus_s3_cert_check.stdout_lines | last }}"
+    incus_s3_need_cert: "{{ (incus_s3_cert_check.stdout_lines | last) != 'ok' or (incus_s3_tls_force_renew | bool) }}"
+    incus_s3_haproxy_installed: "{{ 'install ok installed' in incus_s3_haproxy_pkg.stdout }}"
+    incus_s3_bucket_present: >-
+      {{ incus_s3_buckets.stdout_lines | select('match', '^' ~ incus_s3_bucket ~ ',') | list | length > 0 }}
+    incus_s3_address_ok: "{{ (incus_s3_buckets_address.stdout | trim) == incus_s3_backend_address }}"
+
+- name: Preflight
+  ansible.builtin.debug:
+    msg:
+      - "core.storage_buckets_address: '{{ incus_s3_buckets_address.stdout | trim }}' (objetivo: {{ incus_s3_backend_address }})"
+      - "HAProxy instalado: {{ incus_s3_haproxy_installed }}"
+      - >-
+        Certificado del proxy: {{ incus_s3_cert_check.stdout_lines | join(' / ') }}
+        -> {{ 'se emite uno nuevo' if incus_s3_need_cert else 'vigente' }}
+      - >-
+        Bucket {{ incus_s3_bucket }} en el pool {{ incus_s3_pool }}:
+        {{ 'existe' if incus_s3_bucket_present else 'NO existe (lo crea una persona: docs/storage/postgres.md)' }}
+
+- name: Modo seguro
+  ansible.builtin.debug:
+    msg: "Solo preflight: no se cambió nada. Para revisar los cambios: -C --diff. Para aplicarlos: -e incus_s3_confirm=true"
+  when: not (incus_s3_confirm | bool) and not ansible_check_mode
+
+- name: Terminar sin confirmación
+  ansible.builtin.meta: end_host
+  when: not (incus_s3_confirm | bool) and not ansible_check_mode
+
+# --- Cambios (con -C solo se muestran) ---------------------------------------------------------------------------
+- name: Instalar HAProxy
+  ansible.builtin.apt:
+    name: haproxy
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Carpeta de certificados del proxy
+  ansible.builtin.file:
+    path: "{{ incus_s3_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: CA del HomeLab (pública) para verificar el certificado del proxy
+  ansible.builtin.copy:
+    content: "{{ incus_s3_ca_pem }}"
+    dest: "{{ incus_s3_dir }}/homelab-ca.crt"
+    owner: root
+    group: root
+    mode: "0644"
+
+# HAProxy verifica el listener de Incus contra el certificado del clúster (fijado, no confía en otra cosa). Si alguien
+# cambia ese certificado (incus cluster update-certificate), hay que volver a correr este playbook.
+- name: Certificado del clúster Incus (público) para verificar el backend
+  ansible.builtin.copy:
+    src: /var/lib/incus/cluster.crt
+    remote_src: true
+    dest: "{{ incus_s3_dir }}/incus-backend.crt"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Recargar HAProxy
+
+- name: Emitir el certificado del proxy
+  ansible.builtin.include_tasks: cert.yml
+  when: incus_s3_need_cert | bool and not ansible_check_mode
+
+- name: Certificado que se emitiría
+  ansible.builtin.debug:
+    msg: "Con -C no se pide el certificado: se emitiría uno nuevo ({{ incus_s3_cert_state }}) con SAN {{ incus_s3_tls_sans | join(', ') }}"
+  when: incus_s3_need_cert | bool and ansible_check_mode
+
+- name: Publicar S3 de Incus solo en loopback
+  ansible.builtin.command: >-
+    incus config set core.storage_buckets_address {{ incus_s3_backend_address }} --target {{ inventory_hostname }}
+  changed_when: true
+  when: not (incus_s3_address_ok | bool) and not ansible_check_mode
+
+- name: Cambio de core.storage_buckets_address que se haría
+  ansible.builtin.debug:
+    msg: "core.storage_buckets_address: '{{ incus_s3_buckets_address.stdout | trim }}' -> '{{ incus_s3_backend_address }}'"
+  when: not (incus_s3_address_ok | bool) and ansible_check_mode
+
+- name: Configuración de HAProxy
+  ansible.builtin.template:
+    src: haproxy.cfg.j2
+    dest: /etc/haproxy/haproxy.cfg
+    owner: root
+    group: root
+    mode: "0644"
+    validate: haproxy -c -f %s
+  notify: Recargar HAProxy
+
+- name: HAProxy habilitado y en marcha
+  ansible.builtin.systemd_service:
+    name: haproxy
+    enabled: true
+    state: started
+  when: not ansible_check_mode or incus_s3_haproxy_installed | bool
+
+- name: Aplicar la recarga pendiente antes de verificar
+  ansible.builtin.meta: flush_handlers
+
+# --- Verificación (con conexiones nuevas, como lo haría CloudNativePG) -------------------------------------------
+- name: TLS del endpoint S3 con la CA del HomeLab
+  ansible.builtin.shell: |
+    set -o pipefail
+    openssl s_client -connect {{ incus_s3_listen_address }}:{{ incus_s3_port }} \
+      -CAfile {{ incus_s3_dir }}/homelab-ca.crt -verify_return_error -verify_ip {{ incus_s3_listen_address }} \
+      </dev/null 2>&1 | grep -E '^(Verify return code|subject=|issuer=)'
+  args:
+    executable: /bin/bash
+  register: incus_s3_tls_verify
+  changed_when: false
+  failed_when: "'Verify return code: 0 (ok)' not in incus_s3_tls_verify.stdout"
+  when: not ansible_check_mode
+
+# Sin credenciales, Incus tiene que contestar con un error S3 (403/AccessDenied): prueba que detrás está su S3.
+- name: Respuesta S3 sin credenciales
+  ansible.builtin.command:
+    argv:
+      - curl
+      - -sS
+      - -o
+      - /dev/null
+      - -w
+      - "%{http_code}"
+      - --cacert
+      - "{{ incus_s3_dir }}/homelab-ca.crt"
+      - "https://{{ incus_s3_listen_address }}:{{ incus_s3_port }}/{{ incus_s3_bucket }}"
+  register: incus_s3_http
+  changed_when: false
+  failed_when: incus_s3_http.stdout not in ['403', '404']
+  when: not ansible_check_mode
+
+- name: Resultado
+  ansible.builtin.debug:
+    msg:
+      - "{{ incus_s3_tls_verify.stdout_lines | default([]) }}"
+      - "S3 sin credenciales -> HTTP {{ incus_s3_http.stdout | default('?') }} (esperado 403; 404 = el bucket no existe todavía)"
+  when: not ansible_check_mode
