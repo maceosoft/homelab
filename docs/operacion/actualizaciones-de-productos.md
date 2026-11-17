@@ -105,7 +105,8 @@ Después de *Create GitHub App* (crear la App, generar su llave e instalarla se 
 
         | Campo en 1Password | Tipo | Dato |
         |---|---|---|
-        | `app_id` | Texto | **App ID**, en la pestaña *General* de la App |
+        | `client_id` | Texto | **Client ID** (empieza con `Iv`), en la pestaña *General* de la App |
+        | `app_id` | Texto | **App ID** (un número), en la misma pestaña. Solo para el respaldo de abajo |
         | `private_key` | Contraseña | El contenido completo del `.pem`, con las líneas `BEGIN` y `END` |
 
     === "⌨️ Desde la consola"
@@ -114,17 +115,20 @@ Después de *Create GitHub App* (crear la App, generar su llave e instalarla se 
         `gh auth refresh -s admin:read:org` una vez). El `.pem` se lee del archivo:
 
         ```bash
+        set -o pipefail
         APP=maceosoft-renovate
+        CLIENT_ID=$(gh api "apps/$APP" --jq .client_id) && test -n "$CLIENT_ID"
         APP_ID=$(gh api orgs/maceosoft/installations --jq ".installations[] | select(.app_slug==\"$APP\") | .app_id")
         op item create --category "Secure Note" --vault HomeLab --title "$APP" \
-          "app_id[text]=$APP_ID" "private_key[password]=$(cat ~/Downloads/$APP.*.private-key.pem)"
+          "client_id[text]=$CLIENT_ID" "app_id[text]=$APP_ID" \
+          "private_key[password]=$(cat ~/Downloads/$APP.*.private-key.pem)"
         ```
 
 4. Crea los **secretos de GitHub Actions** en el repo `gitops`, uno por cada fila:
 
     | Secret | Valor |
     |---|---|
-    | `RENOVATE_APP_ID` | El `app_id` |
+    | `RENOVATE_CLIENT_ID` | El `client_id` (no el `app_id`: `create-github-app-token` v3 pide el Client ID) |
     | `RENOVATE_APP_PRIVATE_KEY` | El contenido completo del `.pem` (varias líneas: GitHub lo acepta tal cual) |
 
     === "🖱️ Desde la interfaz"
@@ -133,14 +137,22 @@ Después de *Create GitHub App* (crear la App, generar su llave e instalarla se 
 
     === "⌨️ Desde la consola"
 
-        Leídos del item de 1Password por tubería:
+        Leídos del item de 1Password. El `client_id` se lee primero y se comprueba que no esté vacío, y `pipefail` hace
+        que un `op read` fallido se note: así nunca se guarda un secreto vacío.
 
         ```bash
+        set -o pipefail
         APP=maceosoft-renovate
-        op read "op://HomeLab/$APP/app_id" | gh secret set RENOVATE_APP_ID --repo maceosoft/gitops
+        CLIENT_ID=$(op read "op://HomeLab/$APP/client_id") && test -n "$CLIENT_ID" \
+          && printf '%s' "$CLIENT_ID" | gh secret set RENOVATE_CLIENT_ID --repo maceosoft/gitops
         op read "op://HomeLab/$APP/private_key" | gh secret set RENOVATE_APP_PRIVATE_KEY --repo maceosoft/gitops
         gh secret list --repo maceosoft/gitops
         ```
+
+    !!! note "Respaldo: `app-id`"
+        En `create-github-app-token` v3, `app-id` (el App ID numérico) está deprecado pero sigue funcionando, con un
+        aviso en el log. Si `client-id` fallara, el workflow puede volver a `app-id` con un secreto `RENOVATE_APP_ID`
+        que tenga el `app_id`.
 
 5. **Borra el `.pem`** de Descargas. Con la consola: `shred -u ~/Downloads/maceosoft-renovate.*.private-key.pem`
    (en macOS usa `rm -P` en lugar de `shred -u`).
