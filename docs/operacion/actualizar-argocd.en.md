@@ -8,23 +8,22 @@ version comes out, Argo CD applies it to itself.
 
 | Piece | What it does |
 |---|---|
-| `argocd/apps/argocd.yaml` | The Application: follows `argocd/config` with auto-sync and `ServerSideApply` |
-| `argocd/config/kustomization.yaml` | Base: [`https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml`](https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml). On top, `configMapGenerator` with `behavior: merge` for `argocd-cm`, `argocd-rbac-cm` and `argocd-cmd-params-cm` |
+| `bootstrap/components/argocd.yaml` | The Application (wave 0 of the ApplicationSet `homelab`): follows `addons/argocd/config` with `ServerSideApply`; synced by the ApplicationSet (RollingSync) |
+| `addons/argocd/config/kustomization.yaml` | Base: [`https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml`](https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml). On top, `configMapGenerator` with `behavior: merge` for `argocd-cm`, `argocd-rbac-cm` and `argocd-cmd-params-cm` (including the progressive syncs keys and the new glob the ApplicationSet needs) |
 | Ansible role `k3s_argocd` | First install and major version jumps (`version: latest` in `k3s_install.yml`) |
 
-!!! warning "Unattended update"
+!!! warning "Unattended upgrade"
     A new version is applied without asking you, and Argo CD is what deploys
     everything else. It already goes through the `gitops` pipeline (the manifests of the
     new version are validated when your repo changes), but **not** when the
     Argo CD repo changes. If a new version causes issues, see
-    [If a new version fails](#if-a-new-version-fails).
+    [If a new version fails](#si-una-version-nueva-falla).
 
 ## How long until it notices
 
 The repo-server caches generated manifests for one hour
 (`reposerver.default.cache.expiration: 1h` in `argocd-cmd-params-cm`), so
-a new version is detected at most **one hour after** release.
-To speed it up:
+a new version is detected at most **one hour after** release. To speed it up:
 
 ```bash
 kubectl -n argocd annotate application argocd argocd.argoproj.io/refresh=hard --overwrite
@@ -47,7 +46,7 @@ kubectl -n argocd annotate application argocd argocd.argoproj.io/refresh=hard --
     curl -s https://raw.githubusercontent.com/argoproj/argo-cd/stable/VERSION
     ```
 
-2. **Dry-run on the server, changing nothing** (must finish without
+2. **Dry-run on the server, without changing anything** (must finish without
    errors; *failed to migrate last-applied-configuration* warnings are
    normal):
 
@@ -66,8 +65,8 @@ kubectl -n argocd annotate application argocd argocd.argoproj.io/refresh=hard --
     manifest with `--server-side --force-conflicts` (mandatory since Argo CD 3.3,
     whose `ApplicationSet` CRD exceeds the normal apply limit).
 
-4. **Verify** everything goes back to healthy. With the new version the
-   app diff error disappears:
+4. **Verify** everything is healthy again. With the new version the apps'
+   diff error disappears:
 
     ```bash
     kubectl -n argocd get pods
@@ -75,14 +74,14 @@ kubectl -n argocd annotate application argocd argocd.argoproj.io/refresh=hard --
     kubectl -n argocd get applications
     ```
 
-5. **Now `git push`** `gitops`. The ApplicationSet changes `argocd-config`
+5. **Now, `git push`** `gitops`. The ApplicationSet changes `argocd-config`
    to `argocd`: the old Application is deleted **without** deleting its
-   resources (Dex and RBAC ConfigMaps remain), and the new one adopts them.
-   Check again with `kubectl -n argocd get applications`.
+   resources (Dex and RBAC ConfigMaps remain), and the new one adopts them. Check
+   again with `kubectl -n argocd get applications`.
 
 ## Pin a version (pause updates)
 
-To pin a version, change the base of `argocd/config/kustomization.yaml`,
+To pin a version, change the base of `addons/argocd/config/kustomization.yaml`,
 in `gitops`, from `stable` to a tag:
 
 ```yaml
@@ -105,14 +104,14 @@ Ansible role, the equivalent is `k3s_install.gitops_argocd.version: v3.5.3`.
       -f https://raw.githubusercontent.com/argoproj/argo-cd/v3.5.3/manifests/install.yaml
     ```
 
-3. The Argo CD [upgrade notes](https://argo-cd.readthedocs.io/en/stable/operator-manual/upgrading/overview/)
+3. Argo CD's [upgrade notes](https://argo-cd.readthedocs.io/en/stable/operator-manual/upgrading/overview/)
    explain what changes in each minor version.
 
 ## If it fails
 
 | Symptom | Check |
 |---|---|
-| `ComparisonError … terminatingReplicas: field not declared in schema` | Argo CD is before 3.5: must do the first update with Ansible (above) |
+| `ComparisonError … terminatingReplicas: field not declared in schema` | Argo CD is before 3.5: the first update must be done with Ansible (above) |
 | `argocd` stays `OutOfSync` after enabling | Normal for a few minutes: Argo CD adds its tracking annotation to each resource |
 | `The CustomResourceDefinition "applicationsets.argoproj.io" is invalid: metadata.annotations: Too long` | Applied without `--server-side`; use the commands on this page |
 | GitHub login lost after update | `argocd-cm` must have the `dex.config` key (`kubectl -n argocd get cm argocd-cm -o jsonpath='{.data.dex\.config}'`) and the Secret `argocd-secret` its `dex.*` keys ([Dex](../implementacion/fase-4-gitops.md)) |

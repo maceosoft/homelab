@@ -290,7 +290,7 @@ With an **organization owner** account `maceosoft`:
 5. **GitHub App `maceosoft-argocd`** (read-only, installed **only on
    `gitops`**) → item `maceosoft-argocd`. Comes
    after the repos because it is installed on `gitops`.
-   [Permissions and steps](../maceosoft/github.md#paso-2-repos-app-de-argocd-y-ftp-manual).
+   [Permissions and steps](../maceosoft/github.md#step-2-repos-argocd-app-and-ftp-manual).
    The App is created and installed **only from the web**.
 
     === "🖱️ From the UI"
@@ -311,7 +311,7 @@ With an **organization owner** account `maceosoft`:
 
 6. **Sealed Secrets key** *(optional until Phase 6)*: a key pair
    generated with `openssl`, in item `sealed-secrets`, so it survives if you reinstall K3s.
-   [Command and steps](../maceosoft/github.md#paso-2-repos-app-de-argocd-y-ftp-manual).
+   [Command and steps](../maceosoft/github.md#step-2-repos-argocd-app-and-ftp-manual).
 
     === "🖱️ From the UI"
 
@@ -336,7 +336,7 @@ With an **organization owner** account `maceosoft`:
    item `ftp-api` (Secure Note) from the first pipeline. Every repo
    you add afterward follows the
    [routine procedure — Add a repo](../operacion/agregar-repo.md).
-   [Table with examples](../maceosoft/github.md#paso-2-repos-app-de-argocd-y-ftp-manual).
+   [Table with examples](../maceosoft/github.md#step-2-repos-argocd-app-and-ftp-manual).
 
     === "🖱️ From the UI"
 
