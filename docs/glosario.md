@@ -72,7 +72,7 @@ paréntesis.
 | **L3** | capa 3 del modelo OSI | Capa de red del modelo OSI: IPs y ruteo. |
 | **L7** | capa 7 del modelo OSI | Capa de aplicación del modelo OSI: HTTP y similares. |
 | **LAN** | red local | Local Area Network: la red de la casa (192.168.20.0/22). |
-| **launchd** | [launchd](https://support.apple.com/guide/terminal/apda7b3d2a58-1d40-4d2f-a5d8-9b3a2fd3f36d/mac) | Gestor de servicios de macOS (equivale a systemd); activa por socket el Ollama del Mac solo cuando llega una petición. |
+| **launchd** | [launchd](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingLaunchdJobs.html) | Gestor de servicios de macOS (equivale a systemd); activa por socket el Ollama del Mac solo cuando llega una petición. |
 | **LB** | balanceador de carga | Servicio de Kubernetes tipo LoadBalancer (lo provee MetalLB). |
 | **LLM** | Large Language Model | Modelo de lenguaje de gran tamaño: el tipo de IA que entiende y escribe texto (aquí, los modelos de Ollama). |
 | **LogsQL** | [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) | Lenguaje de consultas de VictoriaLogs, el que se escribe en Grafana → Explore. |
