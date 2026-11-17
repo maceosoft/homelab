@@ -108,7 +108,7 @@ SEALED_LABEL = "sealedsecrets.bitnami.com/sealed-secrets-key"
 # El namespace es "privileged" porque node-exporter usa hostPath/hostNetwork.
 MONITORING_NAMESPACE = "monitoring"
 # Notificaciones de ArgoCD a Discord: el Secret ya lo crea el manifiesto de ArgoCD (vacío); aquí solo se le añaden
-# las claves que leen sus servicios (gitops: argocd/config/notifications). "avisos" reutiliza el webhook "warnings".
+# las claves que leen sus servicios (gitops: addons/argocd/config/notifications). "avisos" reutiliza el webhook "warnings".
 ARGOCD_NAMESPACE = "argocd"
 ARGOCD_NOTIFICATIONS_SECRET = "argocd-notifications-secret"
 DISCORD_ITEM = "discord-webhooks"

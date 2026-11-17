@@ -11,7 +11,7 @@
 # Quién entra lo decide el grupo de GitHub (maceosoft:devops) que Dex pone en el
 # token: no hay listas de usuarios ni de emails que mantener.
 #
-# Requiere el cliente "opkssh" en Dex (maceosoft/gitops, argocd/config/dex.config)
+# Requiere el cliente "opkssh" en Dex (maceosoft/gitops, addons/argocd/config/dex.config)
 # ya desplegado por ArgoCD.
 
 - name: SSH con identidad de Dex (opkssh)

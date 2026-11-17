@@ -42,7 +42,7 @@
       changed_when: "'created' in k3s_cni_canal_apply.stdout or 'configured' in k3s_cni_canal_apply.stdout"
       when: not ansible_check_mode
 
-# Calico lo administra ArgoCD una vez adoptado (gitops: cni/calico-operator y cni/calico).
+# Calico lo administra ArgoCD una vez adoptado (gitops: addons/network/calico-operator y addons/network/calico).
 # Este rol solo hace el bootstrap (ArgoCD necesita red de pods para arrancar): si el
 # Installation ya lo sigue ArgoCD, no se toca, para no pelear con él por la propiedad de los campos.
 - name: Detectar si ArgoCD ya administra Calico
