@@ -6,10 +6,13 @@
 # Úsalo solo si lo que guarda Longhorn se puede perder (en el HomeLab: el caché de ARC).
 #
 # Orden completo (ver docs/storage/index.md):
-#   1. gitops: comentar `longhorn` y `arc-runners` en bootstrap/root-appset.yaml -> push
-#      (así Argo CD no recrea lo que este playbook borra).
+#   1. gitops: mover `longhorn.yaml` y `arc-runners.yaml` de bootstrap/components/ a
+#      bootstrap/components/apagadas/ -> merge (así Argo CD no recrea lo que este playbook borra).
+#      Con applicationsSync: create-update el ApplicationSet no borra las Applications: borrarlas a mano
+#      (kubectl -n argocd delete application arc-runners longhorn).
 #   2. Este playbook, primero sin confirmación (preflight) y después con ella.
-#   3. gitops: descomentar `longhorn` y `arc-runners` -> push (Argo CD instala Longhorn limpio).
+#   3. gitops: devolver `longhorn.yaml` y `arc-runners.yaml` a bootstrap/components/ -> merge
+#      (Argo CD instala Longhorn limpio, en su ola).
 #
 # Ejecutar (desde ansible/, con KUBECONFIG apuntando al clúster):
 #   ansible-playbook -i inventory.ini playbook-reset-longhorn.yml                                # solo preflight
@@ -93,7 +96,8 @@
               - "'application.argoproj.io/arc-runners' not in lh_apps.stdout_lines"
             fail_msg: >-
               La Application arc-runners sigue en Argo CD: recrearía el PVC del caché mientras se borra Longhorn.
-              Comenta `arc-runners` (y `longhorn`) en gitops/bootstrap/root-appset.yaml, haz push y espera a que desaparezcan.
+              Mueve `arc-runners.yaml` (y `longhorn.yaml`) a gitops/bootstrap/components/apagadas/, mergea y borra
+              las Applications a mano (kubectl -n argocd delete application arc-runners longhorn).
             quiet: true
 
         - name: Soltar la Application longhorn si quedó atascada borrándose (finalizadores de Argo CD)

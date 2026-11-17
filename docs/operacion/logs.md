@@ -111,7 +111,7 @@ La referencia completa del lenguaje está en la
 
 En Grafana hay 12 dashboards del HomeLab; el de logs se llama **HomeLab / Logs** y muestra volumen por nivel, errores por servicio y
 por nodo, y reinicios. Está definido como código en el repo
-[`gitops`](https://github.com/maceosoft/gitops/tree/main/monitoring/config/dashboards), no se edita a mano.
+[`gitops`](https://github.com/maceosoft/gitops/tree/main/addons/monitoring/config/dashboards), no se edita a mano.
 
 El router de Ollama también publica métricas por **modelo y nodo** (peticiones, tokens, latencia, nodos vivos), que se
 ven en el dashboard **HomeLab / Ollama** (y se pueden consultar en Explore sobre `ollama_router_*`). Ver [Asistente de IA local](ia-ollama.md#metricas-por-modelo-y-nodo).
@@ -148,7 +148,7 @@ kubectl -n monitoring create job --from=cronjob/log-digest-daily prueba-manual
 kubectl -n monitoring logs job/prueba-manual
 ```
 
-Los manifiestos están en [`gitops/ai/log-report`](https://github.com/maceosoft/gitops/tree/main/ai/log-report).
+Los manifiestos están en [`gitops/addons/ai/log-report`](https://github.com/maceosoft/gitops/tree/main/addons/ai/log-report).
 Para cambiar el día o la hora del semanal, edita su campo `schedule` en el repo.
 
 ### Crear el canal `#ia` y su webhook (una sola vez)

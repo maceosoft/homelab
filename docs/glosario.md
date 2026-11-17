@@ -158,7 +158,7 @@ operación. Si una palabra te frena al leer, búscala aquí.
 | **[age](https://github.com/FiloSottile/age)** | Herramienta sencilla de cifrado con llaves; SOPS la usa para cifrar los archivos de secretos del repo. |
 | **[Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/)** | Recibe las alertas, las agrupa, evita repetirlas y las envía a su destino; aquí, a canales de Discord. |
 | **[Ansible](https://docs.ansible.com/)** | Herramienta que configura servidores por SSH a partir de archivos YAML. Aquí prepara los nodos e instala la red, Incus y K3s (Fases 0 a 3). |
-| **Application** / **ApplicationSet** | Recursos de Argo CD. Una Application dice qué carpeta de Git desplegar y en qué clúster; un ApplicationSet genera muchas Applications desde una plantilla (aquí `homelab-root` crea todas las demás). |
+| **Application** / **ApplicationSet** | Recursos de Argo CD. Una Application dice qué carpeta de Git desplegar y en qué clúster; un ApplicationSet genera muchas Applications desde una plantilla (aquí el ApplicationSet `homelab` crea una Application por cada archivo de `bootstrap/components/` del repo `gitops`). |
 | **apt** | Gestor de paquetes de Debian: instala y actualiza el software del sistema. |
 | **[Argo CD](https://argo-cd.readthedocs.io/)** | La herramienta de GitOps del HomeLab: vigila el repo `gitops` y aplica sus cambios al clúster K3s. Tiene una web donde ves el estado de cada aplicación. |
 | **Bootstrap** | El arranque inicial: los primeros pasos manuales que dejan un sistema listo para gestionarse solo. Aquí Ansible instala lo básico y después Argo CD toma el relevo. |

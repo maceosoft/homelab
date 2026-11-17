@@ -134,9 +134,8 @@ clusterctl init -i incus
 
 Ver comandos completos en [CAPN — profundización](../capn/index.md).
 
-```bash
-kubectl apply -f gitops/argocd/apps/capn-demo.yaml
-```
+En el repo `gitops`, mueve `bootstrap/components/apagadas/capn-demo.yaml` a `bootstrap/components/` y mergea en `main`.
+El ApplicationSet `homelab` crea la Application con la ola `manual` (no tiene sync automático):
 
 === "🖱️ Desde la interfaz"
 

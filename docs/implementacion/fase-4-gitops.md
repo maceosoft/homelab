@@ -9,7 +9,7 @@ GitHub OAuth (Open Authorization), y waves de operaciones.
 ## Qué aprendes
 
 **GitOps**: el clúster converge al estado declarado en Git; un solo
-`kubectl apply` (ApplicationSet `homelab-root`) y Argo CD sincroniza el resto. Separación clara:
+`kubectl apply -k bootstrap/` (Application `homelab-bootstrap` y ApplicationSet `homelab`) y Argo CD sincroniza el resto. Separación clara:
 Ansible bootstrap vs GitOps continuo.
 
 !!! abstract "Aprende esta fase"
@@ -33,7 +33,7 @@ Ansible bootstrap vs GitOps continuo.
     kubectl get gateway homelab -n gateway
     ```
 
-    Abre `gateway/kong/gateway.yaml` en el repositorio `gitops` y busca los mismos puertos y el
+    Abre `addons/network/gateway/kong/gateway.yaml` en el repositorio `gitops` y busca los mismos puertos y el
     nombre `homelab` que ves en el clúster.
 
     ??? question "¿Qué significa que una Application esté Synced y Healthy?"
@@ -113,7 +113,7 @@ flowchart LR
     VC[vCluster]
     CAPN[CAPN_demo]
   end
-  root[root_app] --> wave0 --> wave1 --> wave2 --> wave3
+  root[ApplicationSet_homelab] --> wave0 --> wave1 --> wave2 --> wave3
   wave2 -.-> manual
 ```
 
@@ -216,7 +216,7 @@ kubectl get nodes
 
 ## 4.2 — Bootstrap GitOps (ApplicationSet)
 
-Un único apply manual; a partir de aquí Argo CD gestiona el resto (auto).
+Un único apply manual; a partir de aquí Argo CD gestiona el resto (auto), incluido el propio bootstrap.
 
 **Primero, los secretos de plataforma.** `maceosoft/gitops` es privado: sin
 las credenciales de la App `maceosoft-argocd`, Argo CD no puede leer el repo. El playbook los lee de
@@ -246,38 +246,58 @@ siempre `~/.kube/homelab-k3s.yaml`, no el contexto actual de `kubectl`. Es
 idempotente: vuelve a correrlo cuando rotes algo en 1Password. Detalle:
 [Plataforma maceosoft — GitHub](../maceosoft/github.md#paso-3-cluster-y-secretos-de-plataforma).
 
-**Después, el ApplicationSet de bootstrap:**
+**Después, el bootstrap de GitOps** (una sola vez, desde una copia de `gitops` en `main`):
 
 ```bash
-kubectl apply -f gitops/bootstrap/root-appset.yaml
+cd gitops
+kubectl apply -k bootstrap/
 ```
 
-[`bootstrap/root-appset.yaml`](https://github.com/maceosoft/gitops/blob/main/bootstrap/root-appset.yaml)
-genera una Application raíz, `homelab-root`, con las apps que están
-**descomentadas** en su lista `apps`. Al principio solo está `argocd`: Argo CD administrándose a sí mismo, con
-Dex, RBAC (control de acceso por roles) y el health check que necesitan las olas. Así se puede probar cada
-componente uno a uno:
+O lo aplica Ansible, con las mismas comprobaciones (solo si el ApplicationSet todavía no existe):
+`ansible-playbook -i inventory.ini playbook-k3s.yml --tags argocd -e k3s_argocd_bootstrap_confirm=true`
+([rol `k3s_argocd`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/k3s_argocd/README.md)).
 
-1. Descomenta la siguiente app de la lista (van en orden de ola) y haz push
-   al repo `gitops`.
-2. **Vuelve a aplicar el ApplicationSet**: Argo CD no lo gestiona (lo creaste
-   tú con `kubectl`), así que el push solo no cambia la lista:
+[`bootstrap/`](https://github.com/maceosoft/gitops/tree/main/bootstrap) crea tres cosas:
 
-    ```bash
-    kubectl apply -f gitops/bootstrap/root-appset.yaml
-    ```
+- La Application **`homelab-bootstrap`**, que desde ese momento administra `bootstrap/` desde git (también a sí
+  misma): no hay que volver a aplicar nada a mano.
+- El **ApplicationSet `homelab`**
+  ([`bootstrap/applicationset.yaml`](https://github.com/maceosoft/gitops/blob/main/bootstrap/applicationset.yaml)):
+  crea una Application por cada archivo de
+  [`bootstrap/components/`](https://github.com/maceosoft/gitops/tree/main/bootstrap/components). Las apps inactivas
+  están en `bootstrap/components/apagadas/`, que el ApplicationSet no lee.
+- Los repos Helm OCI (`bootstrap/repositories/`).
 
-3. Argo CD la despliega; espera a que quede `Healthy`
-   (`kubectl get applications -n argocd`).
-4. Sigue con la próxima.
+El ApplicationSet necesita dos claves en `argocd-cmd-params-cm`
+(`applicationsetcontroller.enable.progressive.syncs` y `applicationsetcontroller.enable.new.git.file.globbing`) y que
+`argocd-applicationset-controller` se reinicie una vez después de ponerlas. El rol `k3s_argocd` lo hace al instalar
+Argo CD; después las mantiene gitops (`addons/argocd/config/kustomization.yaml`).
 
-**Olas:** como todas las apps se sincronizan juntas en `homelab-root`, Argo CD
-respeta su anotación `argocd.argoproj.io/sync-wave` y despliega por olas
-(de la -1 a la 4), esperando a que cada una esté `Healthy` antes de la
-siguiente. Las olas 0 a 3 se describen en 4.3, 4.4, 4.5 y 4.9; el diagrama de arriba muestra las principales.
+Para probar los componentes uno a uno:
 
-Para desactivar una app, vuelve a comentarla: `homelab-root` borra su
-Application (los recursos que creó quedan en el clúster).
+1. Mueve el archivo de la siguiente app de `bootstrap/components/apagadas/` a `bootstrap/components/` y mergea el
+   cambio en `main` del repo `gitops`. No hace falta aplicar nada: `homelab-bootstrap` y el ApplicationSet leen git.
+2. Argo CD la despliega en su ola; espera a que quede `Healthy`
+   (`kubectl get applications -n argocd -L homelab.maceo.cl/rollout-wave`).
+3. Sigue con la próxima.
+
+**Olas:** el ApplicationSet usa RollingSync: sincroniza las apps por olas (de la 0 a la 5, la anotación
+`argocd.argoproj.io/sync-wave` de cada archivo) y pasa a la siguiente solo cuando todas las de la ola actual están
+`Healthy`; una app `Degraded` frena las olas siguientes. Las apps con ola `manual` (Calico, y vCluster o CAPN si las
+activas) se sincronizan a mano. Los títulos 4.3, 4.4, 4.5 y 4.9 agrupan las apps del recorrido (Wave 0 a 3); la ola
+real de cada una está en la tabla del [README de gitops](https://github.com/maceosoft/gitops#sync-olas).
+
+**Desactivar una app:** mueve su archivo a `bootstrap/components/apagadas/` y mergea. Mientras el ApplicationSet siga
+en `applicationsSync: create-update` (modo actual), la Application **no** se borra sola: bórrala a mano si hace falta
+(`kubectl -n argocd delete application <app>`). **Pausarla** sin PR (para tocar algo a mano sin que se revierta):
+agrégala a `values.pausadas` del ApplicationSet
+([Pausar una app](https://github.com/maceosoft/gitops#pausar-una-app-dejarla-en-manual)).
+
+!!! warning "No borrar el ApplicationSet `homelab`"
+    Ni con `kubectl` ni desde el árbol de `homelab-bootstrap` en la UI: con `applicationsSync: sync` se borrarían
+    todas las Applications. Y no vuelvas a correr `kubectl apply -k bootstrap/` sin necesidad: repone
+    `values.pausadas` desde git (vacío) y despausa todas las apps. Si se borra `homelab-bootstrap`, recrearla con
+    `kubectl apply -f bootstrap/homelab-bootstrap.yaml`.
 
 **Verificar:**
 
@@ -396,7 +416,7 @@ Creada en la org, Dex puede leer sus teams sin aprobarla como app de terceros:
 **Homepage URL** es informativa; el campo crítico es **Redirect URIs** (en versiones anteriores de GitHub se llamaba *Authorization callback URL*): tiene que ser exactamente la URL de arriba.
 
 Items 1Password (cuenta **personal**, bóveda **`HomeLab`** por defecto): ver
-[`argocd/secrets/1password.md`](https://github.com/maceosoft/gitops/blob/main/argocd/secrets/1password.md).
+[`addons/argocd/secrets/1password.md`](https://github.com/maceosoft/gitops/blob/main/addons/argocd/secrets/1password.md).
 
 ??? tip "Con la CLI (`op`)"
     Crear la OAuth App y su client secret es **solo desde la web** (GitHub no tiene API para OAuth Apps). Guardar el item sí se
@@ -427,12 +447,12 @@ Alternativa script Python:
 
 ```bash
 pip install onepassword-sdk
-python3 gitops/argocd/secrets/apply-from-1password.py.example
+python3 gitops/addons/argocd/secrets/apply-from-1password.py.example
 kubectl rollout restart deployment argocd-dex-server -n argocd
 ```
 
 Connector **GitHub** (solo el team `devops` de la org `maceosoft`) y staticClients **vCluster** e **Incus UI**
-en [`dex.config`](https://github.com/maceosoft/gitops/blob/main/argocd/config/dex.config).
+en [`dex.config`](https://github.com/maceosoft/gitops/blob/main/addons/argocd/config/dex.config).
 
 `VCLUSTER_CLIENT_SECRET` **no** viene de GitHub.
 Ansible lo genera en 1Password si falta y lo aplica según destino. Incus **no usa secreto**:
@@ -489,7 +509,7 @@ Requisitos: UI instalada en [Fase 2](fase-2-incus.md#ui-de-administracion),
 Incus (7.x) solo conoce cinco claves OIDC: `oidc.issuer`, `oidc.client.id`, `oidc.audience`,
 `oidc.claim` y `oidc.scopes`. **No** tiene `oidc.client.secret`, ni `oidc.groups.claim`, ni el
 comando `incus auth` (esas son de LXD —el proyecto del que nació Incus—). Por eso en Dex el cliente `incus-ui` es **público**
-(`public: true`, PKCE, sin secreto): está en [`dex.config`](https://github.com/maceosoft/gitops/blob/main/argocd/config/dex.config).
+(`public: true`, PKCE, sin secreto): está en [`dex.config`](https://github.com/maceosoft/gitops/blob/main/addons/argocd/config/dex.config).
 
 **Ansible** (recomendado) — `group_vars/dex_oauth_secrets.yml` ya trae `apply_incus: true`. Con
 las claves `dex.*` ya cargadas ([Probar el login](#probar-el-login-urls-y-que-esperar)), corre:
@@ -679,7 +699,7 @@ Checklist global (URLs, `/etc/hosts`, nodos): **[Resumen del HomeLab](resumen-ho
 
 ## 4.11 — ARC y pipeline de OpenTofu
 
-Con `arc-helm-repo`, `arc-controller`, `terraform-rbac` y `arc-runners` descomentadas en `homelab-root`, Argo CD despliega el runner de GitHub Actions:
+Con `arc-controller`, `terraform-rbac` y `arc-runners` en `bootstrap/components/` (y el repo Helm `arc-helm-repo` en `bootstrap/repositories/`), Argo CD despliega el runner de GitHub Actions:
 
 | Application | Qué despliega |
 |---|---|
@@ -772,7 +792,7 @@ sequenceDiagram
 ### Pasos
 
 1. **Cliente en Dex.** El cliente `opkssh` (público, PKCE, con los tres callbacks en `localhost`) está en
-   [`dex.config`](https://github.com/maceosoft/gitops/blob/main/argocd/config/dex.config). Cuando Argo CD
+   [`dex.config`](https://github.com/maceosoft/gitops/blob/main/addons/argocd/config/dex.config). Cuando Argo CD
    sincronice, reinicia Dex para que lo cargue:
 
     ```bash
@@ -811,7 +831,7 @@ HomeLab y un archivo en `/etc/ssh/sshd_config.d/`.
 El acceso depende de **pertenecer al team `devops` en GitHub**. No hay listas de usuarios ni de emails.
 
 - **Dex** solo emite tokens a miembros del team
-  ([conector GitHub](https://github.com/maceosoft/gitops/blob/main/argocd/config/dex.config)) y pone el team en
+  ([conector GitHub](https://github.com/maceosoft/gitops/blob/main/addons/argocd/config/dex.config)) y pone el team en
   el claim `groups` como `maceosoft:devops`.
 - **Cada nodo** exige ese grupo con un policy plugin (`/etc/opk/devops-team.sh`). El grupo se cambia con
   `opkssh_allowed_group` en el rol.
@@ -958,14 +978,13 @@ Haz los pasos 1 a 5 **antes** de activar la app en GitOps (paso 6): Argo CD nece
     dig @192.168.20.5 grafana.homelab.local +short
     ```
 
-6. **Activar en GitOps.** `victoria-metrics` (ola 2) y `victoria-metrics-config` (ola 3, sus reglas y la ruta de Grafana) ya
-   están en la lista de [`root-appset.yaml`](https://github.com/maceosoft/gitops/blob/main/bootstrap/root-appset.yaml).
-   Fusiona ese cambio en `main` del repo `gitops` y **después aplica el ApplicationSet**: el `homelab-root` del clúster se creó
-   a mano con `kubectl apply` y Argo CD no lo actualiza solo desde git, así que sin este comando no pasa nada.
+6. **Activar en GitOps.** `victoria-metrics` (ola 3) y `victoria-metrics-config` (ola 4, sus reglas y la ruta de Grafana) ya
+   están en [`bootstrap/components/`](https://github.com/maceosoft/gitops/tree/main/bootstrap/components) (si estuvieran
+   en `apagadas/`, muévelas ahí). Basta con fusionar el cambio en `main` del repo `gitops`: el ApplicationSet `homelab`
+   lee git y las despliega en su ola, sin ningún `kubectl apply`.
 
     ```bash
-    kubectl apply -f gitops/bootstrap/root-appset.yaml
-    kubectl get applications -n argocd | grep victoria
+    kubectl get applications -n argocd -L homelab.maceo.cl/rollout-wave | grep victoria
     kubectl get pods -n monitoring -o wide
     kubectl top pods -n monitoring
     ```
@@ -1016,14 +1035,15 @@ Haz los pasos 1 a 5 **antes** de activar la app en GitOps (paso 6): Argo CD nece
 | Disco, memoria, reloj y pods | reglas por defecto del chart | aviso / crítica |
 
 Los umbrales de temperatura salen de los puntos de disparo que el propio hardware publica en `/sys`. Las reglas están en
-[`monitoring/config/rules`](https://github.com/maceosoft/gitops/tree/main/monitoring/config/rules) y tienen pruebas en
-[`monitoring/tests`](https://github.com/maceosoft/gitops/tree/main/monitoring/tests) (`monitoring/tests/run.sh`, con Docker): si cambias un
+[`addons/monitoring/config/rules`](https://github.com/maceosoft/gitops/tree/main/addons/monitoring/config/rules) y tienen pruebas en
+[`addons/monitoring/tests`](https://github.com/maceosoft/gitops/tree/main/addons/monitoring/tests) (`addons/monitoring/tests/run.sh`, con Docker): si cambias un
 umbral, actualiza la prueba.
 
 ### Deshacer
 
-Quita `victoria-metrics` y `victoria-metrics-config` de la lista de `root-appset.yaml`, fusiona el cambio y vuelve a aplicarlo
-(`kubectl apply -f gitops/bootstrap/root-appset.yaml`): la raíz borra las Applications, pero **los recursos quedan en el clúster**
+Mueve `victoria-metrics.yaml` y `victoria-metrics-config.yaml` a `bootstrap/components/apagadas/` y fusiona el cambio. Con
+`applicationsSync: create-update` (modo actual) el ApplicationSet no borra las Applications: bórralas a mano
+(`kubectl -n argocd delete application victoria-metrics-config victoria-metrics`). **Los recursos quedan en el clúster**
 (la convención de este repo). Para borrar también el historial de métricas y los Secrets,
 elimina el namespace: `kubectl delete namespace monitoring` (destructivo: se pierde el volumen de métricas).
 
@@ -1032,19 +1052,19 @@ elimina el namespace: `kubectl delete namespace monitoring` (destructivo: se pie
 Grafana usa el mismo Dex que Argo CD, Incus y vCluster (ver [4.7](#47-secretos-oauth-github-vcluster-incus-ui)). Todo viene en Git, sin
 secretos nuevos:
 
-- **Cliente `grafana` en Dex** ([`dex.config`](https://github.com/maceosoft/gitops/blob/main/argocd/config/dex.config)): cliente
+- **Cliente `grafana` en Dex** ([`dex.config`](https://github.com/maceosoft/gitops/blob/main/addons/argocd/config/dex.config)): cliente
   público con PKCE, sin secreto, con la redirección `https://grafana.homelab.local/login/generic_oauth`.
   Tras fusionar el cambio, reinicia Dex para que lo lea: `kubectl -n argocd rollout restart deploy argocd-dex-server`.
-- **`auth.generic_oauth` en Grafana** ([`values-vm-stack.yaml`](https://github.com/maceosoft/gitops/blob/main/monitoring/values-vm-stack.yaml)):
+- **`auth.generic_oauth` en Grafana** ([`values-vm-stack.yaml`](https://github.com/maceosoft/gitops/blob/main/addons/monitoring/values/values-vm-stack.yaml)):
   el grupo `maceosoft:devops` recibe el rol Admin y cualquier otro queda rechazado (`role_attribute_strict`). El usuario local `admin`
   sigue activo como respaldo.
 - **CA del HomeLab:** el certificado de Dex lo firma esa CA, y los pods no confían en ella. Un `Certificate` de cert-manager
-  ([`grafana-ca.yaml`](https://github.com/maceosoft/gitops/blob/main/monitoring/config/route/grafana-ca.yaml)) deja la CA en el Secret
+  ([`grafana-ca.yaml`](https://github.com/maceosoft/gitops/blob/main/addons/monitoring/config/route/grafana-ca.yaml)) deja la CA en el Secret
   `grafana-ca`, que se monta en Grafana como `tls_client_ca`.
 - **DNS de los pods:** por defecto CoreDNS reenvía a los DNS de `deborah`, incluido el router, que responde NXDOMAIN (el nombre no existe) para `homelab.local`. Un
-  `coredns-custom` ([`coredns/`](https://github.com/maceosoft/gitops/tree/main/coredns)) reenvía `homelab.local` y `mco.local` solo
-  al BIND. Es la Application `coredns-custom`: como el ApplicationSet se aplicó a mano, tras fusionar ese cambio hay que volver a
-  ejecutar `kubectl apply -f gitops/bootstrap/root-appset.yaml`.
+  `coredns-custom` ([`addons/network/coredns/`](https://github.com/maceosoft/gitops/tree/main/addons/network/coredns)) reenvía `homelab.local` y `mco.local` solo
+  al BIND. Es la Application `coredns-custom` (`bootstrap/components/coredns-custom.yaml`): basta con fusionar el cambio, el
+  ApplicationSet la despliega en su ola.
 
 ### Métricas de Incus (opcional)
 
@@ -1056,7 +1076,7 @@ El certificado lo emite **cert-manager**, igual que los de los Gateway, así que
 
 1. **Fusiona el cambio de `gitops`.** Trae un `Certificate` (`incus-metrics`, namespace `monitoring`, firmado por el ClusterIssuer `homelab-ca`, uso
    `client auth`, 10 años de duración) y el scrape
-   [`incus.yaml`](https://github.com/maceosoft/gitops/blob/main/monitoring/config/scrapes/incus.yaml). cert-manager deja el par de llaves en el Secret
+   [`incus.yaml`](https://github.com/maceosoft/gitops/blob/main/addons/monitoring/config/scrapes/incus.yaml). cert-manager deja el par de llaves en el Secret
    `monitoring/incus-metrics`, y la llave privada no sale del clúster. Comprueba que está listo:
 
     ```bash
@@ -1108,14 +1128,14 @@ El certificado lo emite **cert-manager**, igual que los de los Gateway, así que
 | `grafana.homelab.local` no abre | Falta el registro DNS o la ruta | paso 5; `kubectl -n monitoring get httproute` |
 | El SSO de Grafana falla con *Failed to get token from provider* | Grafana no resuelve o no confía en Dex | `kubectl -n monitoring logs deploy/vm-grafana -c grafana \| grep oauth`: *no such host* es el DNS (Application `coredns-custom`); *x509* es la CA (`grafana-ca`) |
 | El SSO de Grafana pide un cliente que no existe | Dex no leyó el cliente `grafana` | `kubectl -n argocd rollout restart deploy argocd-dex-server` |
-| `TargetDown` de etcd, scheduler o controller-manager | Se activaron los monitores de K3s | Deben estar `enabled: false` en [`values-vm-stack.yaml`](https://github.com/maceosoft/gitops/blob/main/monitoring/values-vm-stack.yaml) |
+| `TargetDown` de etcd, scheduler o controller-manager | Se activaron los monitores de K3s | Deben estar `enabled: false` en [`values-vm-stack.yaml`](https://github.com/maceosoft/gitops/blob/main/addons/monitoring/values/values-vm-stack.yaml) |
 
 ---
 
 ## 4.14 — Notificaciones de Argo CD a Discord (opcional) {#414-notificaciones-de-argocd-a-discord-opcional}
 
 Argo CD trae un controlador de notificaciones, pero sin configurar no avisa de nada. Con la configuración de
-[`argocd/config/notifications`](https://github.com/maceosoft/gitops/tree/main/argocd/config/notifications) (repo `gitops`) llegan
+[`addons/argocd/config/notifications`](https://github.com/maceosoft/gitops/tree/main/addons/argocd/config/notifications) (repo `gitops`) llegan
 dos tipos de mensaje, para **todas** las Applications, sin anotar cada una:
 
 | Evento | Mensaje | Canal |
@@ -1165,7 +1185,7 @@ playbook de secretos ya aplicado.
     ```
 
     Para probar las plantillas **sin enviar nada a Discord**, el repo `gitops` trae
-    [`argocd/config/notifications/test.sh`](https://github.com/maceosoft/gitops/blob/main/argocd/config/notifications/test.sh): las renderiza
+    [`addons/argocd/config/notifications/test.sh`](https://github.com/maceosoft/gitops/blob/main/addons/argocd/config/notifications/test.sh): las renderiza
     contra una app real del clúster y un receptor local, y comprueba que el cuerpo es JSON válido y respeta los límites de Discord.
     Necesita `kustomize`, Docker y un kubeconfig con acceso de lectura. Es la prueba recomendada: el comando de arriba,
     dentro del pod, manda un mensaje real al canal.
@@ -1176,7 +1196,7 @@ playbook de secretos ya aplicado.
 |---|---|---|
 | No llega nada a `despliegues` | El Secret no tiene las claves, o el controlador no recargó | `kubectl -n argocd get secret argocd-notifications-secret -o jsonpath='{.data}'` debe listar `discord-despliegues-url` y `discord-avisos-url`; reinicia el controlador |
 | `config referenced '$discord-…', but key does not exist in secret` en los logs | Falta el campo `deployments` en 1Password | `--check` del script; vuelve a correr el playbook |
-| Llega un mensaje de más cada vez que una app se sincroniza | Es lo esperado: un mensaje por sync correcto | Si hay mucho ruido, afina el disparador `on-deployed` en `argocd/config/notifications` |
+| Llega un mensaje de más cada vez que una app se sincroniza | Es lo esperado: un mensaje por sync correcto | Si hay mucho ruido, afina el disparador `on-deployed` en `addons/argocd/config/notifications` |
 | `HTTP 404` al enviar | El webhook se borró en Discord | Crea uno nuevo y actualiza `deployments` ([rotar](../operacion/rotar-credenciales.md#monitoreo-webhooks-de-discord-ping-de-healthchecksio-y-grafana)) |
 
 ---
@@ -1206,8 +1226,8 @@ playbook de secretos ya aplicado.
 | Application `Degraded` | `kubectl describe application -n argocd <nombre>` |
 | Gateway sin dirección | `metallb-config`, pool libre |
 | SSO falla | Secretos 1Password + restart `argocd-dex-server` |
-| `homelab-root` `ComparisonError` / repo no accesible | Falta `argocd/repo-gitops`, o la App `maceosoft-argocd` no está instalada en `maceosoft/gitops`: re-correr `playbook-platform-secrets.yml` |
-| `arc-runners` `OutOfSync` y el pod del listener se reinicia cada pocos minutos | Argo CD poda en bucle los recursos que crea el controlador de ARC (`AutoscalingListener`, `Role`, `RoleBinding`: copian la etiqueta `app.kubernetes.io/instance`). Se corrige con `application.resourceTrackingMethod: annotation` en `argocd-cm` (ya está en `gitops/argocd/config`). Comprueba: `kubectl -n argocd get cm argocd-cm -o jsonpath='{.data.application\.resourceTrackingMethod}'` → `annotation`; si no, sincroniza `argocd` y reinicia el controlador: `kubectl -n argocd rollout restart statefulset argocd-application-controller` |
+| `homelab-bootstrap` o el ApplicationSet `homelab` con `ComparisonError` / repo no accesible | Falta `argocd/repo-gitops`, o la App `maceosoft-argocd` no está instalada en `maceosoft/gitops`: re-correr `playbook-platform-secrets.yml` |
+| `arc-runners` `OutOfSync` y el pod del listener se reinicia cada pocos minutos | Argo CD poda en bucle los recursos que crea el controlador de ARC (`AutoscalingListener`, `Role`, `RoleBinding`: copian la etiqueta `app.kubernetes.io/instance`). Se corrige con `application.resourceTrackingMethod: annotation` en `argocd-cm` (ya está en `gitops/addons/argocd/config`). Comprueba: `kubectl -n argocd get cm argocd-cm -o jsonpath='{.data.application\.resourceTrackingMethod}'` → `annotation`; si no, sincroniza `argocd` y reinicia el controlador: `kubectl -n argocd rollout restart statefulset argocd-application-controller` |
 | Apps en `Error`: `ComparisonError … terminatingReplicas: field not declared in schema` | Argo CD es anterior a la 3.5 y el clúster tiene Kubernetes 1.34 o más nuevo: [Actualizar Argo CD](../operacion/actualizar-argocd.md#la-primera-vez-actualizar-a-mano-y-despues-activar-la-app) |
 | Login con GitHub da 404 (`client_id=.github.clientId`) | Faltan `dex.*` en `argocd-secret`: corre `playbook-dex-oauth-secrets.yml --tags argocd` ([4.7](#47-secretos-oauth-github-vcluster-incus-ui)) |
 | Runner no aparece en GitHub | `kubectl logs -n arc-systems` del listener; Secret `arc-runners/arc-runners-github-app` (App instalada en `maceosoft`) |

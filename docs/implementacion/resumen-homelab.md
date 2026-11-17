@@ -106,7 +106,7 @@ Playbook: `playbook-dex-oauth-secrets.yml`.
     acceso. En Incus, quien entra por SSO tiene acceso completo: el control es que Dex solo deja
     pasar al team `devops` de `maceosoft`. Ver [Fase 4](fase-4-gitops.md) y [Fase 5](fase-5-vcluster.md).
 
-Documentación: [Secretos OAuth](https://github.com/maceosoft/gitops/blob/main/argocd/secrets/1password.md)
+Documentación: [Secretos OAuth](https://github.com/maceosoft/gitops/blob/main/addons/argocd/secrets/1password.md)
 
 ## GitOps (Argo CD)
 
@@ -117,7 +117,7 @@ Apps típicas en `Healthy` tras Fase 4:
 - CNI: `calico-operator` + `calico-config` (sync manual); `canal` o `cilium` como alternativas — **una** a la vez
 - IA y logs: `ollama-router`, `open-webui`, `open-terminal`, `ai-tools`, `alert-triage`, `log-report`, `victoria-logs`, `vector`; `k8sgpt` está etapado
 
-Repo: [`gitops`](https://github.com/maceosoft/gitops) · [`bootstrap/root-appset.yaml`](https://github.com/maceosoft/gitops/blob/main/bootstrap/root-appset.yaml)
+Repo: [`gitops`](https://github.com/maceosoft/gitops) · [`bootstrap/`](https://github.com/maceosoft/gitops/tree/main/bootstrap) (ApplicationSet `homelab`, una Application por archivo de `bootstrap/components/`)
 
 ## Después de las fases: IA, logs y seguridad
 

@@ -92,9 +92,8 @@ Profundización: [vCluster Platform](../vcluster/index.md)
 
 ## Ejecutar
 
-```bash
-kubectl apply -f gitops/argocd/apps/vcluster-platform.yaml
-```
+En el repo `gitops`, mueve `bootstrap/components/apagadas/vcluster-platform.yaml` a `bootstrap/components/` y mergea en
+`main`. El ApplicationSet `homelab` crea la Application con la ola `manual` (no tiene sync automático): sincronízala a mano.
 
 === "🖱️ Desde la interfaz"
 
@@ -109,7 +108,7 @@ kubectl apply -f gitops/argocd/apps/vcluster-platform.yaml
     argocd app sync vcluster-platform
     ```
 
-Secretos OAuth (si no en 4.7): [`argocd/secrets/1password.md`](https://github.com/maceosoft/gitops/blob/main/argocd/secrets/1password.md).
+Secretos OAuth (si no en 4.7): [`addons/argocd/secrets/1password.md`](https://github.com/maceosoft/gitops/blob/main/addons/argocd/secrets/1password.md).
 
 Tras sync de `vcluster-platform`, aplica `VCLUSTER_CLIENT_SECRET` en Helm:
 
@@ -123,7 +122,7 @@ ansible-playbook -i inventory.ini playbook-dex-oauth-secrets.yml \
 
 | Decisión | Default HomeLab |
 |---|---|
-| Sync Argo CD | Manual (comentada en `homelab-root`) |
+| Sync Argo CD | Manual (en `bootstrap/components/apagadas/` hasta activarla; ola `manual`) |
 | Login admin | `auth.password.disabled: false` hasta validar SSO GitHub |
 | Permisos usuarios SSO | **Denegar por defecto** — sin Cluster Access / proyecto asignado no ven clústeres ni kubeconfig |
 
@@ -201,7 +200,7 @@ Si no ves el clúster o no puedes descargar kubeconfig, asigna **Cluster Access*
 al usuario o equipo en Platform. Sin esa asignación, el login SSO funciona pero
 **no hay clústeres ni kubeconfig visibles** (denegar por defecto). Los grupos
 OIDC de GitHub llegan con prefijo `loft-` (ver
-[`platform.yaml`](https://github.com/maceosoft/gitops/blob/main/vcluster/values/platform.yaml)).
+[`platform.yaml`](https://github.com/maceosoft/gitops/blob/main/addons/cluster/vcluster/values/platform.yaml)).
 
 ## Accesos web del HomeLab
 

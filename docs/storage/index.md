@@ -4,7 +4,7 @@
     Desplegado en **[Fase 4 — GitOps](../implementacion/fase-4-gitops.md)** (waves 0–1).
     Etiquetas Longhorn: **[Fase 3 — K3s](../implementacion/fase-3-k3s.md)**.
 
-Híbrido x86_64 + ARM64 (arquitectura ARM de 64 bits) — manifiestos GitOps en [`gitops/storage/`](https://github.com/maceosoft/gitops/tree/main/storage).
+Híbrido x86_64 + ARM64 (arquitectura ARM de 64 bits) — manifiestos GitOps en [`gitops/addons/storage/classes/`](https://github.com/maceosoft/gitops/tree/main/addons/storage/classes).
 
 ## Diagrama — tiers de storage
 
@@ -130,15 +130,15 @@ queda replicado entre arquitecturas.
 
 Una StorageClass (clase de almacenamiento) le dice a Kubernetes **cómo** crear el
 volumen de un PVC (PersistentVolumeClaim, pedido de almacenamiento). Estas son las que hay hoy
-(`kubectl get storageclass`); las de `gitops/storage/` las crea la Application
+(`kubectl get storageclass`); las de `gitops/addons/storage/classes/` las crea la Application
 `homelab-storage`, el resto las traen los charts o K3s.
 
 | StorageClass | Quién la crea | Aprovisionador | Réplicas | Binding | Se puede ampliar | ¿Default? |
 |---|---|---|---|---|---|---|
-| `openebs-hostpath` | [`gitops/storage/openebs-local.yaml`](https://github.com/maceosoft/gitops/blob/main/storage/openebs-local.yaml) | OpenEBS LocalPV (`openebs.io/local`) | 1 (disco del nodo) | `WaitForFirstConsumer` | No | **Sí** |
+| `openebs-hostpath` | [`gitops/addons/storage/classes/openebs-local.yaml`](https://github.com/maceosoft/gitops/blob/main/addons/storage/classes/openebs-local.yaml) | OpenEBS LocalPV (`openebs.io/local`) | 1 (disco del nodo) | `WaitForFirstConsumer` | No | **Sí** |
 | `local-path` | K3s (addon `local-storage`) | `rancher.io/local-path` | 1 (disco del nodo) | `WaitForFirstConsumer` | No | **Sí** (ver aviso) |
-| `longhorn` | chart de Longhorn | Longhorn (`driver.longhorn.io`) | `defaultClassReplicaCount` (2 en [`longhorn.yaml`](https://github.com/maceosoft/gitops/blob/main/argocd/apps/longhorn.yaml)) | `Immediate` | Sí | No |
-| `longhorn-mixto` | [`gitops/storage/storageclasses.yaml`](https://github.com/maceosoft/gitops/blob/main/storage/storageclasses.yaml) | Longhorn | 2 fijas | `Immediate` | Sí | No |
+| `longhorn` | chart de Longhorn | Longhorn (`driver.longhorn.io`) | `defaultClassReplicaCount` (2 en [`longhorn.yaml`](https://github.com/maceosoft/gitops/blob/main/bootstrap/components/longhorn.yaml)) | `Immediate` | Sí | No |
+| `longhorn-mixto` | [`gitops/addons/storage/classes/storageclasses.yaml`](https://github.com/maceosoft/gitops/blob/main/addons/storage/classes/storageclasses.yaml) | Longhorn | 2 fijas | `Immediate` | Sí | No |
 | `longhorn-static` | chart de Longhorn | Longhorn | — (sin parámetros) | `Immediate` | Sí | No |
 
 Todas tienen `reclaimPolicy: Delete`: **al borrar el PVC se borra el volumen y sus datos**.
@@ -274,10 +274,13 @@ la versión nueva que subir por cada versión intermedia. Usa
 que es **destructivo** (borra los PVC, los volúmenes, las CRD, el namespace y `/var/lib/longhorn` de cada nodo) y seguro
 por defecto: sin `-e longhorn_reset_confirm=true` solo muestra lo que se perdería.
 
-1. En `gitops/bootstrap/root-appset.yaml`, comenta `longhorn` y `arc-runners` y haz push. Así Argo CD no recrea lo que
-   se borra (las Application desaparecen, sus recursos quedan en el clúster).
+1. En el repo `gitops`, mueve `longhorn.yaml` y `arc-runners.yaml` de `bootstrap/components/` a
+   `bootstrap/components/apagadas/` y mergea. Con `applicationsSync: create-update` (modo actual) el ApplicationSet no
+   borra las Applications: bórralas a mano (`kubectl -n argocd delete application arc-runners longhorn`). Así Argo CD no
+   recrea lo que se borra (sus recursos quedan en el clúster hasta que los borre el playbook).
 2. `ansible-playbook -i inventory.ini playbook-reset-longhorn.yml` (preflight) y luego con `-e longhorn_reset_confirm=true`.
-3. Descomenta `longhorn` y `arc-runners`, haz push: Argo CD instala la versión de `targetRevision` desde cero.
+3. Devuelve `longhorn.yaml` y `arc-runners.yaml` a `bootstrap/components/` y mergea: Argo CD instala la versión de
+   `targetRevision` desde cero, en su ola.
 
 ## Por qué no Mayastor
 

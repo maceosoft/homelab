@@ -19,7 +19,7 @@ clusterctl init -i incus
 
 ## Credenciales de Incus como Secret
 
-Ver [`gitops/sealed-secrets/`](https://github.com/maceosoft/gitops/tree/main/sealed-secrets) — el secreto
+Ver [`gitops/addons/security/sealed-secrets/`](https://github.com/maceosoft/gitops/tree/main/addons/security/sealed-secrets) — el secreto
 `lxc-secret` se cifra con Sealed Secrets antes de commitear, nunca en texto plano.
 
 ## Generar un workload cluster
@@ -38,13 +38,13 @@ export WORKER_MACHINE_TYPE=container
 clusterctl generate cluster demo -i incus \
   --kubernetes-version v1.36.2 \
   --control-plane-machine-count 1 \
-  --worker-machine-count 2 > gitops/capn/clusters/demo.yaml
+  --worker-machine-count 2 > gitops/addons/cluster/capn/clusters/demo.yaml
 
-kubectl apply -f gitops/capn/clusters/demo.yaml
+kubectl apply -f gitops/addons/cluster/capn/clusters/demo.yaml
 ```
 
 > Nota: CAPN provisiona clusters **kubeadm** vainilla (no K3s anidado) — más
 > pesado por nodo. Bien para clusters efímeros de dev/test, no para 24/7 en oliver.
 
 El manifiesto generado se sincroniza vía Argo CD con sync manual — ver
-[`capn-demo.yaml`](https://github.com/maceosoft/gitops/blob/main/argocd/apps/capn-demo.yaml).
+[`capn-demo.yaml`](https://github.com/maceosoft/gitops/blob/main/bootstrap/components/apagadas/capn-demo.yaml).

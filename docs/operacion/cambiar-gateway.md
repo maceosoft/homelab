@@ -4,7 +4,7 @@ El HomeLab publica sus servicios con [Gateway API](https://gateway-api.sigs.k8s.
 (`Gateway` y `HTTPRoute`), no con `Ingress`. Hay un solo `Gateway`, llamado
 `homelab` (namespace `gateway`), con un listener HTTP (80) y uno HTTPS (443)
 para `*.homelab.local`. Cada app se engancha con su propio `HTTPRoute`
-(`argocd/route`, `vcluster/route`).
+(`addons/argocd/route`, `addons/cluster/vcluster/route`).
 
 Quien atiende ese Gateway es **un controlador a la vez**; los tres comparten las
 IP 80/443 de MetalLB y no pueden convivir:
@@ -15,7 +15,7 @@ IP 80/443 de MetalLB y no pueden convivir:
 | `traefik` | [Traefik](https://doc.traefik.io/traefik/routing/providers/kubernetes-gateway/) | Solo Gateway API: sin `Ingress` ni `IngressRoute` |
 | `nginx-gateway` | [NGINX Gateway Fabric](https://docs.nginx.com/nginx-gateway-fabric/) | Necesita también `nginx-gateway-helm-repo` (registro OCI del chart) |
 
-El `Gateway` de cada uno está en `gateway/<kong|traefik|nginx>/` del repo
+El `Gateway` de cada uno está en `addons/network/gateway/<kong|traefik|nginx>/` del repo
 [`gitops`](https://github.com/maceosoft/gitops); `GatewayClass`, puertos y
 anotaciones cambian de uno a otro, los `HTTPRoute` no.
 
@@ -26,13 +26,13 @@ anotaciones cambian de uno a otro, los `HTTPRoute` no.
   anotación `cert-manager.io/cluster-issuer: homelab-ca` y cert-manager crea solo
   el Secret `homelab-tls`.
 - El Gateway **termina el TLS** (Transport Layer Security) y habla HTTP con los servicios. Por eso
-  `argocd-server` corre con `server.insecure` (en `argocd/config`) y el
+  `argocd-server` corre con `server.insecure` (en `addons/argocd/config`) y el
   `HTTPRoute` apunta a su puerto 80. El diff del pipeline de `gitops` usa
   `--plaintext` por el mismo motivo.
 - **Kong es la excepción.** KIC (Kong Ingress Controller) 3.5 con Kong 3.9 rechaza (`value must be null`) el
   certificado que arma para un listener de Gateway API, y Kong no llega a estar
   `Ready`. Por eso el Gateway de Kong no usa `certificateRefs`: cert-manager emite
-  `kong-default-tls` (`gateway/kong/certificate.yaml`), el chart lo monta en el pod y
+  `kong-default-tls` (`addons/network/gateway/kong/certificate.yaml`), el chart lo monta en el pod y
   Kong lo carga como certificado por defecto con `KONG_SSL_CERT` y `KONG_SSL_CERT_KEY`.
   Kong lo lee solo al arrancar: **tras cada renovación (cada ~60 días) reinicia el
   pod**: `kubectl -n kong rollout restart deploy/kong-gateway`. Traefik y NGINX Gateway
@@ -71,7 +71,7 @@ Pasaba solo con tráfico externo que entraba por `deborah` u `oliver`; los pods,
 servicios y las conexiones desde los propios nodos funcionaban. Con `Local`, MetalLB
 anuncia la IP desde el nodo donde corre el controlador y el tráfico va directo al pod
 (y además se conserva la IP del cliente). Los tres controladores lo traen en
-`gitops/argocd/apps/`.
+su Application de `gitops/bootstrap/components/` (Kong) o `bootstrap/components/apagadas/` (Traefik y NGINX).
 
 !!! note "Causa de fondo sin resolver"
     No se aclaró por qué falla el reenvío entre nodos del tráfico externo (el overlay de
@@ -81,21 +81,22 @@ anuncia la IP desde el nodo donde corre el controlador y el tráfico va directo 
 
 ## Cambiar de controlador
 
-1. En `bootstrap/root-appset.yaml` (repo `gitops`), **comenta** el controlador
-   actual y **descomenta** el nuevo (y `nginx-gateway-helm-repo` si es NGINX).
-   Haz push.
-2. Vuelve a aplicar el ApplicationSet (Argo CD no lo gestiona):
+1. En el repo `gitops`, mueve el archivo del controlador actual a `bootstrap/components/apagadas/` y el del nuevo de
+   `apagadas/` a `bootstrap/components/` (si es NGINX, descomenta además
+   `repositories/nginx-gateway-helm-repo.yaml` en `bootstrap/kustomization.yaml`). Mergea en `main`: no hay que
+   aplicar nada, `homelab-bootstrap` y el ApplicationSet `homelab` leen git.
+2. Con `applicationsSync: create-update` (modo actual) el ApplicationSet **no** borra la Application del controlador
+   viejo: bórrala a mano. Las Applications de los controladores llevan el finalizer de Argo CD, así que se borran la
+   Application **y** sus recursos (el Gateway y las IP quedan libres para el nuevo):
 
     ```bash
-    kubectl apply -f gitops/bootstrap/root-appset.yaml
+    kubectl -n argocd delete application kong   # el controlador que sale
     ```
 
-3. Las Applications de los controladores llevan el finalizer de Argo CD: al
-   comentar la app, `homelab-root` borra la Application **y** sus recursos (el
-   Gateway y las IP quedan libres para el nuevo). Espera a que desaparezca:
+3. Espera a que desaparezca y a que el nuevo quede `Healthy` (va en la ola 3):
 
     ```bash
-    kubectl -n argocd get applications
+    kubectl -n argocd get applications -L homelab.maceo.cl/rollout-wave
     ```
 
 4. Verifica que el Gateway quede programado y con IP:
@@ -110,9 +111,9 @@ anuncia la IP desde el nodo donde corre el controlador y el tráfico va directo 
 
 ## Primera vez (viniendo de ingress-nginx)
 
-`ingress-nginx` y el `Ingress` de Argo CD ya no existen en `gitops`. Sus
-Applications desaparecen al volver a aplicar el ApplicationSet, pero lo que
-crearon queda en el clúster:
+`ingress-nginx` y el `Ingress` de Argo CD ya no existen en `gitops`. Si todavía
+queda su Application en el clúster, bórrala a mano (el ApplicationSet `homelab` no
+borra Applications en su modo actual); lo que crearon queda en el clúster:
 
 ```bash
 kubectl -n argocd delete ingress argocd-server
@@ -136,6 +137,6 @@ Gateway esté `Programmed`, entra a Argo CD con
 | `HTTPRoute` sin `Accepted` | `kubectl describe httproute -n argocd argocd-server`: `parentRefs` debe apuntar a `homelab` en `gateway` |
 | Con Kong, los pods no llegan a `Ready` y el log del controlador dice `failed posting new config to /config` | Ver el punto de Kong en *Cómo funciona el TLS*; confirma que existe el Secret `kong-default-tls` (`kubectl -n kong get certificate,secret`) |
 | Con Kong, el listener queda sin programar | KIC enlaza el Gateway con los puertos del Kong del chart; revisa `kubectl describe gateway` y los puertos del Service `kong-gateway-proxy` |
-| Con Kong, `kubectl -n kong logs deploy/kong-controller` dice `invalid config.location: missing host in url` | Un `HTTPRoute` con filtro `RequestRedirect` sin `hostname`: Kong arma el plugin `redirect` con una URL completa. Agrega `hostname` al filtro (ya está en `argocd/route` y `vcluster/route`) |
+| Con Kong, `kubectl -n kong logs deploy/kong-controller` dice `invalid config.location: missing host in url` | Un `HTTPRoute` con filtro `RequestRedirect` sin `hostname`: Kong arma el plugin `redirect` con una URL completa. Agrega `hostname` al filtro (ya está en `addons/argocd/route` y `addons/cluster/vcluster/route`) |
 | Argo CD responde `307` hacia la misma URL (bucle) o `too many redirects` | `server.insecure` se lee solo al arrancar: reinicia el pod (`kubectl -n argocd rollout restart deploy/argocd-server`) y comprueba el valor (`kubectl -n argocd get cm argocd-cmd-params-cm -o yaml`) |
-| Con Kong, `http://…` responde `426 Upgrade Required` | La ruta solo-HTTPS gana a la de redirección: la anotación `konghq.com/https-redirect-status-code: "301"` del `HTTPRoute` hace que Kong redirija (ya está en `argocd/route` y `vcluster/route`) |
+| Con Kong, `http://…` responde `426 Upgrade Required` | La ruta solo-HTTPS gana a la de redirección: la anotación `konghq.com/https-redirect-status-code: "301"` del `HTTPRoute` hace que Kong redirija (ya está en `addons/argocd/route` y `addons/cluster/vcluster/route`) |

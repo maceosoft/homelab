@@ -584,23 +584,30 @@ atiendan a la org nueva (`maceosoft`) y a la antigua (`symintel`) hay **dos scal
 | OpenTofu y FTP en el entorno del runner | No (sin credenciales en el entorno) | Solo si existe el item `symintel-terraform` (`terraform-app`) |
 
 Los dos usan **la misma plantilla** de runner
-([`values-scaleset.yaml`](https://github.com/maceosoft/gitops/blob/main/arc/values-scaleset.yaml)); la org antigua cambia
-`githubConfigUrl` ([`values-scaleset-symintel.yaml`](https://github.com/maceosoft/gitops/blob/main/arc/values-scaleset-symintel.yaml)).
+([`values-scaleset.yaml`](https://github.com/maceosoft/gitops/blob/main/addons/ci/arc/values-scaleset.yaml)); la org antigua cambia
+`githubConfigUrl` ([`values-scaleset-symintel.yaml`](https://github.com/maceosoft/gitops/blob/main/addons/ci/arc/values-scaleset-symintel.yaml)).
 Cada namespace tiene sus propios Secrets, con **el mismo nombre**, así que los de una org no los ve la otra, y la caché tampoco se
 comparte (una caché envenenada en una org no llega a la otra).
 
 Para activar la org antigua: crea en `symintel` la App de ARC (igual que [`maceosoft-arc-runners`](#maceosoft-arc-runners), pero en esa
 org) y guárdala en el item `symintel-arc-runners`; después corre `playbook-platform-secrets.yml`. Si el item no existe, el script no
-crea el namespace ni el Secret y el scale set de la org antigua no arranca. Para quitarla, borra la Application
-`arc-runners-symintel` y los items.
+crea el namespace ni el Secret y el scale set de la org antigua no arranca. Para quitarla, mueve
+`bootstrap/components/arc-runners-symintel*.yaml` a `bootstrap/components/apagadas/` en `gitops`, borra las Applications
+(`kubectl -n argocd delete application arc-runners-symintel arc-runners-symintel-php arc-runners-symintel-dependabot`) y
+los items.
 
 ## Paso 4 — GitOps
 
+Una sola vez, desde una copia de `gitops` en `main` (o con el rol `k3s_argocd` y
+`-e k3s_argocd_bootstrap_confirm=true`):
+
 ```bash
-kubectl apply -f gitops/bootstrap/root-appset.yaml
+cd gitops
+kubectl apply -k bootstrap/
 ```
 
-Argo CD sincroniza, entre otras, estas Applications:
+Desde ahí, la Application `homelab-bootstrap` administra `bootstrap/` y el ApplicationSet `homelab` crea una Application
+por archivo de `bootstrap/components/`. Argo CD sincroniza, entre otras, estas Applications:
 
 | Application | Qué despliega |
 |---|---|

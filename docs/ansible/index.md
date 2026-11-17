@@ -61,7 +61,7 @@ su `README.md` con variables, tags y verificación.
 | [`playbook-rotate-root-passwords.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-rotate-root-passwords.yml) | Seguridad | Rota password de root → 1Password (bóveda HomeLab) |
 | [`playbook-k3s-uninstall.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-k3s-uninstall.yml) | Apéndice | Desinstala K3s en todos los nodos |
 
-Documentación OAuth: [`gitops/argocd/secrets/1password.md`](https://github.com/maceosoft/gitops/blob/main/argocd/secrets/1password.md)
+Documentación OAuth: [`gitops/addons/argocd/secrets/1password.md`](https://github.com/maceosoft/gitops/blob/main/addons/argocd/secrets/1password.md)
 
 ## Orden de ejecución K3s
 

@@ -85,7 +85,7 @@ Con la CLI: la OAuth App y su client secret se crean **solo desde la web**; guar
 `op read "op://HomeLab/maceosoft-dex/GITHUB_CLIENT_ID" | wc -c`.
 
 Detalle: [Fase 4 — 4.7](../implementacion/fase-4-gitops.md#47-secretos-oauth-github-vcluster-incus-ui)
-· [`1password.md`](https://github.com/maceosoft/gitops/blob/main/argocd/secrets/1password.md)
+· [`1password.md`](https://github.com/maceosoft/gitops/blob/main/addons/argocd/secrets/1password.md)
 
 ## Monitoreo: webhooks de Discord, ping de healthchecks.io y Grafana (1Password → Secrets del clúster)
 

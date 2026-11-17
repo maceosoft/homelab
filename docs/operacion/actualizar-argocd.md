@@ -8,8 +8,8 @@ versión nueva, Argo CD se aplica a sí mismo.
 
 | Pieza | Qué hace |
 |---|---|
-| `argocd/apps/argocd.yaml` | La Application: sigue `argocd/config` con sincronización automática y `ServerSideApply` |
-| `argocd/config/kustomization.yaml` | Base: [`https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml`](https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml). Encima, `configMapGenerator` con `behavior: merge` para `argocd-cm`, `argocd-rbac-cm` y `argocd-cmd-params-cm` |
+| `bootstrap/components/argocd.yaml` | La Application (ola 0 del ApplicationSet `homelab`): sigue `addons/argocd/config` con `ServerSideApply`; la sincroniza el ApplicationSet (RollingSync) |
+| `addons/argocd/config/kustomization.yaml` | Base: [`https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml`](https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml). Encima, `configMapGenerator` con `behavior: merge` para `argocd-cm`, `argocd-rbac-cm` y `argocd-cmd-params-cm` (incluidas las claves de progressive syncs y del glob nuevo que necesita el ApplicationSet) |
 | Rol Ansible `k3s_argocd` | Primera instalación y saltos de versión mayor (`version: latest` en `k3s_install.yml`) |
 
 !!! warning "Es una actualización sin supervisión"
@@ -82,7 +82,7 @@ kubectl -n argocd annotate application argocd argocd.argoproj.io/refresh=hard --
 
 ## Mantenerse en una versión (pausar las actualizaciones)
 
-Para fijar una versión, cambia la base de `argocd/config/kustomization.yaml`,
+Para fijar una versión, cambia la base de `addons/argocd/config/kustomization.yaml`,
 en `gitops`, de `stable` a un tag:
 
 ```yaml

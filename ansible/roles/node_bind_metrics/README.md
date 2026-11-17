@@ -25,7 +25,7 @@ Métricas: `node_bind_service_active`, `node_bind_query_success`, `node_bind_que
 ## Dependencia: textfile collector de node-exporter
 
 Igual que en [`node_smart_metrics`](../node_smart_metrics/README.md): node-exporter tiene que montar
-`/var/lib/node_exporter/textfile` (repo `gitops`, `monitoring/values-vm-stack.yaml`).
+`/var/lib/node_exporter/textfile` (repo `gitops`, `addons/monitoring/values/values-vm-stack.yaml`).
 
 ## Playbook
 
@@ -56,4 +56,4 @@ cat /var/lib/node_exporter/textfile/bind.prom
 
 La sonda local no detecta un fallo de red entre los pods y el DNS: para eso, una sonda externa (módulo `dns` de
 blackbox-exporter contra el DNS de la LAN). Las alertas están en el repo `gitops`:
-`monitoring/config/rules/homelab-hardware.yaml`.
+`addons/monitoring/config/rules/homelab-hardware.yaml`.

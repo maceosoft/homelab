@@ -43,4 +43,4 @@ systemctl list-timers node-apt-metrics.timer
 cat /var/lib/node_exporter/textfile/apt.prom
 ```
 
-Las alertas que usan estas métricas están en el repo `gitops`: `monitoring/config/rules/homelab-nodos.yaml`.
+Las alertas que usan estas métricas están en el repo `gitops`: `addons/monitoring/config/rules/homelab-nodos.yaml`.

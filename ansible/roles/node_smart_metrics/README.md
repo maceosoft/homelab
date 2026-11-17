@@ -49,7 +49,7 @@ Solo se leen los discos de bus `sata`, `ata`, `sas` o `nvme`: los discos virtual
 ## Dependencia: textfile collector de node-exporter
 
 node-exporter tiene que montar `/var/lib/node_exporter/textfile` y arrancar con
-`--collector.textfile.directory`. Se configura en el repo `gitops` (`monitoring/values-vm-stack.yaml`, junto con el rol
+`--collector.textfile.directory`. Se configura en el repo `gitops` (`addons/monitoring/values/values-vm-stack.yaml`, junto con el rol
 `node_apt_metrics`). Sin eso el archivo se escribe pero nadie lo lee.
 
 ## Playbook
@@ -87,4 +87,4 @@ sudo smartctl -A /dev/sda        # compara con node_smart_ssd_life_remaining_per
 normalizado entre los atributos con nombre de «vida/desgaste/restante». Si tras la primera ejecución falta
 `node_smart_ssd_life_remaining_percent`, ese modelo usa otro atributo: ajusta el filtro del script.
 
-Las alertas que usan estas métricas están en el repo `gitops`: `monitoring/config/rules/homelab-hardware.yaml`.
+Las alertas que usan estas métricas están en el repo `gitops`: `addons/monitoring/config/rules/homelab-hardware.yaml`.

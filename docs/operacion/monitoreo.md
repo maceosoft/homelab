@@ -84,7 +84,7 @@ Qué hacer si un tile se pone en rojo:
 | Logs sin ingesta | [Logs centralizados y reportes con IA](logs.md) |
 
 Es el **dashboard de inicio** de Grafana: lo fija el repo `gitops` (`default_home_dashboard_path` en
-[`values-vm-stack.yaml`](https://github.com/maceosoft/gitops/blob/main/monitoring/values-vm-stack.yaml)), así que se abre al entrar.
+[`values-vm-stack.yaml`](https://github.com/maceosoft/gitops/blob/main/addons/monitoring/values/values-vm-stack.yaml)), así que se abre al entrar.
 Si quieres otro inicio solo para tu usuario, elígelo en *Profile → Preferences → Home Dashboard*.
 
 ## Ver las temperaturas y el uso
@@ -112,7 +112,7 @@ Para una consulta puntual usa *Explore* con estas expresiones:
 ## Paneles de Grafana
 
 Hay **13 dashboards** propios o de la comunidad (los de la etiqueta **`homelab`**), versionados como código en
-[`monitoring/config/dashboards`](https://github.com/maceosoft/gitops/tree/main/monitoring/config/dashboards) del repo `gitops`: no se
+[`addons/monitoring/config/dashboards`](https://github.com/maceosoft/gitops/tree/main/addons/monitoring/config/dashboards) del repo `gitops`: no se
 editan a mano en Grafana. Los de grafana.com se guardan con la revisión fijada.
 
 | Dashboard | Para qué sirve | Origen |

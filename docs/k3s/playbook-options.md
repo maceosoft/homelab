@@ -126,7 +126,7 @@ migración, no un flag.
 
 Calico lo administra Argo CD tras el bootstrap (Applications `calico-operator` + `calico-config`, sync manual; ver
 [Calico con Argo CD](../operacion/actualizar-calico.md)). Alternativas GitOps (sync manual):
-`canal` o `cilium` en [`gitops/argocd/apps/`](https://github.com/maceosoft/gitops/tree/main/argocd/apps) —
+`canal` o `cilium` en [`gitops/bootstrap/components/apagadas/`](https://github.com/maceosoft/gitops/tree/main/bootstrap/components/apagadas) —
 solo si instalaste K3s con `cni` distinto de `flannel` vía Ansible **o** aplicas el
 manifest tras `--flannel-backend=none`. **No** actives más de una app CNI (Container Network Interface) a la vez.
 
@@ -256,8 +256,8 @@ ansible-playbook -i inventory.ini playbook-k3s.yml
 # habilitadas en group_vars/incus_cluster/k3s_install.yml:
 ansible-playbook -i inventory.ini playbook-k3s.yml --tags kube_vip
 
-# Post-install GitOps
-kubectl apply -f gitops/bootstrap/root-appset.yaml
+# Post-install GitOps (una vez, tras playbook-platform-secrets.yml; o desde gitops: kubectl apply -k bootstrap/)
+ansible-playbook -i inventory.ini playbook-k3s.yml --tags argocd -e k3s_argocd_bootstrap_confirm=true
 ```
 
 Para VIP + Argo CD controller: habilitá `kube_vip.enabled: true` y

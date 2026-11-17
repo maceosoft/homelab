@@ -127,7 +127,7 @@ Vista arquitectónica complementaria: [Arquitectura C4](../architecture/overview
 | Instalar K3s | `playbook-k3s.yml` | curl manual ([referencia](../k3s/index.md)) |
 | **CNI** | [Calico](https://docs.tigera.io/calico/latest/about/) (`k3s_cni: calico`) | [Flannel](https://github.com/flannel-io/flannel) embebido (`vxlan`), [Canal](https://docs.tigera.io/calico/latest/getting-started/kubernetes/flannel/flannel), [Cilium](https://docs.cilium.io/) |
 | Secretos OAuth | [1Password SDK](https://github.com/1Password/onepassword-sdk-python) — cuenta personal, bóveda `HomeLab` | Cuenta empresa u otra bóveda vía env vars |
-| vCluster / CAPN | Comentadas en `homelab-root` | Descomentar en `root-appset.yaml` cuando estés listo |
+| vCluster / CAPN | En `gitops/bootstrap/components/apagadas/` | Moverlas a `bootstrap/components/` cuando estés listo |
 | Storage HA | [Longhorn](https://longhorn.io/docs/) en invincible+deborah | Solo [OpenEBS](https://openebs.io/docs) |
 
 <div class="card">

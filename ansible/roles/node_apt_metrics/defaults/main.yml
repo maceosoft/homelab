@@ -2,7 +2,7 @@
 # node_apt_metrics — valores por defecto. Ver README.md del rol.
 
 # Carpeta del "textfile collector" de node-exporter. Tiene que coincidir con la que monta el chart
-# (gitops: monitoring/values-vm-stack.yaml, hostPath del DaemonSet de node-exporter).
+# (gitops: addons/monitoring/values/values-vm-stack.yaml, hostPath del DaemonSet de node-exporter).
 node_apt_metrics_dir: /var/lib/node_exporter/textfile
 
 # Cada cuánto se recalculan los paquetes pendientes.

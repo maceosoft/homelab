@@ -24,7 +24,7 @@ CPU usa una instancia, pero no administrarla. Por eso no se usa para esto el cer
 **Quién lo emite.** Lo emite `cert-manager` (el componente de Kubernetes que crea y renueva certificados), firmado por
 la CA (autoridad certificadora) interna del HomeLab, `homelab-ca`. Se declara en Git como un recurso `Certificate` llamado
 `incus-metrics` en el namespace `monitoring`
-([`incus-certificate.yaml`](https://github.com/maceosoft/gitops/blob/main/monitoring/config/scrapes/incus-certificate.yaml)
+([`incus-certificate.yaml`](https://github.com/maceosoft/gitops/blob/main/addons/monitoring/config/scrapes/incus-certificate.yaml)
 en el repo `gitops`). El par de llaves queda guardado en el Secret `monitoring/incus-metrics` y **la llave privada no sale
 del clúster**. Incus no valida la CA: solo acepta los carnés que se anotan a mano en su lista, y de eso se encarga el
 paso 2.
