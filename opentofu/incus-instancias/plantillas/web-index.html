@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><title>${prefix}</title>
+<style>body{font-family:sans-serif;max-width:40rem;margin:3rem auto;color:#1e1b4b}a,code{color:#6d28d9}</style>
+</head>
+<body>
+<h1>Hola desde el contenedor</h1>
+<p>Este nginx corre en un contenedor de Incus (<code>${prefix}-web</code>) y lo publica el balanceador de OVN.</p>
+<p><a href="/vm/">→ Ver la VM</a>: el contenedor reenvía <code>/vm/</code> a la VM (<code>${vm_ip}</code>), que
+instaló nginx con cloud-init.</p>
+</body>
+</html>

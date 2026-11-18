@@ -7,7 +7,7 @@ independiente: su provider ([`lxc/incus`](https://search.opentofu.org/provider/l
 | Carpeta | Qué crea |
 |---|---|
 | [`incus-cluster-groups/`](incus-cluster-groups/) | Los grupos del clúster `x86-nodes` y `arm64-nodes` (ya existen: se importan) |
-| [`incus-instancias/`](incus-instancias/) | Un contenedor (nginx, imagen OCI), una VM Debian 13 y un balanceador de OVN que publica el nginx en la LAN |
+| [`incus-instancias/`](incus-instancias/) | Una VM Debian 13 con cloud-init que instala nginx, un contenedor nginx que la publica en `/vm/` y un balanceador de OVN hacia el contenedor: se valida desde el navegador |
 
 Para un recurso nuevo de Incus (instancia, balanceador, forward, perfil…), copia la carpeta más parecida y ajústala.
 
