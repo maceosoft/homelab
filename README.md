@@ -54,7 +54,7 @@ Diagramas completos (niveles 1 a 4) en [`docs/architecture/`](docs/architecture/
 ├── mkdocs.yml             # config del sitio MkDocs
 ├── translate_docs.py      # traducción al inglés (*.en.md) con el Ollama del HomeLab
 ├── ansible/               # bare-metal: Incus, netplan, K3s, BIND, firewall, Ollama, métricas de nodo
-├── opentofu/              # recursos declarativos de Incus (perfiles, redes, cluster groups)
+├── opentofu/              # ejemplos de OpenTofu para Incus, uno por carpeta (grupos del clúster, instancias y balanceador)
 ├── ollama-node/           # agente de nodo del Ollama dinámico (nodos Linux y Mac)
 ├── cinc-lab/              # cookbooks de prueba para el sandbox Cinc/Chef
 └── .github/workflows/     # CI: deploy y traducción de docs + lint

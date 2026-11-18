@@ -7,9 +7,10 @@ lxc-secret.yaml
 !**/kubernetes/**/*.key.example
 
 # Estado local de OpenTofu/Terraform (el .terraform.lock.hcl SÍ se versiona: fija el provider)
-opentofu/.terraform/
-opentofu/*.tfstate
-opentofu/*.tfstate.backup
+opentofu/**/.terraform/
+opentofu/**/*.tfstate
+opentofu/**/*.tfstate.backup
+opentofu/**/*.tfplan
 
 # Llaves SOPS/age locales
 key.txt

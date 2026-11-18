@@ -1,6 +1,6 @@
 resource "incus_cluster_group" "x86_nodes" {
   name        = "x86-nodes"
-  description = "M920q (invincible) + M700 (oliver)"
+  description = "x86: invincible (M920q), oliver (M700) y eve (MacBook Pro T2)"
 }
 
 resource "incus_cluster_group" "arm64_nodes" {
