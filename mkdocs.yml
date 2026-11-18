@@ -181,6 +181,7 @@ plugins:
             Entrar por SSH a los servidores: SSH into the servers
             Entrar a Kubernetes con GitHub: Kubernetes login with GitHub
             Operaciones frecuentes de vCluster: Common vCluster operations
+            Operaciones frecuentes de CAPN: Common CAPN operations
             Monitoreo y alertas: Monitoring and alerts
             Agregar un repo: Add a repo
             Agregar un nodo: Add a node
@@ -308,6 +309,7 @@ nav:
       - Entrar por SSH a los servidores: operacion/acceso-ssh.md
       - Entrar a Kubernetes con GitHub: operacion/acceso-kubernetes.md
       - Operaciones frecuentes de vCluster: operacion/vcluster.md
+      - Operaciones frecuentes de CAPN: operacion/capn.md
       - Monitoreo y alertas: operacion/monitoreo.md
       - Agregar un repo: operacion/agregar-repo.md
       - Agregar un nodo: operacion/agregar-nodo.md

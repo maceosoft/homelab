@@ -164,7 +164,8 @@ Tarda unos 30 segundos. Instala CAPI (v1.14 con `clusterctl` 1.13) y CAPN v0.9.1
 
 ### Generar y crear un clúster
 
-Comandos completos (credencial, variables, destinos) en [CAPN](../capn/index.md#generar-un-cluster). La idea:
+Paso a paso, probado tal cual (crear, ver, kubeconfig, escalar, actualizar la versión, entrar a un nodo, logs, borrar):
+[Operaciones frecuentes de CAPN](../operacion/capn.md). Credencial y variables: [CAPN](../capn/index.md). La idea:
 
 1. Aplicar el Secret con la credencial de Incus en el namespace del clúster.
 2. `clusterctl generate cluster …` con los destinos `eve`/`invincible` y el balanceador con IPv4.

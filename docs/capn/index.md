@@ -27,31 +27,39 @@ clusterctl init -i incus:v0.9.1
 ## Credencial de Incus
 
 CAPN habla con la API de Incus (`https://192.168.20.6:8443`) con un certificado de cliente propio, que se agrega al
-trust de Incus solo para él:
+trust de Incus solo para él. El certificado, su llave y el certificado del servidor de Incus se guardan en 1Password
+(item `capn-incus`, bóveda `HomeLab`); de ahí sale el Secret de cada clúster.
+
+Una vez, desde tu Mac, en una carpeta temporal:
 
 ```bash
-# En tu Mac: llave y certificado del cliente (guárdalos en 1Password; no van a git)
+mkdir -p /tmp/capn && cd /tmp/capn
+# 1. Llave y certificado de cliente (10 años)
 openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:secp384r1 -nodes -days 3650 \
   -subj "/CN=capn" -keyout capn.key -out capn.crt
+# 2. Darle acceso en Incus
 scp capn.crt amaceo@192.168.20.6:/tmp/capn.crt
 ssh amaceo@192.168.20.6 'sudo incus config trust add-certificate /tmp/capn.crt --name capn && rm /tmp/capn.crt'
-ssh amaceo@192.168.20.6 'sudo cat /var/lib/incus/cluster.crt' > incus-cluster.crt
+ssh amaceo@192.168.20.6 'sudo incus config trust list' | grep capn
+# 3. Certificado del servidor de Incus (sed: deja solo el PEM, sin el aviso de bienvenida del SSH)
+ssh amaceo@192.168.20.6 'sudo cat /var/lib/incus/cluster.crt' | sed -n '/BEGIN CERTIFICATE/,/END CERTIFICATE/p' > incus-cluster.crt
+openssl x509 -in incus-cluster.crt -noout -subject      # O=Linux Containers, CN=root@invincible
+# 4. Guardar los tres en 1Password y borrar los archivos
+op item create --vault HomeLab --category "Secure Note" --title capn-incus \
+  "client-crt[text]=$(cat capn.crt)" \
+  "client-key[concealed]=$(cat capn.key)" \
+  "server-crt[text]=$(cat incus-cluster.crt)"
+op read "op://HomeLab/capn-incus/client-key" | openssl pkey -noout && echo "llave OK"
+cd / && rm -rf /tmp/capn
 ```
 
-El Secret lleva estas claves (el formato que espera CAPN; con `endpoints.yaml`/`client.crt` responde
-`server "" is not unix:// or https://`). Va en el namespace del clúster y, en git, solo sellado con `kubeseal`:
+El Secret de cada clúster se arma desde ese item con `op read` (las claves `server`, `server-crt`, `client-crt`,
+`client-key` y `project` son las que espera CAPN; con `endpoints.yaml`/`client.crt` responde
+`server "" is not unix:// or https://`): ver
+[Operaciones frecuentes — Crear un clúster](../operacion/capn.md#crear-un-cluster).
 
-```bash
-kubectl create namespace capn-demo
-kubectl -n capn-demo create secret generic lxc-secret \
-  --from-literal=server=https://192.168.20.6:8443 \
-  --from-file=server-crt=incus-cluster.crt \
-  --from-file=client-crt=capn.crt \
-  --from-file=client-key=capn.key \
-  --from-literal=project=default
-kubectl -n capn-demo label secret lxc-secret clusterctl.cluster.x-k8s.io/move=true
-rm capn.key   # ya está en 1Password
-```
+Para revocarla: `ssh amaceo@192.168.20.6 'sudo incus config trust list'` y
+`sudo incus config trust remove <huella>`; después borra el item de 1Password.
 
 ## Generar un clúster
 
