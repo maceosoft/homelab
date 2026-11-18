@@ -107,9 +107,8 @@ Hay dos formas de crear un vCluster; las dos usan el mismo chart y los mismos va
 
     ```bash
     export KUBECONFIG=~/.kube/homelab-github.yaml
-    curl -fsSLo /tmp/vcluster-values.yaml \
-      https://raw.githubusercontent.com/maceosoft/gitops/main/addons/cluster/vcluster/values/demo.yaml
-    vcluster create prueba -n vcluster-prueba -f /tmp/vcluster-values.yaml --chart-version 0.38.0 --connect=false
+    VALUES=~/src/maceosoft/gitops/addons/cluster/vcluster/values/demo.yaml   # tu copia de gitops (el repo es privado)
+    vcluster create prueba -n vcluster-prueba -f "$VALUES" --chart-version 0.38.0 --connect=false
     kubectl -n vcluster-prueba rollout status statefulset/prueba --timeout=300s
     ```
 

@@ -12,13 +12,13 @@ export KUBECONFIG=~/.kube/homelab-github.yaml
 ## Crear
 
 ```bash
-curl -fsSLo /tmp/vcluster-values.yaml \
-  https://raw.githubusercontent.com/maceosoft/gitops/main/addons/cluster/vcluster/values/demo.yaml
-vcluster create prueba -n vcluster-prueba -f /tmp/vcluster-values.yaml --chart-version 0.38.0 --connect=false
+VALUES=~/src/maceosoft/gitops/addons/cluster/vcluster/values/demo.yaml   # tu copia de gitops, en main y al día
+vcluster create prueba -n vcluster-prueba -f "$VALUES" --chart-version 0.38.0 --connect=false
 kubectl -n vcluster-prueba rollout status statefulset/prueba --timeout=300s
 ```
 
-Tarda alrededor de un minuto. Sin los values (o sin `storageClass`), el volumen queda `Pending`: el clúster no tiene
+El repo `gitops` es privado: los values se leen de tu copia local (no de `raw.githubusercontent.com`, que responde
+404). Tarda alrededor de un minuto. Sin los values (o sin `storageClass`), el volumen queda `Pending`: el clúster no tiene
 StorageClass por defecto. Para uno gestionado por Argo CD, ver la [Fase 5](../implementacion/fase-5-vcluster.md#ejecutar).
 
 ## Activar el vCluster de GitOps (`vcluster-demo`)
@@ -83,6 +83,12 @@ vcluster list
 
 Muestra nombre, namespace, estado (`Running`, `Paused`), versión y antigüedad.
 
+Para el detalle de uno (versión, imágenes, almacenamiento y la config con la que se creó):
+
+```bash
+vcluster describe prueba -n vcluster-prueba
+```
+
 ## Entrar
 
 **Un comando suelto** (abre el túnel, corre el comando y lo cierra):
@@ -101,9 +107,12 @@ kubectl -n vcluster-prueba port-forward svc/prueba 11443:443
 # Terminal 2
 vcluster connect prueba -n vcluster-prueba --local-port 11443 --print --silent > ~/.kube/vcluster-prueba.yaml
 chmod 600 ~/.kube/vcluster-prueba.yaml
-export KUBECONFIG=~/.kube/vcluster-prueba.yaml
-kubectl get ns
+kubectl --kubeconfig ~/.kube/vcluster-prueba.yaml get ns
 ```
+
+Con `--kubeconfig` en cada comando (o un alias: `alias kvc='kubectl --kubeconfig ~/.kube/vcluster-prueba.yaml'`), el
+resto de la terminal sigue apuntando al clúster anfitrión con tu kubeconfig de GitHub, que es el que usan las demás
+operaciones de esta página.
 
 Para salir, `Ctrl+C` en la terminal 1. El archivo `~/.kube/vcluster-prueba.yaml` lleva una llave de administrador del
 vCluster: no lo compartas y bórralo cuando termines (`rm ~/.kube/vcluster-prueba.yaml`).
@@ -144,6 +153,35 @@ kubectl -n vcluster-prueba rollout status statefulset/prueba --timeout=300s
 
 Al reanudar, lo que habías creado adentro sigue ahí.
 
+## Respaldar y restaurar
+
+Un snapshot guarda todo lo que hay dentro del vCluster (su base de datos: Deployments, ConfigMaps, Secrets…). No
+guarda el contenido de los volúmenes de las apps.
+
+```bash
+# Respaldar (tarda segundos)
+vcluster snapshot create prueba container:///data/respaldo.tar.gz -n vcluster-prueba
+kubectl -n vcluster-prueba logs prueba-0 -c syncer --since=2m | grep -i snapshot   # "Successfully wrote snapshot"
+
+# Restaurar: pausa el vCluster, reemplaza su base de datos y lo reanuda
+vcluster restore prueba container:///data/respaldo.tar.gz -n vcluster-prueba
+kubectl -n vcluster-prueba rollout status statefulset/prueba --timeout=300s   # esperar a que vuelva
+```
+
+`container://` guarda el archivo **dentro del volumen del propio vCluster**: sirve para volver atrás un cambio, pero si
+borras el vCluster se pierde con él. Para un respaldo de verdad, cópialo a tu equipo después de crearlo, y súbelo de
+vuelta antes de restaurar (con el vCluster `Running`: mientras se reinicia, `kubectl cp` responde
+`container not found ("syncer")`):
+
+```bash
+kubectl -n vcluster-prueba cp -c syncer prueba-0:/data/respaldo.tar.gz ./vcluster-prueba-respaldo.tar.gz
+kubectl -n vcluster-prueba cp -c syncer ./vcluster-prueba-respaldo.tar.gz prueba-0:/data/respaldo.tar.gz
+```
+
+`vcluster snapshot get prueba container:///…` responde `No snapshot found` aunque el snapshot exista: con el destino
+`container://` no los lista. Confírmalo por el log (arriba) o con
+`kubectl -n vcluster-prueba exec prueba-0 -c syncer -- ls -la /data/`.
+
 ## Ver logs y estado
 
 ```bash
@@ -154,10 +192,12 @@ vcluster connect prueba -n vcluster-prueba -- kubectl get events -A --sort-by=.l
 
 ## Actualizar
 
-Usa la misma versión en el CLI y en el chart. Para un vCluster creado con el CLI:
+Usa la misma versión en el CLI y en el chart. Para un vCluster creado con el CLI (`--connect=false`: sin eso, el CLI se
+conecta al terminar y deja el vCluster como contexto activo de tu kubeconfig):
 
 ```bash
-vcluster create prueba -n vcluster-prueba -f /tmp/vcluster-values.yaml --chart-version <nueva> --upgrade
+vcluster create prueba -n vcluster-prueba -f "$VALUES" --chart-version <nueva> --upgrade --connect=false
+kubectl -n vcluster-prueba rollout status statefulset/prueba --timeout=300s
 ```
 
 Para uno gestionado por Argo CD, cambia `targetRevision` en su Application de `gitops` (Renovate avisa de versiones
@@ -178,6 +218,15 @@ que Argo CD no elimina:
 ```bash
 kubectl -n argocd delete application vcluster-demo
 kubectl delete ns vcluster-demo
+```
+
+## Telemetría
+
+El CLI y el vCluster mandan a Loft (la empresa detrás de vCluster) datos de uso anónimos. Para apagarlo en el CLI de
+tu equipo:
+
+```bash
+vcluster telemetry disable
 ```
 
 ## Si falla
