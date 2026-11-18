@@ -8,10 +8,10 @@ El K3s (distribución ligera de Kubernetes) del HomeLab actúa como *management 
 clúster nuevo como instancias de Incus. Versiones probadas el 18 nov 2026: `clusterctl` 1.13.8, CAPI 1.14.4, CAPN
 0.9.1 y Kubernetes v1.37.0 en los clústeres creados.
 
-!!! warning "Todavía no funciona de punta a punta en `br0`"
-    Con `LOAD_BALANCER='lxc: {}'` el endpoint del control plane queda en IPv6 y el K3s no llega a él. Esta página usa
-    `kube-vip` con la IPv4 reservada `192.168.20.12`, que es la salida propuesta pero **aún no está probada**. Detalle
-    en [Estado en el HomeLab](../implementacion/fase-6-capn.md#estado-en-el-homelab).
+!!! info "Probado de punta a punta el 18 nov 2026"
+    Con los comandos de esta página (y `kube-vip` en la IPv4 reservada `192.168.20.12`), el clúster quedó listo en
+    2 min 15 s. `LOAD_BALANCER='lxc: {}'` no sirve en `br0`: el endpoint queda en IPv6 y el K3s no llega a él. Detalle en
+    [Estado en el HomeLab](../implementacion/fase-6-capn.md#estado-en-el-homelab).
 
 ## Instalación
 
@@ -73,8 +73,8 @@ kubectl apply -f /tmp/capn-demo.yaml
 ```
 
 Los destinos no incluyen `deborah` (su kernel no tiene `netlink_diag`, que el perfil kubeadm exige) ni `oliver` (poca
-RAM y un SSD con sectores reasignados). Un clúster mínimo (control plane, un worker y su balanceador) usa alrededor de
-1 GB de RAM y baja una imagen kubeadm de ~1 GB a Incus.
+RAM y un SSD con sectores reasignados). Un clúster mínimo (control plane y un worker; `kube-vip` corre dentro del
+control plane) usa unos 1 GB de RAM y baja una imagen kubeadm de ~600 MB a Incus.
 
 Para gestionarlo con Argo CD en vez de `kubectl apply`, el manifiesto generado va a
 `gitops/addons/cluster/capn/clusters/` y se activa [`capn-demo.yaml`](https://github.com/maceosoft/gitops/blob/main/bootstrap/components/apagadas/capn-demo.yaml)

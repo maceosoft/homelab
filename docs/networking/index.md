@@ -113,7 +113,7 @@ El DHCP del router reparte **`192.168.20.31` a `192.168.23.191`**. Todo lo fijo 
 | `192.168.20.4` | VIP del API de K3s (kube-vip, opcional) | `kube_vip.address` en `k3s_install.yml` |
 | `192.168.20.5`, `.6`, `.7`, `.8` | deborah, invincible, oliver, eve | `static_ip` en `inventory.ini` |
 | `192.168.20.9`, `.10`, `.11` | WiFi de respaldo de deborah, invincible y eve (`<nodo>-wifi` en el DNS); oliver no tiene WiFi | `wifi_ip` en `inventory.ini` |
-| `192.168.20.12` | API del clúster de prueba de CAPN (`kube-vip`; reservada, sin uso hasta activar la [Fase 6](../implementacion/fase-6-capn.md)) | `LOAD_BALANCER` en [CAPN](../capn/index.md#generar-un-cluster) |
+| `192.168.20.12` | API del clúster de CAPN (`kube-vip`; reservada, libre mientras no haya un clúster de la [Fase 6](../implementacion/fase-6-capn.md)) | `LOAD_BALANCER` en [CAPN](../capn/index.md#generar-un-cluster) |
 | `192.168.20.31 – 192.168.23.191` | **DHCP del router** | Router |
 | `192.168.23.192 – .199` | Libre | — |
 | `192.168.23.200 – .220` | **MetalLB** (`LoadBalancer`, Gateway; el Gateway de Kong usa `.200`) | [`gitops/addons/network/metallb/ipaddresspool.yaml`](https://github.com/maceosoft/gitops/blob/main/addons/network/metallb/ipaddresspool.yaml) |

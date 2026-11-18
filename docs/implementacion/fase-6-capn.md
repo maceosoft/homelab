@@ -108,21 +108,27 @@ Profundización: [CAPN](../capn/index.md) · [Secretos](../secrets/index.md)
 
 ## Estado en el HomeLab
 
-!!! warning "Probado el 18 nov 2026: funciona, pero todavía no se puede usar tal cual"
-    Una prueba de humo levantó un clúster kubeadm v1.37.0 sobre Incus (control plane y un worker `Ready`, flannel,
-    CoreDNS y un Service respondiendo `HTTP 200`) en unos 90 segundos, y después se borró todo. Para lograrlo hubo que
-    sortear dos problemas que siguen abiertos:
+!!! success "Probado el 18 nov 2026: funciona con `kube-vip`"
+    Siguiendo la [página de CAPN](../capn/index.md) tal cual, con `kube-vip` en `192.168.20.12`: control plane en
+    `eve` y un worker en `invincible`, los dos `Ready` en 2 min 15 s, Kubernetes v1.37.0 con flannel, CoreDNS y un
+    Deployment detrás de un Service respondiendo `HTTP 200`. Consumo: unos 700 MiB el control plane y 350 MiB el
+    worker, más una imagen kubeadm de unos 600 MB en Incus. Después se borró todo (clúster, CAPI/CAPN, certificado,
+    imagen y módulos del kernel) y el clúster, Incus y los nodos quedaron sin diferencias.
 
-    1. **El control plane queda con una IP IPv6.** CAPN toma como dirección de la API la primera IP global de la
-       instancia, y en `br0` la IPv6 de la LAN (`fd23:…`, por SLAAC) llega antes que la IPv4 del DHCP. Los pods de K3s
-       solo tienen IPv4, así que los controladores no llegan a la API (`connect: network is unreachable`). Es el issue
-       [#174 "IPv6 Support"](https://github.com/lxc/cluster-api-provider-incus/issues/174) de CAPN. La salida más
-       simple es un balanceador `kube-vip` con una IPv4 fija (sin probar aquí).
-    2. **`deborah` no puede ser nodo.** Su kernel Rockchip no trae el módulo `netlink_diag`, que el perfil kubeadm de
-       CAPN exige: el contenedor no arranca. Los nodos van en `eve` e `invincible` (`oliver` tiene poca RAM y un SSD con
-       sectores reasignados).
+Dos limitaciones del HomeLab, ya resueltas en la página:
 
-    Hasta resolver el punto 1, la Application `capn-demo` de `gitops` queda apagada: hoy solo crea un namespace.
+1. **El balanceador `lxc` no sirve en `br0`.** CAPN toma como dirección de la API la primera IP global del contenedor
+   balanceador, y en `br0` la IPv6 de la LAN (`fd23:…`, por SLAAC) llega antes que la IPv4 del DHCP. Los pods de K3s
+   solo tienen IPv4, así que los controladores no llegan a la API (`connect: network is unreachable`; issue
+   [#174 "IPv6 Support"](https://github.com/lxc/cluster-api-provider-incus/issues/174) de CAPN). Con `kube-vip` la API
+   queda en una IPv4 fija de la LAN (`192.168.20.12`, reservada en [Red](../networking/index.md)) y además no hace falta
+   el contenedor balanceador: corre dentro del control plane.
+2. **`deborah` no puede ser nodo.** Su kernel Rockchip no trae el módulo `netlink_diag`, que el perfil kubeadm de
+   CAPN exige: el contenedor no arranca. Los nodos van en `eve` e `invincible` (`oliver` tiene poca RAM y un SSD con
+   sectores reasignados).
+
+La Application `capn-demo` de `gitops` sigue apagada y es solo un marcador: hoy los clústeres se crean con
+`clusterctl` y `kubectl apply`.
 
 ## Antes de empezar
 
@@ -171,7 +177,7 @@ Comandos completos (credencial, variables, destinos) en [CAPN](../capn/index.md#
 | Instalación de CAPI/CAPN | `clusterctl init` a mano (no está en GitOps) |
 | Tipo de nodo | `container` (LXC privilegiado, perfil kubeadm de CAPN) |
 | Destinos | `eve` e `invincible`; nunca `deborah` (sin `netlink_diag`) ni `oliver` |
-| Balanceador del control plane | `kube-vip` con IPv4 fija (pendiente de probar); `lxc` no sirve en `br0` por la IPv6 |
+| Balanceador del control plane | `kube-vip` con la IPv4 fija `192.168.20.12` (probado); `lxc` no sirve en `br0` por la IPv6 |
 | Versión de Kubernetes | Una con imagen `kubeadm` publicada: `v1.37.0` o `v1.36.4` |
 
 <div class="card">
@@ -180,7 +186,7 @@ Comandos completos (credencial, variables, destinos) en [CAPN](../capn/index.md#
     <div class="card-col">
       <div class="card-title">CAPN vs vCluster</div>
       <div class="text-muted">Clústeres kubeadm reales, con sus propios nodos</div>
-      <div class="text-muted">Unos 1 GB de RAM por clúster mínimo, contra un pod de vCluster</div>
+      <div class="text-muted">Unos 1 GB de RAM por clúster mínimo (700 MiB el control plane), contra un pod de vCluster</div>
     </div>
     <div class="card-col">
       <div class="card-title">Contenedores privilegiados</div>
@@ -220,12 +226,32 @@ KUBECONFIG=/tmp/demo.kubeconfig kubectl get nodes
 
 ```bash
 kubectl delete clusters.cluster.x-k8s.io demo -n capn-demo     # borra las instancias de Incus (~20 s)
+kubectl delete namespace capn-demo
 clusterctl delete --all --include-crd --include-namespace
 ```
 
-En la prueba, `clusterctl delete` falló a mitad (`failed to list … MachineSet`: borró los CRD de CAPI antes de terminar
-con CAPN) y quedaron `capn-system`, CRDs `*.cluster.x-k8s.io` y ClusterRoles de CAPN; hubo que borrarlos a mano tras
-comprobar que no tenían finalizers. Revisa con `kubectl get crd | grep x-k8s.io` y `kubectl get ns | grep -E 'capi|capn'`.
+`clusterctl delete` falla a mitad (`failed to list … KubeadmConfigTemplate`: borra los CRD de CAPI antes de terminar
+con CAPN; pasó en las dos pruebas) y deja CRDs, webhooks, ClusterRoles y los namespaces `capi-*` y `capn-system`.
+Todo lo que instala `clusterctl` lleva la etiqueta `clusterctl.cluster.x-k8s.io`, así que se termina de borrar por
+etiqueta. Primero los webhooks, para que no traben el resto; los APIServices de CAPI se van solos con sus CRD:
+
+```bash
+kubectl delete validatingwebhookconfiguration,mutatingwebhookconfiguration -l clusterctl.cluster.x-k8s.io
+kubectl delete namespace -l clusterctl.cluster.x-k8s.io
+kubectl delete crd -l clusterctl.cluster.x-k8s.io
+kubectl delete crd providers.clusterctl.cluster.x-k8s.io --ignore-not-found
+kubectl delete clusterrole,clusterrolebinding -l clusterctl.cluster.x-k8s.io
+kubectl get crd,ns -o name | grep -E 'x-k8s.io|capi|capn'     # vacío
+```
+
+Para dejar los nodos como antes, descarga los módulos del kernel que cargó el perfil de CAPN (en cada nodo que tuvo
+máquinas; `modprobe -r` no descarga los que estén en uso) y quita la imagen kubeadm y el certificado de Incus:
+
+```bash
+ssh amaceo@192.168.20.8 'sudo modprobe -r xt_socket ip_vs_rr ip_vs_sh ip_vs_wrr ip_vs netlink_diag ip6_tables nf_socket_ipv4 nf_socket_ipv6'
+ssh amaceo@192.168.20.6 'sudo modprobe -r xt_socket ip_vs_rr ip_vs_sh ip_vs_wrr ip_vs netlink_diag ip6_tables nf_socket_ipv4 nf_socket_ipv6'
+ssh amaceo@192.168.20.6 'sudo incus image list'     # la imagen kubeadm (~600 MB, sin alias): incus image delete <huella>
+```
 
 ## Si falla
 
@@ -235,7 +261,7 @@ comprobar que no tenían finalizers. Revisa con `kubectl get crd | grep x-k8s.io
 | `yaml: found character that cannot start any token` | `@x86-nodes` sin comillas en las variables `*_MACHINE_TARGET` |
 | `spec.topology: Forbidden … ClusterTopology` | Falta `CLUSTER_TOPOLOGY=true` en el `clusterctl init` |
 | `server "" is not unix:// or https://` | El Secret no tiene las claves de CAPN (`server`, `server-crt`, `client-crt`, `client-key`, `project`) |
-| `dial tcp [fd23:…]:6443: connect: network is unreachable` | El endpoint quedó en IPv6: ver [Estado en el HomeLab](#estado-en-el-homelab) |
+| `dial tcp [fd23:…]:6443: connect: network is unreachable` | Balanceador `lxc`: el endpoint quedó en IPv6. Usa `kube-vip` ([Estado en el HomeLab](#estado-en-el-homelab)) |
 | `modprobe: FATAL: Module netlink_diag not found` | La máquina cayó en `deborah`: cambia el destino |
 | `Image "kubeadm/v1.36.1" not found` | No fijes `LXC_IMAGE_NAME`; usa una versión con imagen publicada |
 
