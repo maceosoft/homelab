@@ -1,50 +1,93 @@
 # CAPN (Cluster API Provider Incus)
 
 !!! info "Parte de la guía de implementación"
-    **[Fase 6 — CAPN](../implementacion/fase-6-capn.md)** — recorrido ejecutable.
+    **[Fase 6 — CAPN](../implementacion/fase-6-capn.md)** — recorrido, estado en el HomeLab y problemas conocidos.
 
-El K3s (distribución ligera de Kubernetes) existente actúa como *management cluster* de [Cluster API](https://cluster-api.sigs.k8s.io/).
-Provider: [CAPN](https://capn.linuxcontainers.org/).
+El K3s (distribución ligera de Kubernetes) del HomeLab actúa como *management cluster* de
+[Cluster API](https://cluster-api.sigs.k8s.io/), y [CAPN](https://capn.linuxcontainers.org/) crea los nodos de cada
+clúster nuevo como instancias de Incus. Versiones probadas el 18 nov 2026: `clusterctl` 1.13.8, CAPI 1.14.4, CAPN
+0.9.1 y Kubernetes v1.37.0 en los clústeres creados.
+
+!!! warning "Todavía no funciona de punta a punta en `br0`"
+    Con `LOAD_BALANCER='lxc: {}'` el endpoint del control plane queda en IPv6 y el K3s no llega a él. Esta página usa
+    `kube-vip` con la IPv4 reservada `192.168.20.12`, que es la salida propuesta pero **aún no está probada**. Detalle
+    en [Estado en el HomeLab](../implementacion/fase-6-capn.md#estado-en-el-homelab).
 
 ## Instalación
 
 ```bash
-curl -L https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.10.10/clusterctl-linux-amd64 -o clusterctl
-chmod +x clusterctl && sudo mv clusterctl /usr/local/bin/
-
+brew install clusterctl                     # ≥ 1.13; el 1.10 de guías viejas no admite K8s 1.37
 mkdir -p ~/.cluster-api
-curl -o ~/.cluster-api/clusterctl.yaml https://capn.linuxcontainers.org/static/v0.1/clusterctl.yaml
-clusterctl init -i incus
+curl -fsSLo ~/.cluster-api/clusterctl.yaml https://capn.linuxcontainers.org/static/v0.1/clusterctl.yaml
+export KUBECONFIG=~/.kube/homelab-github.yaml
+export CLUSTER_TOPOLOGY=true
+clusterctl init -i incus:v0.9.1
 ```
 
-## Credenciales de Incus como Secret
+## Credencial de Incus
 
-Ver [`gitops/addons/security/sealed-secrets/`](https://github.com/maceosoft/gitops/tree/main/addons/security/sealed-secrets) — el secreto
-`lxc-secret` se cifra con Sealed Secrets antes de commitear, nunca en texto plano.
+CAPN habla con la API de Incus (`https://192.168.20.6:8443`) con un certificado de cliente propio, que se agrega al
+trust de Incus solo para él:
 
-## Generar un workload cluster
+```bash
+# En tu Mac: llave y certificado del cliente (guárdalos en 1Password; no van a git)
+openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:secp384r1 -nodes -days 3650 \
+  -subj "/CN=capn" -keyout capn.key -out capn.crt
+scp capn.crt amaceo@192.168.20.6:/tmp/capn.crt
+ssh amaceo@192.168.20.6 'sudo incus config trust add-certificate /tmp/capn.crt --name capn && rm /tmp/capn.crt'
+ssh amaceo@192.168.20.6 'sudo cat /var/lib/incus/cluster.crt' > incus-cluster.crt
+```
+
+El Secret lleva estas claves (el formato que espera CAPN; con `endpoints.yaml`/`client.crt` responde
+`server "" is not unix:// or https://`). Va en el namespace del clúster y, en git, solo sellado con `kubeseal`:
+
+```bash
+kubectl create namespace capn-demo
+kubectl -n capn-demo create secret generic lxc-secret \
+  --from-literal=server=https://192.168.20.6:8443 \
+  --from-file=server-crt=incus-cluster.crt \
+  --from-file=client-crt=capn.crt \
+  --from-file=client-key=capn.key \
+  --from-literal=project=default
+kubectl -n capn-demo label secret lxc-secret clusterctl.cluster.x-k8s.io/move=true
+rm capn.key   # ya está en 1Password
+```
+
+## Generar un clúster
 
 ```bash
 export LXC_SECRET_NAME=lxc-secret
-export LOAD_BALANCER='lxc: {}'
+export LOAD_BALANCER='kube-vip: {host: 192.168.20.12}'
 export DEPLOY_KUBE_FLANNEL=true
-export LXC_IMAGE_NAME=kubeadm/v1.36.1
-export CONTROL_PLANE_MACHINE_TARGET="@x86-nodes"
+export CONTROL_PLANE_MACHINE_TARGET='"eve"'      # con comillas dentro: "@x86-nodes" sin ellas rompe el YAML
 export CONTROL_PLANE_MACHINE_TYPE=container
-export WORKER_MACHINE_TARGET="@arm64-nodes"
-# arm64: solo container, sin imágenes VM oficiales
+export WORKER_MACHINE_TARGET='"invincible"'
 export WORKER_MACHINE_TYPE=container
+# Sin LXC_IMAGE_NAME: CAPN usa capi:kubeadm/<versión>, que existe para v1.37.0 y v1.36.4
 
-clusterctl generate cluster demo -i incus \
-  --kubernetes-version v1.36.2 \
+clusterctl generate cluster demo --target-namespace capn-demo -i incus:v0.9.1 \
+  --kubernetes-version v1.37.0 \
   --control-plane-machine-count 1 \
-  --worker-machine-count 2 > gitops/addons/cluster/capn/clusters/demo.yaml
-
-kubectl apply -f gitops/addons/cluster/capn/clusters/demo.yaml
+  --worker-machine-count 1 > /tmp/capn-demo.yaml
+kubectl apply -f /tmp/capn-demo.yaml
 ```
 
-> Nota: CAPN provisiona clusters **kubeadm** vainilla (no K3s anidado) — más
-> pesado por nodo. Bien para clusters efímeros de dev/test, no para 24/7 en oliver.
+Los destinos no incluyen `deborah` (su kernel no tiene `netlink_diag`, que el perfil kubeadm exige) ni `oliver` (poca
+RAM y un SSD con sectores reasignados). Un clúster mínimo (control plane, un worker y su balanceador) usa alrededor de
+1 GB de RAM y baja una imagen kubeadm de ~1 GB a Incus.
 
-El manifiesto generado se sincroniza vía Argo CD con sync manual — ver
-[`capn-demo.yaml`](https://github.com/maceosoft/gitops/blob/main/bootstrap/components/apagadas/capn-demo.yaml).
+Para gestionarlo con Argo CD en vez de `kubectl apply`, el manifiesto generado va a
+`gitops/addons/cluster/capn/clusters/` y se activa [`capn-demo.yaml`](https://github.com/maceosoft/gitops/blob/main/bootstrap/components/apagadas/capn-demo.yaml)
+(hoy es solo un marcador). Una cosa u otra, no las dos sobre el mismo archivo.
+
+## Borrar
+
+```bash
+kubectl delete clusters.cluster.x-k8s.io demo -n capn-demo
+kubectl delete namespace capn-demo
+ssh amaceo@192.168.20.6 'sudo incus config trust list -f csv'      # columnas: nombre, tipo, descripción, huella, vence
+ssh amaceo@192.168.20.6 'sudo incus config trust remove <huella-de-capn>'
+```
+
+Desinstalar CAPI/CAPN y los restos que puede dejar `clusterctl delete`: ver
+[Fase 6 — Desinstalar](../implementacion/fase-6-capn.md#desinstalar).

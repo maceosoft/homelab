@@ -22,14 +22,15 @@ instancias Incus — clusters efímeros sin tocar el management K3s (distribuci�
     - **Recursos declarativos:** un clúster se describe como un objeto de Kubernetes (por ejemplo `LXCMachine`).
     - **Clústeres efímeros:** se crean para una prueba y se destruyen después.
 
-    **Reto práctico (seguro):** genera la descripción de un clúster y léela, **sin aplicarla**. Primero exporta
-    las variables que aparecen en la sección «Ejecutar» de esta fase; después:
+    **Reto práctico (seguro):** genera la descripción de un clúster y léela, **sin aplicarla**. Necesitas
+    `clusterctl` y el `clusterctl.yaml` de CAPN (sección «Ejecutar»), pero no hace falta instalar nada en el clúster:
+    exporta las variables de [Generar un clúster](../capn/index.md#generar-un-cluster) y después:
 
     ```bash
-    clusterctl generate cluster demo -i incus \
-      --kubernetes-version v1.36.2 \
+    clusterctl generate cluster demo -i incus:v0.9.1 \
+      --kubernetes-version v1.37.0 \
       --control-plane-machine-count 1 \
-      --worker-machine-count 2 > /tmp/demo.yaml
+      --worker-machine-count 1 > /tmp/demo.yaml
     # solo lectura: no ejecutes kubectl apply
     less /tmp/demo.yaml
     ```
@@ -52,8 +53,8 @@ sequenceDiagram
   participant CAPN as CAPN_controller
   participant Incus as Incus_API
   participant WL as Workload_cluster
-  Op->>K3s: clusterctl_init
-  Op->>K3s: apply_demo_yaml
+  Op->>K3s: clusterctl_init_CLUSTER_TOPOLOGY
+  Op->>K3s: apply_Secret_y_demo_yaml
   CAPI->>CAPN: reconcile_LXCMachine
   CAPN->>Incus: crear_LXC
   Incus->>WL: kubeadm_listo
@@ -105,97 +106,138 @@ Profundización: [CAPN](../capn/index.md) · [Secretos](../secrets/index.md)
     casi sin límite. Pierdes control del hardware, pagas por cada nodo encendido y los manifiestos usan recursos
     propios de esa nube, así que no se mueven tal cual a otra.
 
+## Estado en el HomeLab
+
+!!! warning "Probado el 18 nov 2026: funciona, pero todavía no se puede usar tal cual"
+    Una prueba de humo levantó un clúster kubeadm v1.37.0 sobre Incus (control plane y un worker `Ready`, flannel,
+    CoreDNS y un Service respondiendo `HTTP 200`) en unos 90 segundos, y después se borró todo. Para lograrlo hubo que
+    sortear dos problemas que siguen abiertos:
+
+    1. **El control plane queda con una IP IPv6.** CAPN toma como dirección de la API la primera IP global de la
+       instancia, y en `br0` la IPv6 de la LAN (`fd23:…`, por SLAAC) llega antes que la IPv4 del DHCP. Los pods de K3s
+       solo tienen IPv4, así que los controladores no llegan a la API (`connect: network is unreachable`). Es el issue
+       [#174 "IPv6 Support"](https://github.com/lxc/cluster-api-provider-incus/issues/174) de CAPN. La salida más
+       simple es un balanceador `kube-vip` con una IPv4 fija (sin probar aquí).
+    2. **`deborah` no puede ser nodo.** Su kernel Rockchip no trae el módulo `netlink_diag`, que el perfil kubeadm de
+       CAPN exige: el contenedor no arranca. Los nodos van en `eve` e `invincible` (`oliver` tiene poca RAM y un SSD con
+       sectores reasignados).
+
+    Hasta resolver el punto 1, la Application `capn-demo` de `gitops` queda apagada: hoy solo crea un namespace.
+
 ## Antes de empezar
 
 - [ ] [Fase 2 — Incus](fase-2-incus.md) con el clúster sano.
-- [ ] [Fase 4 — GitOps](fase-4-gitops.md) con Sealed Secrets operativo.
-- [ ] Credencial Incus sellada (`lxc-secret`).
+- [ ] [Fase 4 — GitOps](fase-4-gitops.md) con cert-manager y Sealed Secrets operativos (CAPI reutiliza el
+      cert-manager del clúster).
+- [ ] Un certificado de Incus solo para CAPN, en el trust de Incus y en 1Password
+      ([Credencial de Incus](../capn/index.md#credencial-de-incus)).
+- [ ] Una IPv4 libre para el endpoint del control plane, fuera del rango DHCP del router y de los pools de MetalLB.
+- [ ] `clusterctl` ≥ 1.13 (CAPI 1.10, el de las guías viejas, ya no tiene soporte ni admite K8s 1.37 como management
+      cluster): `brew install clusterctl`.
 
 La [Fase 5 — vCluster](fase-5-vcluster.md) es opcional: no hace falta para esta fase.
 
-!!! note "Balanceador del control plane"
-    Cada clúster de CAPN crea su propio balanceador para la API (`LOAD_BALANCER='lxc: {}'`, un contenedor dentro de
-    Incus). Es independiente de los balanceadores de red de Incus, que solo existen en la red OVN `ovn-lan`: ver
-    [Balanceo de carga y OVN](../incus/cluster-setup.md#balanceo-de-carga-y-ovn).
-
 ## Ejecutar
 
-### Instalar clusterctl e init CAPN
+### Instalar Cluster API y CAPN en el K3s
 
 ```bash
-curl -L https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.10.10/clusterctl-linux-amd64 -o clusterctl
-chmod +x clusterctl && sudo mv clusterctl /usr/local/bin/
 mkdir -p ~/.cluster-api
-curl -o ~/.cluster-api/clusterctl.yaml https://capn.linuxcontainers.org/static/v0.1/clusterctl.yaml
-clusterctl init -i incus
+curl -fsSLo ~/.cluster-api/clusterctl.yaml https://capn.linuxcontainers.org/static/v0.1/clusterctl.yaml
+export KUBECONFIG=~/.kube/homelab-github.yaml
+export CLUSTER_TOPOLOGY=true    # la plantilla de CAPN usa ClusterClass: sin esto el apply responde "Forbidden"
+clusterctl init -i incus:v0.9.1
 ```
 
-### Generar y aplicar cluster demo
+Tarda unos 30 segundos. Instala CAPI (v1.14 con `clusterctl` 1.13) y CAPN v0.9.1 en los namespaces `capi-*` y
+`capn-system`, y reutiliza el cert-manager que ya existe.
 
-Ver comandos completos en [CAPN — profundización](../capn/index.md).
+!!! tip "Si el webhook de `KubeadmControlPlane` da `x509: certificate signed by unknown authority`"
+    En la prueba, el API de K3s siguió rechazando el certificado del webhook aunque el `caBundle` era correcto; se
+    destrabó al volver a anotar el `ValidatingWebhookConfiguration` (cualquier anotación nueva lo fuerza a recargarlo).
 
-En el repo `gitops`, mueve `bootstrap/components/apagadas/capn-demo.yaml` a `bootstrap/components/` y mergea en `main`.
-El ApplicationSet `homelab` crea la Application con la ola `manual` (no tiene sync automático):
+### Generar y crear un clúster
 
-=== "🖱️ Desde la interfaz"
+Comandos completos (credencial, variables, destinos) en [CAPN](../capn/index.md#generar-un-cluster). La idea:
 
-    Sync manual en ArgoCD (Application `capn-demo`).
-
-=== "⌨️ Desde la consola"
-
-    Con la CLI de Argo CD:
-
-    ```bash
-    argocd login argocd.homelab.local --grpc-web
-    argocd app sync capn-demo
-    ```
+1. Aplicar el Secret con la credencial de Incus en el namespace del clúster.
+2. `clusterctl generate cluster …` con los destinos `eve`/`invincible` y el balanceador con IPv4.
+3. `kubectl apply` del manifiesto (o, cuando funcione de punta a punta, ponerlo en `gitops` y activar `capn-demo`).
 
 ## Opciones
 
 | Decisión | Default HomeLab |
 |---|---|
-| Sync Argo CD | Manual (efímero, evita borrados accidentales) |
-| Target workers | `@arm64-nodes` (deborah) / CP `@x86-nodes` |
+| Instalación de CAPI/CAPN | `clusterctl init` a mano (no está en GitOps) |
+| Tipo de nodo | `container` (LXC privilegiado, perfil kubeadm de CAPN) |
+| Destinos | `eve` e `invincible`; nunca `deborah` (sin `netlink_diag`) ni `oliver` |
+| Balanceador del control plane | `kube-vip` con IPv4 fija (pendiente de probar); `lxc` no sirve en `br0` por la IPv6 |
+| Versión de Kubernetes | Una con imagen `kubeadm` publicada: `v1.37.0` o `v1.36.4` |
 
 <div class="card">
   <div class="card-kicker">Análisis de trade-offs</div>
   <div class="option-grid">
     <div class="card-col">
-      <div class="card-title">Sync manual</div>
-      <div class="text-muted">Los clústeres efímeros no se borran solos</div>
-      <div class="text-muted">Apply + Sync en UI cada vez</div>
-    </div>
-    <div class="card-col">
-      <div class="card-title">Workers en <code>@arm64-nodes</code></div>
-      <div class="text-muted">Aprovecha 31 GB de deborah</div>
-      <div class="text-muted">Menos margen si deborah ya es CP K3s</div>
-    </div>
-    <div class="card-col">
-      <div class="card-title">CP en <code>@x86-nodes</code></div>
-      <div class="text-muted">Separación CP workload / management</div>
-      <div class="text-muted">Más RAM en nodos x86 limitados</div>
-    </div>
-    <div class="card-col">
       <div class="card-title">CAPN vs vCluster</div>
-      <div class="text-muted">VMs/Incus reales; kubeadm completo</div>
-      <div class="text-muted">Mucha más RAM que vCluster en pods</div>
+      <div class="text-muted">Clústeres kubeadm reales, con sus propios nodos</div>
+      <div class="text-muted">Unos 1 GB de RAM por clúster mínimo, contra un pod de vCluster</div>
+    </div>
+    <div class="card-col">
+      <div class="card-title">Contenedores privilegiados</div>
+      <div class="text-muted">Arrancan en segundos y gastan poco</div>
+      <div class="text-muted">En la práctica son root en el nodo de Incus, que también corre K3s</div>
+    </div>
+    <div class="card-col">
+      <div class="card-title"><code>clusterctl</code> a mano</div>
+      <div class="text-muted">Simple para aprender y borrar</div>
+      <div class="text-muted">No queda en Git; <code>clusterctl delete</code> puede dejar restos</div>
     </div>
   </div>
 </div>
 
 ## Verificar
 
+Los nombres cortos `clusters` y `kcp` chocan con otros recursos del clúster (PostgreSQL de CloudNativePG y
+KongClusterPlugin), así que se usan los nombres completos:
+
 ```bash
-kubectl get clusters
-kubectl get machines
+kubectl get clusters.cluster.x-k8s.io,machines.cluster.x-k8s.io -A
+clusterctl describe cluster demo -n capn-demo
+clusterctl get kubeconfig demo -n capn-demo > /tmp/demo.kubeconfig
+KUBECONFIG=/tmp/demo.kubeconfig kubectl get nodes
 ```
+
+## Seguridad
+
+- El perfil kubeadm de CAPN crea contenedores con `security.privileged=true`, AppArmor `unconfined`, sin quitar
+  capacidades y con `/dev/kmsg` del host: quien controla el clúster creado controla, en la práctica, el nodo de Incus.
+- Además carga módulos del kernel en el nodo (`ip_vs*`, `ip6_tables`, `netlink_diag`, `xt_socket`), que quedan
+  cargados después de borrar el clúster.
+- La credencial de Incus de CAPN tiene acceso total al proyecto: va en 1Password y en el clúster solo como
+  SealedSecret, nunca en Git en claro.
+
+## Desinstalar
+
+```bash
+kubectl delete clusters.cluster.x-k8s.io demo -n capn-demo     # borra las instancias de Incus (~20 s)
+clusterctl delete --all --include-crd --include-namespace
+```
+
+En la prueba, `clusterctl delete` falló a mitad (`failed to list … MachineSet`: borró los CRD de CAPI antes de terminar
+con CAPN) y quedaron `capn-system`, CRDs `*.cluster.x-k8s.io` y ClusterRoles de CAPN; hubo que borrarlos a mano tras
+comprobar que no tenían finalizers. Revisa con `kubectl get crd | grep x-k8s.io` y `kubectl get ns | grep -E 'capi|capn'`.
 
 ## Si falla
 
-| Síntoma | Revisar |
+| Síntoma | Causa |
 |---|---|
-| La `Machine` no avanza | Secret Incus, IP Incus en `lxc-secret` |
-| Image pull | [images.linuxcontainers.org](https://images.linuxcontainers.org/) |
+| `Unable to identify version for the provider "incus"` | `generate` sin `clusterctl init` antes: usa `-i incus:v0.9.1` |
+| `yaml: found character that cannot start any token` | `@x86-nodes` sin comillas en las variables `*_MACHINE_TARGET` |
+| `spec.topology: Forbidden … ClusterTopology` | Falta `CLUSTER_TOPOLOGY=true` en el `clusterctl init` |
+| `server "" is not unix:// or https://` | El Secret no tiene las claves de CAPN (`server`, `server-crt`, `client-crt`, `client-key`, `project`) |
+| `dial tcp [fd23:…]:6443: connect: network is unreachable` | El endpoint quedó en IPv6: ver [Estado en el HomeLab](#estado-en-el-homelab) |
+| `modprobe: FATAL: Module netlink_diag not found` | La máquina cayó en `deborah`: cambia el destino |
+| `Image "kubeadm/v1.36.1" not found` | No fijes `LXC_IMAGE_NAME`; usa una versión con imagen publicada |
 
 ## Siguiente
 
