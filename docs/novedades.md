@@ -10,6 +10,11 @@ pymdownx.snippets. Una línea de fecha y título en negrita, dos o tres frases y
 -->
 
 <!-- --8<-- [start:recientes] -->
+- **17 nov 2026 · Kubernetes con login de GitHub y Secrets cifrados.** El API de K3s ahora acepta el login con
+  GitHub a través de Dex: `kubectl` abre el navegador y el team `devops` entra con acceso total, sin copiar el
+  certificado de administrador. Los
+  Secrets del clúster quedaron cifrados en disco, y el certificado del API acepta el nombre `k3s.homelab.local`.
+  [Entrar a Kubernetes con GitHub](operacion/acceso-kubernetes.md).
 - **17 nov 2026 · Respaldos de PostgreSQL en Incus.** El PostgreSQL compartido de la plataforma tendrá sus respaldos
   en un bucket de Incus en `invincible`, publicado por S3 (Simple Storage Service) con un certificado de la CA propia
   del HomeLab. Un proxy delante evita cambiar el certificado de la API de Incus, y las contraseñas y llaves salen de
@@ -19,11 +24,11 @@ pymdownx.snippets. Una línea de fecha y título en negrita, dos o tres frases y
   ApplicationSet `homelab` las despliega por olas (cada ola espera a que la anterior esté sana) y se puede pausar una
   app sin PR. Los manifiestos pasaron a `addons/<área>/` (red, seguridad, monitoreo, IA…).
   [Catálogo GitOps](gitops/index.md).
+<!-- --8<-- [end:recientes] -->
 - **17 nov 2026 · Runners sin credenciales en su entorno.** Los runners de GitHub Actions de `maceosoft` ya no cargan
   la App de OpenTofu, las credenciales FTP ni el token de Argo CD: cualquier job, incluido el de un PR, podía leerlos.
   El token del diff de `gitops` llega ahora como secreto de GitHub Actions solo al paso que lo usa, y vence a los 90
   días. [Pipeline de gitops](operacion/pipeline-gitops.md#activar-el-diff-contra-el-cluster-una-vez).
-<!-- --8<-- [end:recientes] -->
 - **15 nov 2026 · La IA pasa a Claude y NVIDIA.** Ollama quedó pausado en todos los nodos porque los calentaba
   demasiado. Ahora cada alerta llega a Discord con un resumen de Claude, y Open WebUI conversa con Claude y con modelos
   abiertos de NVIDIA. Las claves viven en 1Password, como el resto de los secretos.

@@ -3,6 +3,7 @@
      Al agregar una sigla nueva, sumarla también a docs/glosario.md. -->
 
 *[ACL]: Access Control List — Lista de control de acceso: quién puede consultar un servicio (en BIND, una lista `lan` podría limitar las consultas a ciertas redes; en este HomeLab el DNS queda abierto a toda la red).
+*[AKS]: Azure Kubernetes Service — Kubernetes administrado de Microsoft Azure (tiene su propio kubelogin, distinto del de int128).
 *[API]: Application Programming Interface — Interfaz por la que un programa expone operaciones a otros (p. ej. la API de Kubernetes en :6443).
 *[ARC]: Actions Runner Controller — Controlador que corre runners de GitHub Actions dentro de Kubernetes.
 *[ARM64]: arquitectura ARM de 64 bits — Arquitectura de CPU del Orange Pi (deborah); los otros nodos son x86_64.

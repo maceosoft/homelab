@@ -1,0 +1,25 @@
+# Gestionado por Ansible (rol k3s_server). Login de personas al API de K3s con tokens de Dex.
+# El kube-apiserver vuelve a leer este archivo cuando cambia: no hace falta reiniciar K3s.
+apiVersion: apiserver.config.k8s.io/v1
+kind: AuthenticationConfiguration
+jwt:
+  - issuer:
+      url: {{ k3s_install.security.oidc.issuer_url }}
+      audiences:
+        - {{ k3s_install.security.oidc.client_id }}
+{% if k3s_server_oidc_ca_pem | default('') | length > 0 %}
+      certificateAuthority: |
+        {{ k3s_server_oidc_ca_pem | trim | indent(8) }}
+{% endif %}
+    claimMappings:
+      username:
+        claim: {{ k3s_install.security.oidc.username_claim }}
+        prefix: "{{ k3s_install.security.oidc.username_prefix }}"
+      groups:
+        claim: {{ k3s_install.security.oidc.groups_claim }}
+        prefix: "{{ k3s_install.security.oidc.groups_prefix }}"
+    # Dex deja entrar a otros teams de GitHub (p. ej. ia, solo para Open WebUI). Sin esta regla sus tokens
+    # autentican y reciben lo que Kubernetes da a system:authenticated (Calico: editar políticas de red).
+    claimValidationRules:
+      - expression: '{{ k3s_install.security.oidc.required_groups | to_json }}.exists(g, g in claims.{{ k3s_install.security.oidc.groups_claim }})'
+        message: "solo los teams {{ k3s_install.security.oidc.required_groups | join(', ') }} pueden entrar al API"

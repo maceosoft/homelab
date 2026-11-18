@@ -138,11 +138,11 @@ Profundización: [Catálogo GitOps](../gitops/index.md) · [Storage](../storage/
 
 ## Antes de empezar
 
-- [ ] [Fase 3 — K3s](fase-3-k3s.md) completada (`argocd-server` Running).
-- [ ] `kubectl` configurado en tu estación.
-- [ ] [Fase 0 — GitHub y 1Password](fase-0-preparacion.md#github-y-1password-org-maceosoft-manual-una-sola-vez)
+- [X] [Fase 3 — K3s](fase-3-k3s.md) completada (`argocd-server` Running).
+- [X] `kubectl` configurado en tu estación.
+- [X] [Fase 0 — GitHub y 1Password](fase-0-preparacion.md#github-y-1password-org-maceosoft-manual-una-sola-vez)
       completado (Apps, repos e items de 1Password).
-- [ ] En el router, el rango **`192.168.23.200–192.168.23.220`** fuera del
+- [X] En el router, el rango **`192.168.23.200–192.168.23.220`** fuera del
       DHCP (reservado): es el pool de MetalLB para los servicios
       `LoadBalancer`, como el Gateway ([esquema de IPs](../networking/index.md#esquema-de-ips)).
 
@@ -165,20 +165,20 @@ completo, ya lo tienes (`k3s_install.fetch_kubeconfig.enabled: true`).
 
     El rol `k3s_fetch_kubeconfig` lee `/etc/rancher/k3s/k3s.yaml` en
     `deborah`, cambia la dirección del API (Application Programming
-    Interface) por la IP real del control plane (o la VIP —IP virtual— si usas kube-vip)
+    Interface) por el nombre estable `k3s.homelab.local` (o la VIP —IP virtual— si usas kube-vip)
     y lo guarda en `~/.kube/homelab-k3s.yaml` con permisos `0600`.
 
 === "Alternativa manual"
 
     El archivo en el nodo es de root con permisos `600`, así que se lee con
-    `sudo`; después se cambia `127.0.0.1` por la IP del control plane. `<usuario-admin>` es tu usuario
+    `sudo`; después se cambia `127.0.0.1` por el nombre estable del API. `<usuario-admin>` es tu usuario
     administrador del nodo ([Fase 0, Día 0](fase-0-preparacion.md#dia-0-nodos-recien-instalados-solo-la-primera-vez-por-nodo)):
     aquí todavía no existe el acceso por SSO ([4.12](#412-ssh-a-los-hosts-con-dex-opcional)), que necesita a Dex.
 
     ```bash
     mkdir -p ~/.kube
     ssh <usuario-admin>@192.168.20.5 sudo cat /etc/rancher/k3s/k3s.yaml \
-      | sed 's#https://127.0.0.1:6443#https://192.168.20.5:6443#' \
+      | sed 's#https://127.0.0.1:6443#https://k3s.homelab.local:6443#' \
       > ~/.kube/homelab-k3s.yaml
     chmod 600 ~/.kube/homelab-k3s.yaml
     ```
@@ -190,11 +190,10 @@ export KUBECONFIG=~/.kube/homelab-k3s.yaml
 kubectl get nodes
 ```
 
-!!! tip "Alternativa web (Fase 5)"
-    Tras desplegar [vCluster Platform](fase-5-vcluster.md), puedes descargar
-    el kubeconfig del **management K3s** desde
-    [`https://vcluster.homelab.local`](https://vcluster.homelab.local) (connected cluster), con SSO GitHub vía Dex.
-    El kubeconfig local de arriba sigue siendo el camino para el bootstrap, antes de la Fase 5.
+!!! tip "Entrar con GitHub en vez del certificado de administrador"
+    Este kubeconfig lleva el certificado de administrador de K3s: es el de los playbooks y el de emergencia. Para el
+    día a día, con Dex ya instalado, cada persona del team `devops` arma uno sin llaves que entra con su cuenta de
+    GitHub: [Entrar a Kubernetes con GitHub](../operacion/acceso-kubernetes.md).
 
 <div class="card">
   <div class="card-kicker">Acceso kubectl</div>

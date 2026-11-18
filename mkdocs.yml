@@ -179,6 +179,7 @@ plugins:
             Procedimientos de rutina: Routine procedures
             URLs y accesos de los productos: Product URLs and access
             Entrar por SSH a los servidores: SSH into the servers
+            Entrar a Kubernetes con GitHub: Kubernetes login with GitHub
             Monitoreo y alertas: Monitoring and alerts
             Agregar un repo: Add a repo
             Agregar un nodo: Add a node
@@ -303,6 +304,7 @@ nav:
       - Procedimientos de rutina: operacion/index.md
       - URLs y accesos de los productos: operacion/urls-y-accesos.md
       - Entrar por SSH a los servidores: operacion/acceso-ssh.md
+      - Entrar a Kubernetes con GitHub: operacion/acceso-kubernetes.md
       - Monitoreo y alertas: operacion/monitoreo.md
       - Agregar un repo: operacion/agregar-repo.md
       - Agregar un nodo: operacion/agregar-nodo.md

@@ -10,6 +10,7 @@ paréntesis.
 
 | Sigla | Significado | Qué es |
 |---|---|---|
+| **AKS** | [Azure Kubernetes Service](https://learn.microsoft.com/azure/aks/) | Kubernetes administrado de Microsoft Azure. Su plugin `kubelogin` se llama igual que el de int128 que usa este HomeLab, pero no sirve con Dex. |
 | **ACL** | Access Control List | Lista de control de acceso: quién puede consultar un servicio (en BIND, una lista `lan` podría limitar las consultas a ciertas redes; en este HomeLab el DNS queda abierto a toda la red). |
 | **API** | Application Programming Interface | Interfaz por la que un programa expone operaciones a otros (p. ej. la API de Kubernetes en :6443). |
 | **ARC** | [Actions Runner Controller](https://github.com/actions/actions-runner-controller) | Controlador que corre runners de GitHub Actions dentro de Kubernetes. |

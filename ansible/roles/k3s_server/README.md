@@ -37,7 +37,7 @@ Desde [`group_vars/incus_cluster/k3s_install.yml`](../../group_vars/incus_cluste
 | `k3s_install.kube_vip.enabled` | `false` | Si true, añade VIP a TLS SANs |
 | `k3s_server_tls_sans` | endpoint, IP del API, deborah | SANs adicionales (`group_vars/all.yml`); el rol agrega además IP y nombre del nodo |
 | `k3s_install.security.secrets_encryption` | `true` | `--secrets-encryption` (igual en todos los servers) |
-| `k3s_install.security.oidc.*` | Dex, cliente `kubernetes` | `--kube-apiserver-arg=oidc-*` (issuer, client-id, username-claim `email`, groups-claim `groups`, CA) |
+| `k3s_install.security.oidc.*` | Dex, cliente `kubernetes` | Archivo `auth_config_path` (`AuthenticationConfiguration`: issuer, audiencia, claims `email`/`groups` con prefijo `oidc:`, CA y `required_groups`) y `--kube-apiserver-arg=authentication-config`. El apiserver relee el archivo sin reiniciar |
 | `k3s_server_cluster_init` / `k3s_server_join_url` / `k3s_server_token` | `false` / vacío / vacío | Usados por la mudanza: `--cluster-init`, `--server`, token compartido |
 | `k3s_server_reconfigure` | `false` | Re-ejecuta el instalador aunque K3s esté activo (la mudanza) |
 | `k3s_agent_kubelet_args` | `host_vars` | También se pasan como `--kubelet-arg` al server |
