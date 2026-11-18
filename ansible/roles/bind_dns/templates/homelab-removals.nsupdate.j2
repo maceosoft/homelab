@@ -1,0 +1,9 @@
+; Gestionado por Ansible (rol bind_dns). Nombres que Ansible escribía antes y ahora publica ExternalDNS
+; (o que ya no existen). Se aplica solo cuando cambia esta lista: así no vuelve a borrar lo que ya
+; recreó ExternalDNS.
+server 127.0.0.1
+zone homelab.local
+{% for name in bind_dns_removed_names %}
+update delete {{ name }}.homelab.local.
+{% endfor %}
+send

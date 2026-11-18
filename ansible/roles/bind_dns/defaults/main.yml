@@ -39,3 +39,48 @@ bind_dns_allowed_clients:
 bind_dns_rate_limit_enabled: false
 bind_dns_rate_limit_rps: 20
 bind_dns_rate_limit_exempt: "{{ bind_dns_allowed_clients }}"
+
+# --- Zona dinámica homelab.local (RFC 2136) ---------------------------------
+# Llaves TSIG que firman los cambios. Los secretos salen de 1Password (item bind_dns_tsig_op_item, un
+# campo por llave; se crean con `openssl rand -base64 32`). homelab-externaldns la usa también el Secret
+# de ExternalDNS en el clúster (apply_platform_secrets.py).
+bind_dns_tsig_op_item: bind-tsig
+bind_dns_tsig_keys:
+  - { name: homelab-ansible, field: ansible }
+  - { name: homelab-externaldns, field: externaldns }
+
+# Registros fijos de homelab.local (los escribe Ansible; ExternalDNS no puede tocarlos).
+bind_dns_static_records: >-
+  {{
+    [{'name': 'ns', 'ip': dns_primary},
+     {'name': 'incus', 'ip': hostvars[incus_cluster_leader].static_ip},
+     {'name': 'k3s', 'ip': k3s_api_ip}]
+    + bind_dns_node_records
+  }}
+# Un registro por nodo de incus_cluster (static_ip) y otro <nodo>-wifi si tiene wifi_ip.
+bind_dns_node_records: >-
+  {%- set out = [] -%}
+  {%- for host in groups['incus_cluster'] -%}
+  {%- set _ = out.append({'name': host, 'ip': hostvars[host].static_ip}) -%}
+  {%- if hostvars[host].wifi_ip is defined -%}
+  {%- set _ = out.append({'name': host ~ '-wifi', 'ip': hostvars[host].wifi_ip}) -%}
+  {%- endif -%}
+  {%- endfor -%}
+  {{ out }}
+
+# Nombres que Ansible borra de la zona: los que antes escribía a mano y ahora publica ExternalDNS (o que ya
+# no existen). Se aplica solo cuando cambia esta lista: borra todos sus registros y ExternalDNS vuelve a
+# crear los suyos en su siguiente ciclo (≈1 min sin esos nombres, una vez).
+bind_dns_removed_names:
+  - argocd
+  - api
+  - grafana
+  - ollama
+  - open-webui
+  - vcluster
+
+# --- Zona de Incus (instancias de ovn-lan; ver dns_incus_* en group_vars/all.yml) ---------
+bind_dns_incus_zone_enabled: true
+bind_dns_incus_zone: "{{ dns_incus_zone }}"
+bind_dns_incus_zone_network: "{{ dns_incus_zone_network }}"
+bind_dns_incus_dns_port: "{{ dns_incus_port }}"

@@ -131,6 +131,7 @@
 *[T2]: chip Apple T2 — Coprocesador de seguridad de las Mac Intel 2018-2020; maneja teclado, trackpad, audio y Touch ID, y en Linux necesita el kernel linux-t2 (nodo eve).
 *[TCP]: Transmission Control Protocol — Protocolo de transporte con conexión y entrega ordenada; sobre él viajan HTTP, TLS y SSH.
 *[TLS]: Transport Layer Security — Cifrado de las conexiones (lo que pone la S en HTTPS).
+*[TSIG]: Transaction SIGnature — Secreto compartido con el que se firman los cambios a un DNS (RFC 2845); BIND solo acepta los firmados con una llave conocida.
 *[TTL]: Time To Live — Tiempo que se guarda un dato en caché antes de volver a pedirlo.
 *[UDP]: User Datagram Protocol — Protocolo de transporte sin conexión; lo usan, por ejemplo, el DNS y VXLAN.
 *[UEFI]: Unified Extensible Firmware Interface — Firmware de arranque de los equipos modernos (reemplaza a la BIOS).

@@ -10,6 +10,12 @@ dns_primary: 192.168.20.5
 # y la resuelven argocd y api en el DNS (zona homelab.local de bind_dns).
 gateway_ip: 192.168.23.200
 dns_domain: mco.local
+# Zona de Incus con las instancias de su red OVN: la genera Incus (rol incus_dns_zone, DNS en el puerto
+# dns_incus_port de cada miembro) y BIND la copia como secundario (rol bind_dns). Las IPs son las internas
+# de OVN: se resuelven desde la LAN pero no se alcanzan (ovn-lan está aislada a propósito).
+dns_incus_zone: ovn.homelab.local
+dns_incus_zone_network: ovn-lan
+dns_incus_port: 8853
 # Dominios del "search" de /etc/resolv.conf (en orden).
 dns_search_domains:
   - homelab.local

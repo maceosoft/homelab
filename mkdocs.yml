@@ -211,6 +211,7 @@ plugins:
             Referencia técnica: Technical reference
             Inventario: Inventory
             Red: Network
+            DNS automático: Automatic DNS
             Clúster: Cluster
             Instalación manual: Manual installation
             Opciones del playbook: Playbook options
@@ -339,6 +340,7 @@ nav:
           - Inventario: hardware/inventory.md
           - Discovery (Ansible): hardware/discovery.md
       - Red: networking/index.md
+      - DNS automático: networking/dns-automatico.md
       - Incus:
           - Clúster: incus/cluster-setup.md
       - K3s:

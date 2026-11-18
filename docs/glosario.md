@@ -134,6 +134,7 @@ paréntesis.
 | **T2** | [chip Apple T2](https://wiki.t2linux.org/) | Coprocesador de seguridad de las Mac Intel 2018-2020; maneja teclado, trackpad, audio y Touch ID, y en Linux necesita el kernel `linux-t2` (nodo `eve`). |
 | **TCP** | Transmission Control Protocol | Protocolo de transporte con conexión y entrega ordenada; sobre él viajan HTTP, TLS y SSH. |
 | **TLS** | Transport Layer Security | Cifrado de las conexiones (lo que pone la S en HTTPS). |
+| **TSIG** | [Transaction SIGnature](https://datatracker.ietf.org/doc/html/rfc8945) | Secreto compartido con el que se firman los cambios a un DNS. ExternalDNS y Ansible escriben en BIND cada uno con su llave. |
 | **TTL** | Time To Live | Tiempo que se guarda un dato en caché antes de volver a pedirlo. |
 | **UDP** | User Datagram Protocol | Protocolo de transporte sin conexión; lo usan, por ejemplo, el DNS y VXLAN. |
 | **UEFI** | Unified Extensible Firmware Interface | Firmware de arranque de los equipos modernos (reemplaza a la BIOS). |
@@ -186,6 +187,7 @@ operación. Si una palabra te frena al leer, búscala aquí.
 | **[dqlite](https://dqlite.io/)** | Base de datos SQLite distribuida donde Incus guarda el estado del clúster, replicada entre los miembros: 3 votan y 1 queda de reserva. |
 | **Docker** | Herramienta para crear y correr contenedores en un computador ([docker.com](https://www.docker.com/)). En el HomeLab la usan los runners de ARC para construir imágenes. |
 | **Drift** / **self-heal** | Drift es la diferencia entre lo que dice Git y lo que hay de verdad en el clúster. Con self-heal, Argo CD la corrige solo. |
+| **[ExternalDNS](https://kubernetes-sigs.github.io/external-dns/)** | Controlador de Kubernetes que publica en un DNS los nombres de los `HTTPRoute` y Services, y los borra cuando desaparecen. En el HomeLab escribe en BIND: [DNS automático](networking/dns-automatico.md). |
 | **Exporter** | Programa pequeño que publica métricas para que vmagent las recoja: node-exporter da las del sistema de cada nodo y blackbox-exporter prueba URLs y DNS desde afuera. |
 | **Firewall** | Filtro que decide qué tráfico de red se permite y cuál se bloquea (en Linux, ufw o nftables). |
 | **[Flannel](https://github.com/flannel-io/flannel)** | El CNI que trae K3s por defecto. Este HomeLab lo reemplaza por Calico. |

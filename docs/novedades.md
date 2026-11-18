@@ -10,6 +10,10 @@ pymdownx.snippets. Una línea de fecha y título en negrita, dos o tres frases y
 -->
 
 <!-- --8<-- [start:recientes] -->
+- **18 nov 2026 · DNS automático.** Lo que se crea se registra solo en el DNS: las apps publicadas en Kubernetes
+  (ExternalDNS), las instancias de Incus en `ovn-lan` (`<instancia>.ovn.homelab.local`) y los nodos del inventario
+  (Ansible). Cada uno escribe con su propia llave y BIND impide que uno pise los nombres del otro.
+  [DNS automático](networking/dns-automatico.md).
 - **18 nov 2026 · vCluster open source en vez de vCluster Platform.** La interfaz web de vCluster no sirve sin pagar:
   su plan gratis no incluye el login con GitHub. Ahora los clústeres virtuales se crean con el CLI `vcluster` o con una
   Application de Argo CD, y se entra con la misma cuenta de GitHub que el resto del clúster.
@@ -19,11 +23,11 @@ pymdownx.snippets. Una línea de fecha y título en negrita, dos o tres frases y
   certificado de administrador. Los Secrets del clúster quedaron cifrados en disco, y el certificado del API acepta
   el nombre `k3s.homelab.local`.
   [Entrar a Kubernetes con GitHub](operacion/acceso-kubernetes.md).
+<!-- --8<-- [end:recientes] -->
 - **17 nov 2026 · Respaldos de PostgreSQL en Incus.** El PostgreSQL compartido de la plataforma tendrá sus respaldos
   en un bucket de Incus en `invincible`, publicado por S3 (Simple Storage Service) con un certificado de la CA propia
   del HomeLab. Un proxy delante evita cambiar el certificado de la API de Incus, y las contraseñas y llaves salen de
   1Password. [PostgreSQL y respaldos en Incus](storage/postgres.md).
-<!-- --8<-- [end:recientes] -->
 - **17 nov 2026 · Nueva estructura del repo `gitops`.** Cada app de Argo CD es ahora un archivo en
   `bootstrap/components/`: activarla o apagarla es mover el archivo a `apagadas/`, sin volver a aplicar nada. El
   ApplicationSet `homelab` las despliega por olas (cada ola espera a que la anterior esté sana) y se puede pausar una

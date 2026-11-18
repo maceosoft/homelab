@@ -1,0 +1,62 @@
+---
+# Corre en un miembro del clúster de Incus (la config es del clúster, salvo core.dns_address, que es de
+# cada miembro: se fija con --target en todos para que BIND pueda pedir la zona a cualquiera).
+
+- name: Dirección del DNS de Incus en cada miembro
+  ansible.builtin.command: "incus config get core.dns_address --target {{ item }}"
+  loop: "{{ groups['incus_cluster'] }}"
+  register: incus_dns_zone_addresses
+  changed_when: false
+  check_mode: false
+
+- name: Fijar la dirección del DNS de Incus en cada miembro
+  ansible.builtin.command: >-
+    incus config set core.dns_address={{ hostvars[item.item].static_ip }}:{{ incus_dns_zone_port }}
+    --target {{ item.item }}
+  loop: "{{ incus_dns_zone_addresses.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: item.stdout != hostvars[item.item].static_ip ~ ':' ~ incus_dns_zone_port
+  changed_when: true
+
+- name: Zonas DNS de Incus existentes
+  ansible.builtin.command: incus network zone list --format csv -c n
+  register: incus_dns_zone_list
+  changed_when: false
+  check_mode: false
+
+- name: Crear la zona
+  ansible.builtin.command: "incus network zone create {{ incus_dns_zone_name }}"
+  when: incus_dns_zone_name not in incus_dns_zone_list.stdout_lines
+  changed_when: true
+
+- name: Config de la zona actual
+  ansible.builtin.command: "incus network zone get {{ incus_dns_zone_name }} {{ item.key }}"
+  loop: "{{ incus_dns_zone_config | dict2items }}"
+  vars:
+    incus_dns_zone_config:
+      dns.nameservers: "{{ incus_dns_zone_nameserver }}"
+      peers.bind.address: "{{ incus_dns_zone_peer }}"
+  register: incus_dns_zone_current
+  changed_when: false
+  check_mode: false
+  failed_when: false
+
+- name: Ajustar la config de la zona
+  ansible.builtin.command: "incus network zone set {{ incus_dns_zone_name }} {{ item.item.key }}={{ item.item.value }}"
+  loop: "{{ incus_dns_zone_current.results }}"
+  loop_control:
+    label: "{{ item.item.key }}"
+  when: item.stdout | default('') != item.item.value
+  changed_when: true
+
+- name: Zona asociada a la red OVN
+  ansible.builtin.command: "incus network get {{ incus_dns_zone_network }} dns.zone.forward"
+  register: incus_dns_zone_forward
+  changed_when: false
+  check_mode: false
+
+- name: Asociar la zona a la red OVN (sus instancias se registran solas)
+  ansible.builtin.command: "incus network set {{ incus_dns_zone_network }} dns.zone.forward={{ incus_dns_zone_name }}"
+  when: incus_dns_zone_forward.stdout != incus_dns_zone_name
+  changed_when: true

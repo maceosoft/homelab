@@ -1,0 +1,9 @@
+---
+# Zona DNS de Incus con las instancias de la red OVN. BIND (rol bind_dns) la copia como secundario.
+incus_dns_zone_name: "{{ dns_incus_zone }}"
+incus_dns_zone_network: "{{ dns_incus_zone_network }}"
+incus_dns_zone_port: "{{ dns_incus_port }}"
+# Servidor DNS que puede pedir la zona por transferencia (AXFR) y al que Incus avisa los cambios (NOTIFY).
+incus_dns_zone_peer: "{{ dns_primary }}"
+# NS de la zona: sin él, BIND rechaza la transferencia ("has no NS records").
+incus_dns_zone_nameserver: ns.homelab.local

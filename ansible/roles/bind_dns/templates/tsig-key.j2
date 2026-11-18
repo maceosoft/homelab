@@ -1,0 +1,6 @@
+// Gestionado por Ansible (rol bind_dns). Llave TSIG {{ item.name }}: el secreto sale de 1Password
+// ({{ bind_dns_tsig_op_item }}/{{ item.field }}).
+key "{{ item.name }}" {
+        algorithm hmac-sha256;
+        secret "{{ bind_dns_tsig_secrets[item.field] }}";
+};

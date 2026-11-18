@@ -147,15 +147,6 @@
     validate: /usr/bin/named-checkconf %s
   notify: Reiniciar named
 
-- name: Declarar las zonas en named.conf.local
-  ansible.builtin.template:
-    src: named.conf.local.j2
-    dest: /etc/bind/named.conf.local
-    owner: root
-    group: bind
-    mode: "0644"
-  notify: Reiniciar named
-
 - name: Templar zona forward mco.local
   ansible.builtin.template:
     src: db.mco.local.j2
@@ -174,14 +165,125 @@
     mode: "0644"
   notify: Recargar zonas BIND
 
-- name: Templar zona forward homelab.local
+# --- homelab.local: zona dinámica (Ansible + ExternalDNS por RFC 2136) ---------------------------
+- name: Leer de 1Password los secretos TSIG
+  ansible.builtin.command:
+    argv:
+      - "{{ ansible_playbook_python }}"
+      - scripts/read_onepassword_field.py
+      - --item
+      - "{{ bind_dns_tsig_op_item }}"
+      - --field
+      - "{{ item.field }}"
+    chdir: "{{ playbook_dir }}"
+  loop: "{{ bind_dns_tsig_keys }}"
+  loop_control:
+    label: "{{ item.name }}"
+  delegate_to: localhost
+  become: false
+  register: bind_dns_tsig_read
+  changed_when: false
+  check_mode: false
+  failed_when: false
+  no_log: true
+  when: bind_dns_tsig_secrets is not defined
+
+# El script nunca escribe el secreto en stderr: mostrar el motivo es seguro.
+- name: Fallar con el motivo si no se pudo leer 1Password
+  ansible.builtin.assert:
+    that: item.rc == 0
+    fail_msg: "{{ bind_dns_tsig_op_item }}/{{ item.item.field }}: {{ item.stderr | default('') }}"
+    quiet: true
+  loop: "{{ bind_dns_tsig_read.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when: bind_dns_tsig_secrets is not defined
+
+- name: Guardar los secretos TSIG
+  ansible.builtin.set_fact:
+    bind_dns_tsig_secrets: "{{ dict(bind_dns_tsig_read.results | map(attribute='item.field') | zip(bind_dns_tsig_read.results | map(attribute='stdout'))) }}"
+  no_log: true
+  when: bind_dns_tsig_secrets is not defined
+
+- name: Escribir las llaves TSIG
+  ansible.builtin.template:
+    src: tsig-key.j2
+    dest: "/etc/bind/{{ item.name }}.key"
+    owner: root
+    group: bind
+    mode: "0640"
+  loop: "{{ bind_dns_tsig_keys }}"
+  loop_control:
+    label: "{{ item.name }}"
+  no_log: true
+  notify: Reiniciar named
+
+# force: false: el archivo solo se crea la primera vez. Después lo mantiene BIND (cambios dinámicos y su
+# diario .jnl): volver a templarlo borraría los registros de ExternalDNS. BIND (usuario bind) lo reescribe.
+- name: Crear la zona homelab.local (solo la primera vez)
   ansible.builtin.template:
     src: db.homelab.local.j2
     dest: /var/lib/bind/db.homelab.local
+    owner: bind
+    group: bind
+    mode: "0644"
+    force: false
+
+# Una zona que era estática (templada por versiones anteriores de este rol) tiene dueño root: BIND no
+# podría reescribirla al volcar el diario.
+- name: Dueño bind para la zona dinámica
+  ansible.builtin.file:
+    path: /var/lib/bind/db.homelab.local
+    owner: bind
+    group: bind
+
+- name: Declarar las zonas en named.conf.local
+  ansible.builtin.template:
+    src: named.conf.local.j2
+    dest: /etc/bind/named.conf.local
     owner: root
     group: bind
     mode: "0644"
-  notify: Recargar zonas BIND
+  notify: Reiniciar named
+
+# BIND tiene que aceptar ya los cambios dinámicos (update-policy) antes de nsupdate.
+- name: Aplicar la configuración de BIND antes de escribir registros
+  ansible.builtin.meta: flush_handlers
+
+- name: Archivo de registros fijos (nsupdate)
+  ansible.builtin.template:
+    src: homelab-records.nsupdate.j2
+    dest: /etc/bind/homelab-records.nsupdate
+    owner: root
+    group: bind
+    mode: "0640"
+  register: bind_dns_records_file
+
+- name: Archivo de nombres a quitar (nsupdate)
+  ansible.builtin.template:
+    src: homelab-removals.nsupdate.j2
+    dest: /etc/bind/homelab-removals.nsupdate
+    owner: root
+    group: bind
+    mode: "0640"
+  register: bind_dns_removals_file
+
+# Antes que los fijos: un nombre que pasa de la lista de quitados a la de fijos queda escrito.
+- name: Quitar de homelab.local los nombres que ya no escribe Ansible
+  ansible.builtin.command: nsupdate -k /etc/bind/homelab-ansible.key /etc/bind/homelab-removals.nsupdate
+  changed_when: true
+  when:
+    - bind_dns_removals_file is changed
+    - bind_dns_removed_names | length > 0
+    - not ansible_check_mode
+
+# Solo cuando cambia la lista (o con -e bind_dns_force_records=true, si alguien borró un registro a mano).
+- name: Escribir los registros fijos en homelab.local
+  ansible.builtin.command: nsupdate -k /etc/bind/homelab-ansible.key /etc/bind/homelab-records.nsupdate
+  changed_when: true
+  when:
+    - bind_dns_records_file is changed or (bind_dns_force_records | default(false) | bool)
+    - not ansible_check_mode
 
 - name: Habilitar named
   ansible.builtin.systemd:

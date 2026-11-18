@@ -1,3 +1,8 @@
+// Gestionado por Ansible (rol bind_dns).
+{% for key in bind_dns_tsig_keys %}
+include "/etc/bind/{{ key.name }}.key";
+{% endfor %}
+
 zone "mco.local" {
         type master;
         file "/var/lib/bind/db.mco.local";
@@ -8,7 +13,33 @@ zone "20.168.192.in-addr.arpa" {
         file "/var/lib/bind/db.mco.local.inv";
 };
 
+// Zona dinámica: Ansible escribe los nombres fijos y ExternalDNS los de las apps de Kubernetes.
+// La primera regla que coincide decide: ExternalDNS no puede tocar los nombres fijos ni el apex.
 zone "homelab.local" {
         type master;
         file "/var/lib/bind/db.homelab.local";
+        update-policy {
+                grant homelab-ansible zonesub ANY;
+                deny homelab-externaldns name homelab.local. ANY;
+{% for rec in bind_dns_static_records %}
+                deny homelab-externaldns name {{ rec.name }}.homelab.local. ANY;
+{% endfor %}
+                grant homelab-externaldns zonesub ANY;
+        };
+        // ExternalDNS lee la zona por transferencia para saber qué registros son suyos.
+        allow-transfer { key homelab-externaldns; key homelab-ansible; };
 };
+{% if bind_dns_incus_zone_enabled %}
+
+// Instancias de Incus en {{ bind_dns_incus_zone_network }}: la zona la genera Incus y BIND la copia.
+// Incus avisa los cambios (NOTIFY) y BIND los trae en segundos.
+zone "{{ bind_dns_incus_zone }}" {
+        type secondary;
+        primaries {
+{% for host in groups['incus_cluster'] %}
+                {{ hostvars[host].static_ip }} port {{ bind_dns_incus_dns_port }};
+{% endfor %}
+        };
+        file "/var/cache/bind/db.{{ bind_dns_incus_zone }}";
+};
+{% endif %}

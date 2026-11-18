@@ -190,6 +190,9 @@ firewall del nodo admite el puerto desde los nodos de K3s y desde los pods (el r
 
 ### Resolver los nombres del HomeLab desde tu equipo
 
+Los nombres se registran solos (apps de Kubernetes, instancias de Incus en `ovn-lan`, nodos): ver
+[DNS automático](dns-automatico.md).
+
 Las zonas `homelab.local` y `mco.local` solo las conoce el BIND de `deborah` (`192.168.20.5`); el DNS del router
 responde que no existen. Para usar desde tu equipo los nombres del HomeLab (`kubectl` con `k3s.homelab.local`,
 `https://ollama.homelab.local`, Grafana, etc.) hay que decirle al sistema que pregunte **solo esas dos zonas** a
