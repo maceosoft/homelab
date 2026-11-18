@@ -1,14 +1,20 @@
 # C4 Level 3 — Components
 
-Zoom into each **container** from [Level 2](overview.md#level-2-containers): internal components, technologies, and relationships. For the physical node map, continue to **[Level 4 — Deployment](nivel-4-despliegue.md)**.
+Zoom inside each **container** from [Level 2](overview.md#level-2-containers):
+internal components, technologies, and relationships. For the physical node map,
+continue to **[Level 4 — Deployment](nivel-4-despliegue.md)**.
 
 Back to [Overview (Level 1–2)](overview.md).
 
 ## 3.1 — K3s Management
 
-Breakdown of the bare-metal control cluster: GitOps (Argo CD), identity (Dex), CAPI/CAPN provisioning, service networking (MetalLB, Gateway), storage operators (OpenEBS, Longhorn), secrets (Sealed Secrets), upgrades (SUC), and optional vCluster Platform.
+Breakdown of the bare-metal control cluster: GitOps (Argo CD), identity (Dex),
+CAPI/CAPN provisioning, service networking (MetalLB, Gateway), storage operators
+(OpenEBS, Longhorn), secrets (Sealed Secrets), upgrades (SUC), and virtual
+clusters with vCluster (open source, optional).
 
-Operational detail: [Tech Stack](../implementacion/stack-tecnologico.md), [GitOps](../gitops/index.md).
+Operational detail: [Tech Stack](../implementacion/stack-tecnologico.md),
+[GitOps](../gitops/index.md).
 
 ```mermaid
 ---
@@ -24,7 +30,7 @@ flowchart LR
     subgraph k3s_mgmt["K3s Management"]
         direction LR
         argocd["<span style='color:#000'><b>Argo CD</b><br/><small>[Component: Helm]</small><br/>GitOps controller + server</span>"]
-        dex["<span style='color:#000'><b>Dex</b><br/><small>[Component: OIDC]</small><br/>SSO ArgoCD / vCluster / Incus UI</span>"]
+        dex["<span style='color:#000'><b>Dex</b><br/><small>[Component: OIDC]</small><br/>SSO ArgoCD / Grafana / Incus UI / kubectl</span>"]
         subgraph apps["Applications de Argo CD"]
             direction TB
             sealed["<span style='color:#000'><b>Sealed Secrets</b><br/><small>[Component: controller]</small><br/>Descifra SealedSecret</span>"]
@@ -33,7 +39,7 @@ flowchart LR
             openebs["<span style='color:#000'><b>OpenEBS</b><br/><small>[Component: Helm]</small><br/>LocalPV provisioner</span>"]
             longhorn["<span style='color:#000'><b>Longhorn</b><br/><small>[Component: Helm]</small><br/>Storage replicado v1</span>"]
             suc["<span style='color:#000'><b>SUC</b><br/><small>[Component: Helm]</small><br/>Upgrades K3s escalonados</span>"]
-            vcluster["<span style='color:#000'><b>vCluster Platform</b><br/><small>[Component: Helm]</small><br/>Sync manual opcional</span>"]
+            vcluster["<span style='color:#000'><b>vCluster</b><br/><small>[Component: Helm]</small><br/>Open source, sync manual opcional</span>"]
         end
         capi["<span style='color:#000'><b>Cluster API</b><br/><small>[Component: controllers]</small><br/>Core CAPI controllers</span>"]
         capn["<span style='color:#000'><b>CAPN</b><br/><small>[Component: provider]</small><br/>Incus provider controller</span>"]
@@ -65,7 +71,10 @@ flowchart LR
 
 ## 3.2 — Incus Cluster
 
-Internals of the HA (high availability) Incus cluster on the 4 physical nodes: dqlite quorum (3 members vote and `eve` stands by as reserve), daemon per member, pool `local` (driver `dir`), cluster groups, manual scheduler on `oliver`, native UI (user interface) on invincible and OIDC (OpenID Connect) Dex (Phase 4).
+Internals of the HA (high availability) Incus cluster on the 4 physical nodes:
+dqlite quorum (3 members vote and `eve` stands by as reserve), daemon
+per member, pool `local` (driver `dir`), cluster groups, manual scheduler on
+`oliver`, native UI on invincible and OIDC (OpenID Connect) Dex (Phase 4).
 
 Detail: [Incus Cluster](../incus/cluster-setup.md).
 
@@ -111,7 +120,9 @@ flowchart TB
 
 ## 3.3 — Workload Clusters
 
-Internal structure of an ephemeral **kubeadm** cluster provisioned by CAPN (Cluster API Provider for Incus) (e.g. `demo`): LXCMachine in Incus, control plane, workers, and workload CNI (Container Network Interface) Flannel. Not nested K3s (lightweight Kubernetes distribution).
+Internal structure of an ephemeral **kubeadm** cluster provisioned by CAPN (Cluster API Provider for Incus)
+(e.g. `demo`): LXCMachine in Incus, control plane, workers, and Flannel CNI (Container Network Interface) of the
+workload. It is not nested K3s (lightweight Kubernetes distribution).
 
 Detail: [CAPN](../capn/index.md), [Phase 6](../implementacion/fase-6-capn.md).
 
@@ -158,7 +169,9 @@ flowchart TB
 
 ## 3.4 — Storage
 
-Logical components of the hybrid tier **OpenEBS LocalPV** (default, all nodes) + **Longhorn v1** (cross-arch replication between `invincible` and `deborah`; see [Longhorn v1](../storage/index.md#longhorn-v1-selective-ha-cross-arch)). Pods run in K3s; here they are modeled as a separate C4 Level 2 container for clarity.
+Logical components of the hybrid tier **OpenEBS LocalPV** (default, all nodes) +
+**Longhorn v1** (cross-arch replica between `invincible` and `deborah`; see [Longhorn v1](../storage/index.md#longhorn-v1-selective-ha-cross-arch)). The pods
+run in K3s; here they are modeled as a separate C4 Level 2 container for clarity.
 
 Detail: [Storage](../storage/index.md).
 
@@ -199,7 +212,8 @@ flowchart TB
 
 ## 3.5 — Cinc Lab
 
-**Cinc/Chef** learning sandbox on Incus VMs (virtual machines) (Ubuntu 24.04), one on `@x86-nodes` and another on `@arm64-nodes`. Not a production piece of the HomeLab.
+**Cinc/Chef** learning sandbox in Incus VMs (virtual machines) (Ubuntu 24.04), one on
+`@x86-nodes` and another on `@arm64-nodes`. Not a production piece of the HomeLab.
 
 Detail: [Cinc/Chef Lab](../labs/cinc/index.md).
 
@@ -246,7 +260,13 @@ flowchart TB
 
 ## 3.6 — Monitoring
 
-Observability stack in the `monitoring` namespace, deployed by Argo CD. **VictoriaMetrics** (Prometheus-compatible metrics database) stores the series; **vmagent** scrapes them every 60 seconds from nodes, platform, and Incus; **vmalert** evaluates rules and **Alertmanager** sends alerts to Discord. **Probes** are run by **blackbox-exporter** (HTTP and DNS seen from inside the cluster). On each node, **node-exporter** publishes CPU, memory, and temperatures, and also reads the **textfile collectors**: `.prom` files that timers (`systemd timers`) write on the node with pending apt patches and DNS status (BIND); the SMART role is prepared in the repo.
+Observability stack in the `monitoring` namespace, deployed by Argo CD. **VictoriaMetrics** (Prometheus-compatible
+metrics database) stores the series; **vmagent** scrapes them every 60 seconds from nodes,
+the platform, and Incus; **vmalert** evaluates rules and **Alertmanager** sends alerts to Discord. The **probes**
+are run by **blackbox-exporter** (HTTP and DNS seen from inside the cluster). On each node, **node-exporter** exposes
+CPU, memory, and temperatures, and also reads the **textfile collectors**: `.prom` files that systemd
+timers (`systemd timers`) write on the node with pending apt patches and DNS status (BIND); the SMART
+role is staged in the repo.
 
 ```mermaid
 ---

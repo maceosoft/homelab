@@ -1,47 +1,68 @@
-# Move K3s control plane to another node (deborah → oliver)
+# Move the K3s control plane to another node (deborah → oliver)
 
-Procedure to move the **control plane** (the K3s server that holds cluster state and serves the API) from `deborah` to `oliver`, leaving `deborah` as a **worker**. Performed during a **maintenance window** with a person at the keyboard: the playbook pauses at several **pause points** for you to confirm each stage.
+Procedure to move the **control plane** (the K3s server that holds the cluster state and serves the
+API) from `deborah` to `oliver`, leaving `deborah` as a **worker**. It runs in a **maintenance window**
+with a person at the keyboard: the playbook stops at several **pause points** so you can confirm each stage.
 
 !!! note "Not planned"
-    The control plane stays on `deborah`. This procedure is documented in case it ever needs to be moved to another node.
+    The control plane stays on `deborah`. This procedure is documented in case it ever needs
+    to be moved to another node.
 
 ## Why it might be moved
 
-`deborah` is the machine with the most memory (31 GB), but it also runs Ollama, serves as the LAN DNS, and has a slow eMMC (soldered flash memory). A loaded model competes with the control plane for memory. `oliver` is a lightweight node (label `workload-tier=light`) with a steady load, and `deborah` is freed up for models and heavy workloads.
+`deborah` is the machine with the most memory (31 GB), but it also runs Ollama, acts as the LAN DNS (local network),
+and has a slow eMMC (soldered flash memory). A loaded model competes with the control plane for memory.
+`oliver` is a lightweight node (label `workload-tier=light`) with a steady load, and `deborah` is freed up for
+models and heavy workloads.
 
-!!! danger "Cluster is not rebuilt"
-    Longhorn (storage) stores its metadata inside cluster state: if lost, volumes become orphaned. That is why this procedure **transfers existing state**; it does not reinstall from scratch. Do not start without a verified backup.
+!!! danger "The cluster is not rebuilt"
+    Longhorn (the storage) stores its metadata inside the cluster state: if it is lost, volumes
+    become orphaned. That is why this procedure **transfers the existing state**; it does not reinstall from scratch.
+    Do not start without a verified backup.
 
-## How the move works
+## How the transfer works
 
-Today K3s runs with a single server and SQLite (a single file). The official K3s docs do not describe how to move that file to another node (and the token includes the CA hash, the cluster's certificate authority). What *is* documented is converting the datastore to **embedded etcd** (Kubernetes' distributed database, integrated into K3s), joining another server with the same token, and ending up with a single server. The playbook
+Today K3s runs with a single server and SQLite (a single file). The official K3s documentation does not describe
+how to move that file to another node (and the token includes the CA hash, the cluster's certificate authority).
+What *is* documented is converting the datastore to **embedded etcd** (Kubernetes' distributed database, integrated into K3s),
+joining another server with the same token, and ending up with a single server. The playbook
 [`playbook-k3s-move-controlplane.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-k3s-move-controlplane.yml)
 does exactly that, in stages, each with its tag (`tag`):
 
 | Stage | Tag | What it does | API |
 |---|---|---|---|
-| 1 | `preflight` | Checks: nodes `Ready`, Longhorn without degraded volumes, Argo CD synced | up |
-| 2 | `backup` | **Encrypted** backup of state, stored off-node (stops K3s for a few minutes on source) and generation of a distinct *agent-token* from the server token | down briefly |
-| 3 | `convert` | Converts `deborah` to etcd (`--cluster-init`) with security flags and repoints agents to name `k3s.homelab.local` | down briefly |
-| 4 | `join` | Drains `oliver`, removes its agent and joins it as second server | up |
+| 1 | `preflight` | Checks: nodes `Ready`, Longhorn with no degraded volumes, Argo CD synced | up |
+| 2 | `backup` | **Encrypted** backup of state, stored off-node (stops K3s for a few minutes on the source) and generation of a distinct *agent-token* from the server token | down briefly |
+| 3 | `convert` | Converts `deborah` to etcd (`--cluster-init`) with security flags and repoints agents to the name `k3s.homelab.local` | down briefly |
+| 4 | `join` | Drains `oliver`, removes its agent, and joins it as a second server | up |
 | 5 | `dns` | `k3s.homelab.local` switches to point at `oliver` | up |
-| 6 | `retire` | Leaves `oliver` as sole etcd member and `deborah` as agent | down briefly |
-| 7 | `verify` | Final verification, summary of manual steps and secure deletion (`shred`) of plaintext backup and `/root/k3s-move-*` on nodes | up |
+| 6 | `retire` | Leaves `oliver` as the sole etcd member and `deborah` as an agent | down briefly |
+| 7 | `verify` | Final verification, summary of manual steps, and secure deletion (`shred`) of the plaintext backup and `/root/k3s-move-*` on the nodes | up |
 
-Rollback (`--tags rollback`) **never runs unattended**.
+The rollback (`--tags rollback`) **never runs unattended**.
 
-!!! warning "Two etcd members during the window"
-    Between stages 4 and 6 the cluster has two etcd members (`deborah` and `oliver`). With two members there is no fault tolerance: if one goes down, the other loses quorum and the API stops responding. Do not touch the nodes outside the playbook during that interval.
+!!! warning "Two etcd members exist during the window"
+    Between stages 4 and 6 the cluster has two etcd members (`deborah` and `oliver`). With two members there is
+    no fault tolerance: if one goes down, the other loses quorum and the API stops responding. Do not touch the nodes
+    outside the playbook during that interval.
 
 ## Prerequisites
 
-- [ ] A window where the API can be unresponsive for several minutes in stages 2, 3 and 6: Argo CD does not sync and `kubectl` does not respond; running workloads keep running, except `deborah` pods, which are drained in stage 6.
+- [ ] A window where the API can be unresponsive for several minutes in stages 2, 3, and 6: Argo CD
+      does not sync and `kubectl` does not respond; workloads already running keep running, except the
+      `deborah` pods, which are drained in stage 6.
 - [ ] SSH access to `deborah` and `oliver` ([SSH Access](acceso-ssh.md)) and physical access to `deborah`.
-- [ ] Healthy Longhorn and synced Argo CD (the `preflight` checks this; Argo CD check can be skipped with `k3s_move_allow_unsynced`, but not recommended).
-- [ ] `playbook-bind-dns.yml` already applied, with the `k3s` record in the `homelab.local` zone: variable `k3s_api_endpoint` (`k3s.homelab.local`) replaces the control plane's fixed IP in agents, kubeconfig and API cert SANs (Subject Alternative Names).
-- [ ] HomeLab CA on nodes (role `opkssh`), because new servers trust Dex for user login.
-- [ ] An encryption method for the backup (contains cluster token and certificates): an `age` public key (`k3s_move_backup_age_recipient`) or a password for `gpg` (`k3s_move_backup_passphrase`, preferably via environment variable). Without either the playbook aborts, unless forced with `-e k3s_move_backup_unencrypted=true` (not recommended).
-- [ ] `oliver` with ~5 GB free memory. If it has heavy workloads, move them first.
+- [ ] Healthy Longhorn and synced Argo CD (the `preflight` checks this; the Argo CD check can be skipped with
+      `k3s_move_allow_unsynced`, but it is not recommended).
+- [ ] `playbook-bind-dns.yml` already applied, with the record `k3s` in the zone `homelab.local`: the variable
+      `k3s_api_endpoint` (`k3s.homelab.local`) replaces the control plane's fixed IP in the agents, the
+      kubeconfig, and the API certificate's SANs (Subject Alternative Names).
+- [ ] The HomeLab CA on the nodes (role `opkssh`), because new servers trust Dex for user login.
+- [ ] An encryption method for the backup (it contains the cluster token and certificates): an
+      `age` public key (`k3s_move_backup_age_recipient`) or a password for `gpg` (`k3s_move_backup_passphrase`, preferably via
+      environment variable). Without either the playbook aborts, unless you force it with
+      `-e k3s_move_backup_unencrypted=true` (not recommended).
+- [ ] `oliver` with about 5 GB of free memory. If it has heavy workloads, move them first.
 
 ## Step by step
 
@@ -53,13 +74,18 @@ From `ansible/`:
     ansible-playbook -i inventory.ini playbook-k3s-move-controlplane.yml --check --diff
     ```
 
-2. **Actual run.** With pauses enabled (default), the playbook asks for confirmation before backup, before converting to etcd, before joining `oliver`, before repointing DNS, and before removing the source:
+2. **Actual run.** With pauses enabled (default), the playbook asks for confirmation before the backup, before
+   converting to etcd, before joining `oliver`, before repointing DNS, and before removing the source:
 
     ```bash
     ansible-playbook -i inventory.ini playbook-k3s-move-controlplane.yml
     ```
 
-    Useful variables: `k3s_move_target` (destination, default `oliver`), `k3s_move_backup_dir` (where backup is stored, default `~/k3s-move-backups` on your machine), `k3s_move_backup_age_recipient` or `k3s_move_backup_passphrase` (encryption), `k3s_move_agent_token` (if you want to pin the *agent-token* instead of generating it), `k3s_move_drain_source`, `k3s_move_rotate_secrets`, `k3s_move_allow_unsynced` and `k3s_move_confirm=false` for non-interactive (not recommended).
+    Useful variables: `k3s_move_target` (the target, default `oliver`), `k3s_move_backup_dir` (where
+   the backup is stored, default `~/k3s-move-backups` on your machine), `k3s_move_backup_age_recipient` or
+   `k3s_move_backup_passphrase` (encryption), `k3s_move_agent_token` (if you want to pin the *agent-token* instead of
+   generating it), `k3s_move_drain_source`, `k3s_move_rotate_secrets`, `k3s_move_allow_unsynced` and
+   `k3s_move_confirm=false` for non-interactive (not recommended).
 
 3. **Pause points.**
     - After backup: open the file and verify its checksum before continuing.
@@ -68,11 +94,15 @@ From `ansible/`:
     - After repointing DNS: `dig +short k3s.homelab.local @192.168.20.5` should return the IP of `oliver`.
 
 !!! tip "If something doesn't look right, stop"
-    Each pause allows aborting with `Ctrl+C`. If the playbook is interrupted after stage 3, do not resume with loose `--tags`: stages 4 and 6 need the token obtained in stage 3, within the same run.
+    Each pause allows aborting with `Ctrl+C`. If the playbook is interrupted after stage 3, do not resume with
+    loose `--tags`: stages 4 and 6 need the token obtained in stage 3, within the same run.
 
-When finished, the playbook **does not modify the inventory**: you do that, as explained below. Agents stop using the server token and switch to their own **agent-token**, which ends up in `<k3s_move_backup_dir>/agent-token`.
+When finished, the playbook **does not modify the inventory**: you do that, as explained below. Agents stop using
+the server token and switch to their own **agent-token**, which ends up in `<k3s_move_backup_dir>/agent-token`.
 
-With the migration, the new server's hardening also applies: flags `oidc-*` toward Dex (human login, with `--oidc-username-prefix=oidc:` and `--oidc-groups-prefix=oidc:`), `--secrets-encryption` (encryption of Secrets at rest), and the K3s installer verified by checksum instead of `curl | sh`. The admin certificate remains for emergencies only. See [Authentication model](../security/modelo-de-autenticacion.md).
+The migration also applies the new server's hardening: people login with Dex
+(`--authentication-config`, with prefixes `oidc:` and only the `devops` team), `--secrets-encryption` (encryption of Secrets at rest), and the K3s installer verified by checksum instead of `curl | sh`. The admin certificate remains for emergencies only. See
+[Authentication model](../security/modelo-de-autenticacion.md).
 
 ## Verification
 
@@ -89,17 +119,22 @@ With the migration, the new server's hardening also applies: flags `oidc-*` towa
 
 The playbook does not touch these files; edit them manually when done (and commit yourself):
 
-- [`inventory.ini`](https://github.com/maceosoft/homelab/blob/main/ansible/inventory.ini): `deborah` changes from `[k3s_server]` to `[k3s_agent]` and `oliver` changes from `[k3s_agent]` to `[k3s_server]` (and its `k3s_role`).
+- [`inventory.ini`](https://github.com/maceosoft/homelab/blob/main/ansible/inventory.ini): `deborah` changes from
+  `[k3s_server]` to `[k3s_agent]` and `oliver` changes from `[k3s_agent]` to `[k3s_server]` (and its `k3s_role`).
 - `group_vars/all.yml`: `k3s_api_ip` becomes `192.168.20.7` (the IP of `oliver`) and `k3s_move_done` to `true`.
-- `host_vars/deborah.yml` and `host_vars/oliver.yml`: labels and K3s options follow `k3s_move_done`; `deborah` retains `workload-tier=heavy` and `oliver` remains `light`.
+- `host_vars/deborah.yml` and `host_vars/oliver.yml`: labels and K3s options still follow `k3s_move_done`;
+  `deborah` keeps `workload-tier=heavy` and `oliver` remains `light`.
 - Reapply `playbook-bind-dns.yml` so the zone aligns with `k3s_api_ip`.
-- **SUC plans** (*System Upgrade Controller*, the automatic K3s updater; [`addons/cluster/k3s-upgrade/`](https://github.com/maceosoft/gitops/tree/main/addons/cluster/k3s-upgrade)): they select the control plane by the label `node-role.kubernetes.io/control-plane`, so they don't change and now update `oliver` first.
+- **SUC plans** (*System Upgrade Controller*, the automatic K3s updater; [`addons/cluster/k3s-upgrade/`](https://github.com/maceosoft/gitops/tree/main/addons/cluster/k3s-upgrade)): select
+  the control plane by the label `node-role.kubernetes.io/control-plane`, so they don't change and now update `oliver` first.
 
-Other guides discussing the control plane: [Remove or replace a node](sacar-nodo.md), [Add a node](agregar-nodo.md), [Update K3s](actualizar-k3s.md), and [Phase 3](../implementacion/fase-3-k3s.md).
+Other guides that mention the control plane: [Remove or replace a node](sacar-nodo.md),
+[Add a node](agregar-nodo.md), [Upgrade K3s](actualizar-k3s.md), and
+[Phase 3](../implementacion/fase-3-k3s.md).
 
 ## Rollback
 
-Restore the original SQLite in `deborah` from backup and return `oliver` to agent:
+Restore the original SQLite on `deborah` from the backup and return `oliver` to agent:
 
 ```bash
   # o -e k3s_move_backup_passphrase=...
@@ -108,41 +143,45 @@ ansible-playbook -i inventory.ini playbook-k3s-move-controlplane.yml --tags roll
   -e k3s_move_backup_age_identity=<archivo de identidad age>
 ```
 
-The tag is the date part of the backup filename in the backup directory. Rollback is four steps, in this order: **1)** DNS points back to `deborah` and wait ~300 seconds for propagation (otherwise the agent reinstalled on `oliver` would try to join itself via `k3s.homelab.local`); **2)** the source is restored; **3)** `oliver` returns to agent; **4)** the other agents recover the original token. **All cluster changes after the backup are lost**: decide calmly before reverting. If you already edited the inventory, set it back as it was.
+The tag is the date portion of the backup filename in the backups directory. Rollback is four
+steps, in this order: **1)** DNS points back to `deborah` and wait ~300 seconds for propagation (otherwise
+the agent reinstalled on `oliver` would try to join itself via `k3s.homelab.local`); **2)** the source is restored; **3)** `oliver` returns to agent; **4)** the other agents recover the original token. **All cluster changes after the backup are lost**: decide calmly before reverting. If you had already edited the inventory, put it back as it was.
 
 ## Manual steps when finished
 
-1. **Kubeconfig.** Regenerate yours, which pointed to the old IP:
+1. **Kubeconfig.** Regenerate the one on your machine, which pointed to the old IP:
 
     ```bash
     ansible-playbook -i inventory.ini playbook-k3s.yml --tags kubeconfig
     ```
 
-2. **Save the migration secrets in 1Password.** The *agent-token* (`<k3s_move_backup_dir>/agent-token`) and the key or password used to encrypt the backup. The plaintext backup and the nodes' `/root/k3s-move-*` files are deleted automatically at the end (`shred`); only the encrypted backup on your machine remains, which is what serves for rollback.
-3. **Check Argo CD, Longhorn, and Kong** with the [Verification](#verificacion) table.
-4. **Dex login permissions.** The repo `gitops` includes the ClusterRoleBinding [`oidc-devops-view`](https://github.com/maceosoft/gitops/blob/main/addons/security/rbac/oidc-devops.yaml) (Application `security-rbac`, already active), which grants the ClusterRole `view` (read-only) to the group `oidc:maceosoft:devops`. It's harmless until OIDC tokens exist.
+2. **Store migration secrets in 1Password.** The *agent-token* (`<k3s_move_backup_dir>/agent-token`) and the
+   key or password used to encrypt the backup. The plaintext backup and the nodes' `/root/k3s-move-*` files
+   are deleted automatically at the end (`shred`); only the encrypted backup on your machine remains, which is what serves for
+   rollback.
+3. **Review Argo CD, Longhorn, and Kong** with the [Verification](#verificacion) table.
+4. **Dex login permissions.** The `gitops` repo brings the ClusterRoleBinding
+   [`oidc-devops-view`](https://github.com/maceosoft/gitops/blob/main/addons/security/rbac/oidc-devops.yaml)
+   (Application `security-rbac`, already active), which grants the ClusterRole `view` (read-only) to the
+   group `oidc:maceosoft:devops`. It is harmless until there are OIDC tokens.
 
     !!! info "Why read-only and not `cluster-admin`"
-        Logging in via Dex should not grant full cluster control by default: state changes go through Git and Argo CD, and the admin certificate remains for emergencies. If a person needs write access in a namespace, extend with a `RoleBinding` that binds the ClusterRole `edit` to the same group **only in that namespace**, instead of expanding the ClusterRoleBinding.
+        Logging in with Dex must not grant full cluster control by default: state changes go through Git and
+        Argo CD, and the admin certificate stays for emergencies. If a person needs write access in a
+        namespace, extend with a `RoleBinding` that binds the ClusterRole `edit` to the same group **only in that
+        namespace**, instead of widening the ClusterRoleBinding.
 
-5. **Optional, Calico risk.** Verify that a regular service account cannot create global policies (see [Optional checks](../security/modelo-de-autenticacion.md#optional-checks)).
+5. **Optional, Calico risk.** Verify that a regular service account cannot create global policies (see
+   [Optional checks](../security/modelo-de-autenticacion.md#optional-checks)).
 
-### Human login with Dex (kubelogin)
+### People login with Dex (kubelogin)
 
-With the `oidc-*` flags enabled, you can access the API with your GitHub account instead of the admin certificate. Install the `kubelogin` plugin (`kubectl oidc-login`) and request a token:
-
-```bash
-kubectl oidc-login get-token \
-  --oidc-issuer-url=https://argocd.homelab.local/api/dex \
-  --oidc-client-id=kubernetes \
-  --oidc-extra-scope=email,groups
-```
-
-The browser opens; the Dex `kubernetes` client is public (PKCE) and receives the response at `http://localhost:8000` (or, as a fallback, `18000`): those ports must be free on your machine. To use it permanently, configure a user in your kubeconfig with `exec` pointing to that command.
+With Dex login active, you can access the API with your GitHub account instead of the admin
+certificate: see [Log in to Kubernetes with GitHub](acceso-kubernetes.md).
 
 ## Risks
 
-- It is a **single** control plane (no HA, high availability): if `oliver` goes down, the cluster loses its API until restored. Already running workloads continue to run.
-- Switching from SQLite to etcd is a data store change: that is why backup and rollback are part of the procedure, not an extra.
+- It is a **single** control plane (no HA, high availability): if `oliver` goes down, the cluster loses its API until restored. Already-running workloads keep running.
+- Switching from SQLite to etcd is a data store change: that's why backup and rollback are part of the procedure, not an extra.
 
 See also [Remove or replace a node](sacar-nodo.md), [Upgrade K3s](actualizar-k3s.md), and [Phase 3 — K3s](../implementacion/fase-3-k3s.md).

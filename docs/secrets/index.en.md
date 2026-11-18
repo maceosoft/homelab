@@ -2,7 +2,7 @@
 
 !!! info "Part of the implementation guide"
     - **[Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets)** — Phase 4 wave 0; CAPN (Cluster API Provider for Incus) Phase 6.
-    - **OAuth (Open Authorization) Dex** — [Phase 4 step 4.7](../implementacion/fase-4-gitops.md#47-oauth-secrets-github-vcluster-incus-ui).
+    - **OAuth (Open Authorization) Dex** — [Phase 4 step 4.7](../implementacion/fase-4-gitops.md#47-oauth-secrets-github-incus-ui).
     - **maceosoft platform** (Argo CD Apps, ARC —Actions Runner Controller— and OpenTofu, FTP) — [1Password → cluster](../maceosoft/github.md#paso-3-cluster-y-secretos-de-plataforma).
 
 ## Diagram — three secret pathways
@@ -40,8 +40,8 @@ rm secret-plano.yaml
     rotates it every 30 days): if you reinstall K3s, it's lost and the `SealedSecret`
     in Git can no longer be decrypted. Here the pair is generated **once**, stored
     in 1Password (item `sealed-secrets`) and
-    `playbook-platform-secrets.yml` brings it to the cluster; automatic
-    rotation is disabled (`keyrenewperiod: "0"`). How to generate it:
+    `playbook-platform-secrets.yml` syncs it to the cluster; automatic rotation
+    is disabled (`keyrenewperiod: "0"`). How to generate it:
     [maceosoft platform — Step 2](../maceosoft/github.md#step-2-repos-argocd-app-and-ftp-manual).
 
     Since the certificate (the public key) is also in 1Password, you can seal
@@ -57,25 +57,21 @@ age-keygen -o key.txt
 sops --encrypt --age <public-key> secrets.yaml > secrets.enc.yaml
 ```
 
-## OAuth Dex (GitHub + vCluster + Incus UI) — 1Password local SDK
+## OAuth Dex (GitHub + Incus UI) — local 1Password SDK
 
-**GitHub OAuth App** credentials and Dex clients **vCluster Platform** and
-**Incus UI** are not stored in Git.
+The **GitHub OAuth App** credentials don't go in Git. It's Dex's only secret: its clients (Grafana, Open
+WebUI, **Incus UI** —user interface—, SSH with `opkssh` and `kubectl`) are public OIDC —OpenID Connect— clients
+with PKCE, no secret.
 
 | Source | Fields |
 |---|---|
 | **GitHub** (OAuth App of org `maceosoft`) | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` |
-| **Ansible** (`playbook-dex-oauth-secrets.yml`) | `VCLUSTER_CLIENT_SECRET` (generates in 1Password if missing; applies to Dex and Helm) |
 
-`VCLUSTER_CLIENT_SECRET` is **not** created in GitHub: Ansible generates it in 1Password if missing.
-Incus doesn't use a secret (it's a public OIDC —OpenID Connect— client in Dex).
-
-They are read with the **[1Password Python SDK](https://github.com/1Password/onepassword-sdk-python)**
+They're read with the **[1Password Python SDK](https://github.com/1Password/onepassword-sdk-python)**
 and **DesktopAuth** on the workstation where the 1Password app is unlocked.
 
-Defaults: **personal account** (`ONEPASSWORD_ACCOUNT_NAME=Personal`), vault
-**`HomeLab`**, one item with fields `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`,
-`VCLUSTER_CLIENT_SECRET`. Test: `ansible/scripts/check_1password.py`.
+Default: **personal account** (`ONEPASSWORD_ACCOUNT_NAME=Personal`), vault
+**`HomeLab`**, one item with fields `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET`. Test: `ansible/scripts/check_1password.py`.
 
 Homepage `https://argocd.homelab.local` (informational); Redirect URIs
 `https://argocd.homelab.local/api/dex/callback` (critical).
@@ -84,14 +80,14 @@ With the CLI: the OAuth App and its client secret are created **only from the we
 [maceosoft platform — GitHub](../maceosoft/github.md#oauth-app-maceosoft-dex). To read a field without displaying it:
 `op read "op://HomeLab/maceosoft-dex/GITHUB_CLIENT_ID" | wc -c`.
 
-Details: [Phase 4 — 4.7](../implementacion/fase-4-gitops.md#47-oauth-secrets-github-vcluster-incus-ui)
+Details: [Phase 4 — 4.7](../implementacion/fase-4-gitops.md#47-oauth-secrets-github-incus-ui)
 · [`1password.md`](https://github.com/maceosoft/gitops/blob/main/addons/argocd/secrets/1password.md)
 
 ## Monitoring: Discord webhooks, healthchecks.io ping, and Grafana (1Password → cluster Secrets)
 
 Optional ([Phase 4 — 4.13](../implementacion/fase-4-gitops.md#413-monitoring-and-alerts-optional)). How to create credentials:
 [Discord and healthchecks.io](../maceosoft/discord-healthchecks.md). `playbook-platform-secrets.yml` creates,
-in the `monitoring` namespace, three Secrets from 1Password; their values never pass through Git: `homelab` is public and `gitops`, though private, stores no secrets.
+in the `monitoring` namespace, three Secrets from 1Password; their values never pass through Git: `homelab` is public and `gitops`, though private, doesn't store secrets.
 
 | 1Password Item | Fields | Secret in cluster |
 |---|---|---|
@@ -99,7 +95,7 @@ in the `monitoring` namespace, three Secrets from 1Password; their values never 
 | `discord-webhooks` | `deployments` *(optional)* | keys `discord-despliegues-url` and `discord-avisos-url` in `argocd/argocd-notifications-secret` (Argo CD notifications, [4.14](../implementacion/fase-4-gitops.md#414-argocd-notifications-to-discord-optional)) |
 | `healthchecks-ping` | `url` | `monitoring/healthchecks-ping` |
 | `grafana-admin` | `password` (and `username`, optional) | `monitoring/grafana-admin` |
-| `discord-webhooks` | `ai` *(optional)* | key `ai` in `monitoring/discord-webhooks` (channel `#ia` for [AI reports](../operacion/logs.md#daily-and-weekly-reports-in-ia)) |
+| `discord-webhooks` | `ai` *(optional)* | key `ai` in `monitoring/discord-webhooks` (channel `#ia` of [AI reports](../operacion/logs.md#daily-and-weekly-reports-in-ia)) |
 | `open-webui` *(AI assistant, optional)* | `WEBUI_SECRET_KEY` | `ai/open-webui-secret` ([how to generate](../operacion/ia-ollama.md#create-the-open-webui-key-once)) |
 | `ollama-router` *(AI assistant, optional)* | `registry_token`, `open-webui`, `k8sgpt`, `reports`, `alert-triage`, `translate` | `ai/ollama-router-secrets` (all fields) and a Secret `ollama-token-<cliente>` with key `token` in each client's namespace ([rotation](../operacion/rotar-credenciales.md#ollama-and-internal-services-tokens)) |
 | `open-terminal` *(optional)* | `api_key` | `ai-sandbox/open-terminal-api-key` (mounted as file in pod) and `ai/open-terminal-api-key` ([guide](../operacion/ia-ollama.md#open-terminal-terminal-for-the-assistant)) |
@@ -107,16 +103,16 @@ in the `monitoring` namespace, three Secrets from 1Password; their values never 
 | `mcp-api-key` *(optional)* | `key` | `ai/mcp-api-key` |
 
 Tokens are generated with `openssl rand -hex 32` (the script requires at least 32 characters and no spaces). The `translate` field
-creates no Secret in the cluster: it's the value of the `OLLAMA_TOKEN` GitHub Actions secret. If the Dex client for Open WebUI
-turns out to be confidential (because it doesn't support PKCE —Proof Key for Code Exchange—), its secret is generated with `playbook-dex-oauth-secrets.yml`, like `VCLUSTER_CLIENT_SECRET`.
+doesn't create any Secret in the cluster: it's the value of the `OLLAMA_TOKEN` GitHub Actions secret. If the Dex client for Open WebUI
+turns out to be confidential (because it doesn't support PKCE —Proof Key for Code Exchange—), its secret is generated with `playbook-dex-oauth-secrets.yml` (adding it to `dex_oauth_generated_fields`, currently empty).
 
 The playbook applies Secrets with `--server-side` and works with Python 3.9 or later. All AI items are
-optional (Open Terminal, the `#ia` channel, the tokens): if one is missing, only what depends on it is skipped. The `ai` and `ai-sandbox` namespaces
-are created without Pod Security Admission labels and with the `Prune=false,Delete=false`
+optional (Open Terminal, the `#ia` channel, the tokens): if one is missing, only what depends on it is skipped. The namespaces
+`ai` and `ai-sandbox` are created without Pod Security Admission labels and with the `Prune=false,Delete=false`
 Argo CD annotations, so Argo CD doesn't delete them on sync.
 
-Alertmanager reads URLs as mounted files (`webhook_url_file`), so they don't even appear in its configuration. The script
-requires both Discord URLs to have the `https://discord.com/api/webhooks/<id>/<token>` format. To rotate a webhook, delete it and
+Alertmanager reads URLs as mounted files (`webhook_url_file`), so they don't even appear in its config. The script
+requires both Discord URLs to have the format `https://discord.com/api/webhooks/<id>/<token>`. To rotate a webhook, delete it and
 create a new one in Discord, update the item, and run the playbook again.
 
 ## Local AI: create tokens with `op`
@@ -129,9 +125,9 @@ command; each field receives a distinct `openssl rand -hex 32` value (64 hex cha
 |---|---|---|
 | `ollama-router` | `registry_token`, `open-webui`, `k8sgpt`, `reports`, `alert-triage`, `translate` | One token per router client and one for node registration |
 | `alert-triage-webhook` | `token` | Alertmanager sends it to `alert-triage` |
-| `mcp-api-key` | `key` | Key for Open WebUI MCP tools |
-| `open-terminal` | `api_key` | Key for Open Terminal sandbox |
-| `open-webui` | `WEBUI_SECRET_KEY` | Key with which Open WebUI signs sessions |
+| `mcp-api-key` | `key` | Open WebUI MCP tools key |
+| `open-terminal` | `api_key` | Open Terminal sandbox key |
+| `open-webui` | `WEBUI_SECRET_KEY` | Key Open WebUI uses to sign sessions |
 
 ```bash
 op item create --category "Secure Note" --vault HomeLab --title ollama-router \
@@ -191,11 +187,11 @@ Then run `playbook-platform-secrets.yml` again and restart the pods that use it 
 
 `playbook-platform-secrets.yml` also creates the Secrets for the shared PostgreSQL (CloudNativePG) and its backups
 in Incus S3 (Simple Storage Service). Details and rollout:
-[PostgreSQL and backups on Incus](../storage/postgres.md).
+[PostgreSQL and backups in Incus](../storage/postgres.md).
 
 | 1Password Item | Fields | Cluster Secret |
 |---|---|---|
-| `postgres-homelab-agent` | `password` (**if missing, playbook generates it** and saves it in the item) | `postgres/postgres-homelab-agent` (`kubernetes.io/basic-auth`, label `cnpg.io/reload`) and `ai/homelab-agent-postgres` (`DATABASE_URL`) |
+| `postgres-homelab-agent` | `password` (**if missing, the playbook generates it** and stores it in the item) | `postgres/postgres-homelab-agent` (`kubernetes.io/basic-auth`, label `cnpg.io/reload`) and `ai/homelab-agent-postgres` (`DATABASE_URL`) |
 | `postgres-s3` *(optional, backups)* | `access_key`, `secret_key` (created by the operator) | `postgres/postgres-s3` (`ACCESS_KEY_ID`, `ACCESS_SECRET_KEY`; label `cnpg.io/reload`) |
 | — | — | `postgres/incus-s3-ca`: `ca.crt` of `cert-manager/homelab-ca`, public certificate only |
 
@@ -211,9 +207,9 @@ in Incus S3 (Simple Storage Service). Details and rollout:
 [`playbook-rotate-root-passwords.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-rotate-root-passwords.yml)
 generates a new password per node (not idempotent on purpose — each
 run rotates), applies it in the local `root` of each host (`become` +
-`ansible.builtin.user`, hashed with `password_hash('sha512')`) and saves it
+`ansible.builtin.user`, hashed with `password_hash('sha512')`) and stores it
 in the **`HomeLab`** vault, one item per host (`root@invincible`,
-`root@oliver`, `root@deborah`, field `password`). Does not touch SSH (Secure Shell) — `root` login
+`root@oliver`, `root@deborah`, field `password`). It doesn't touch SSH (Secure Shell) — `root` login
 via SSH is already disabled by `host_hardening`
 (`PermitRootLogin no`); this is defense in depth for console/`su -`.
 
@@ -265,12 +261,12 @@ To read a password when you need it (e.g., via console), with the 1Password CLI 
 === "🏠 At home"
 
     Secrets live in 1Password and reach the cluster via a playbook; what goes to Git is encrypted with Sealed Secrets
-    or SOPS + age, never in plaintext. No need to maintain a secrets server, and for a single person it's enough.
+    or SOPS + age, never in plaintext. No need to maintain a secrets server, and for a single person this is enough.
 
 === "🏢 In a company"
 
-    - **Benefits:** the same pattern (a central manager, nothing in plaintext in Git, one secret per client) provides a single place
-      to see who has what, and revoke or rotate a credential without touching code.
+    - **Benefits:** the same pattern (a central manager, nothing in plaintext in Git, one secret per client) gives a single place
+      to see who has what, and to revoke or rotate a credential without touching code.
     - **Central manager with auditing:** uses [HashiCorp Vault](https://developer.hashicorp.com/vault),
       [1Password Business](https://1password.com/business-security) or
       [CyberArk](https://www.paloaltonetworks.com/idira/machine/secrets-management) (now part of Palo Alto Networks),
@@ -284,7 +280,7 @@ To read a password when you need it (e.g., via console), with the 1Password CLI 
 
 === "☁️ In the cloud"
 
-    | Cloud | Equivalent Service |
+    | Cloud | Equivalent service |
     |---|---|
     | GCP | [Secret Manager](https://cloud.google.com/security/products/secret-manager) |
     | AWS | [AWS Secrets Manager](https://aws.amazon.com/secrets-manager/) |

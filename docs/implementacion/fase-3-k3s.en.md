@@ -14,14 +14,14 @@ LoadBalancer via GitOps later.
 !!! abstract "Learn this phase"
     **In short:** Kubernetes is a restaurant manager: you say "I always want three
     cooks working" and it handles replacing whoever is missing. The **control plane** is management
-    (decides) and **workers** are the kitchen (execute). K3s is a Kubernetes version designed for
+    (decides) and **workers** are the kitchen (do the work). K3s is a Kubernetes version designed for
     small teams.
 
     **Key concepts**
 
-    - **Node:** a cluster machine; can be control plane (decides) or worker (executes).
+    - **Node:** a machine in the cluster; can be control plane (decides) or worker (executes).
     - **Pod:** the smallest execution unit: one or more containers that live together.
-    - **Deployment:** declares how many pod copies must exist and keeps them.
+    - **Deployment:** declares how many copies of a pod should exist and keeps them running.
     - **CNI:** the component that gives pods networking; here, Calico.
     - **`kubectl` and kubeconfig:** the command-line tool and the file with cluster access data.
 
@@ -78,7 +78,7 @@ flowchart TB
 - **[Argo CD](https://argo-cd.readthedocs.io/)** — Bootstrap controller; Phase 3 → GitOps Phase 4.
 - **[Ansible](https://docs.ansible.com/)** — `playbook-k3s.yml`.
 
-Deep dive: [Playbook options](../k3s/playbook-options.md) · [Ansible roles catalog](../ansible/index.md) · [K3s manual (legacy)](../k3s/index.md)
+Deep dive: [Playbook options](../k3s/playbook-options.md) · [Ansible roles catalog](../ansible/index.md) · [Manual K3s (legacy)](../k3s/index.md)
 
 **This decision in other environments**
 
@@ -86,7 +86,7 @@ Deep dive: [Playbook options](../k3s/playbook-options.md) · [Ansible roles cata
 
     Single control plane on deborah, with K3s default datastore (SQLite), and three workers. It's simple, uses
     little memory and is enough to learn; if deborah goes down, pods keep running but you can't change anything
-    until it returns. If you later want high availability, K3s can switch to
+    until it comes back. If you later want high availability, K3s can switch to
     [embedded etcd](https://docs.k3s.io/datastore/ha-embedded).
 
 === "🏢 In a company"
@@ -97,12 +97,12 @@ Deep dive: [Playbook options](../k3s/playbook-options.md) · [Ansible roles cata
     - **High availability:** **3 control planes** are used (odd number so etcd maintains quorum), with
       embedded or [external](https://docs.k3s.io/datastore) etcd, behind a virtual IP or a load balancer.
       SQLite doesn't work with multiple servers.
-    - **Zero-downtime upgrades:** with multiple control planes you upgrade one at a time and the API never goes down.
+    - **Zero-downtime upgrades:** with multiple control planes you update one at a time and the API never goes down.
     - **Commercial support:** it's common to pay for a supported distribution with security patches, such as
       [RKE2](https://docs.rke2.io/) within [SUSE Rancher Prime](https://www.suse.com/products/rancher/) or
       [Red Hat OpenShift](https://www.redhat.com/en/technologies/cloud-computing/openshift).
-    - **When K3s makes sense:** at the edge (stores, branches, factories, IoT), where there's little hardware, few
-      technical people on site or intermittent connectivity. There a small, easy-to-replace cluster is worth more than a large one.
+    - **When K3s makes sense:** at the edge (stores, branches, factories, IoT), where there's little hardware,
+      few technical people on site or intermittent connectivity. There a small, easy-to-replace cluster is worth more than a large one.
 
 === "☁️ In the cloud"
 
@@ -118,8 +118,8 @@ Deep dive: [Playbook options](../k3s/playbook-options.md) · [Ansible roles cata
 
 ## Before you start
 
-- [ ] [Phases 0](fase-0-preparacion.md), [1](fase-1-red.md) and [2](fase-2-incus.md) completed.
-- [ ] Healthy Incus cluster (optional but recommended before CAPN —Cluster API Provider for Incus—).
+- [X] [Phases 0](fase-0-preparacion.md), [1](fase-1-red.md) and [2](fase-2-incus.md) completed.
+- [X] Healthy Incus cluster (optional but recommended before CAPN —Cluster API Provider for Incus—).
 
 ## Run
 
@@ -127,9 +127,9 @@ Deep dive: [Playbook options](../k3s/playbook-options.md) · [Ansible roles cata
 
     Playbook options are enabled in
     [`group_vars/incus_cluster/k3s_install.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/group_vars/incus_cluster/k3s_install.yml),
-    not via command line. Today Argo CD
-    (`gitops_argocd`), node labels (`node_labels`), and the local
-    kubeconfig (`fetch_kubeconfig`) are enabled, with Calico CNI.
+    not via command line. Currently enabled are Argo CD
+    (`gitops_argocd`), node labels (`node_labels`), and local kubeconfig
+    (`fetch_kubeconfig`), with Calico CNI.
     Review the file and run:
 
     ```bash
@@ -140,8 +140,8 @@ Deep dive: [Playbook options](../k3s/playbook-options.md) · [Ansible roles cata
     !!! warning "Do not use `-e k3s_install.<opción>=…`"
         Ansible ignores it: `k3s_install` is a dictionary and a key with
         dots in `-e` does not modify it (the default CNI would be installed without warning). And passing `-e`
-        with JSON is worse: it replaces the entire dictionary and `core.version`,
-        `cluster_cidr`, etc. are lost. That is why the playbook **fails** in both cases. To change the CNI use
+        with JSON is worse: it replaces the entire dictionary and you lose `core.version`,
+        `cluster_cidr`, etc. That's why the playbook **fails** in both cases. To change the CNI use
         `-e k3s_cni=canal` (or edit the file); see
         [playbook options](../k3s/playbook-options.md).
 
@@ -161,7 +161,7 @@ Deep dive: [Playbook options](../k3s/playbook-options.md) · [Ansible roles cata
 
 | Decision | Option A (default) | Option B |
 |---|---|---|
-| K3s API | Name `k3s.homelab.local` (variable `k3s_api_endpoint`) pointing to the control plane IP, today deborah `192.168.20.5` | kube-vip `192.168.20.4` |
+| K3s API | Name `k3s.homelab.local` (variable `k3s_api_endpoint`) pointing to control plane IP, currently deborah `192.168.20.5` | kube-vip `192.168.20.4` |
 | CNI | Calico (configured in this repo) | Flannel `vxlan` (K3s default), Canal or Cilium (`k3s_install.core.cni`) |
 
 ### CNI
@@ -173,7 +173,7 @@ Deep dive: [Playbook options](../k3s/playbook-options.md) · [Ansible roles cata
 | **Calico** | `cni: calico` | NetworkPolicy, optional BGP; `--flannel-backend=none` |
 | **Cilium** | `cni: cilium` | eBPF, Hubble; validate on ARM64 (deborah) |
 
-The CNI is chosen in `k3s_install.core.cni` (today: `calico`), **before**
+The CNI is chosen in `k3s_install.core.cni` (currently: `calico`), **before**
 installing K3s: changing it on an already installed cluster forces a reinstall.
 
 ```yaml
@@ -194,9 +194,9 @@ Details: [playbook-options — CNI](../k3s/playbook-options.md#cni).
       <div class="text-muted">Requires SSH and server → CNI → agents order</div>
     </div>
     <div class="card-col">
-      <div class="card-title">Manual curl</div>
+      <div class="card-title">curl manual</div>
       <div class="text-muted">Escape hatch</div>
-      <div class="text-muted">No idempotence; easy to forget <code>--disable traefik</code></div>
+      <div class="text-muted">No idempotency; easy to forget <code>--disable traefik</code></div>
     </div>
     <div class="card-col">
       <div class="card-title">Fixed IP <code>192.168.20.5</code></div>
@@ -206,7 +206,7 @@ Details: [playbook-options — CNI](../k3s/playbook-options.md#cni).
     <div class="card-col">
       <div class="card-title">kube-vip <code>192.168.20.4</code></div>
       <div class="text-muted">Stable API VIP</div>
-      <div class="text-muted">Additional daemon; distinct from MetalLB</div>
+      <div class="text-muted">Additional daemon; different from MetalLB</div>
     </div>
     <div class="card-col">
       <div class="card-title">Flannel</div>
@@ -246,7 +246,7 @@ sudo k3s kubectl get pods -n argocd
 # argocd-server Running (si gitops_argocd.enabled=true)
 ```
 
-Wait for `argocd-server` pods in `Running` before Phase 4.
+Wait for pods `argocd-server` in `Running` before Phase 4.
 
 ## If it fails
 

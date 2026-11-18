@@ -1,9 +1,9 @@
-# Product URLs and access
+# Product URLs and Access
 
-Where each HomeLab tool lives, how to reach it, and with what credentials. All addresses `*.homelab.local` resolve **only inside the LAN**, because they are served by the HomeLab's own DNS (domain name system): BIND on `deborah`, `192.168.20.5`. If your machine doesn't use that DNS, add the entries to your `hosts` file (see [HomeLab Overview](../implementacion/resumen-homelab.md)).
+Where each HomeLab tool lives, how to reach it, and with what credentials. All addresses `*.homelab.local` resolve **only inside the LAN**, because they are served by the HomeLab's own DNS (Domain Name System): BIND on `deborah`, `192.168.20.5`. If your machine doesn't use that DNS, add the entries to your `hosts` file (see [HomeLab Overview](../implementacion/resumen-homelab.md)).
 
 <div class="card">
-  <div class="card-kicker">Main access</div>
+  <div class="card-kicker">Main Access</div>
   <div class="option-grid">
     <div class="card-col">
       <div class="card-title">Argo CD</div>
@@ -21,7 +21,7 @@ Where each HomeLab tool lives, how to reach it, and with what credentials. All a
       <div class="text-muted"><a href="https://grafana.homelab.local">grafana.homelab.local</a></div>
     </div>
     <div class="card-col">
-      <div class="card-title">Longhorn <span class="tag">Via tunnel</span></div>
+      <div class="card-title">Longhorn <span class="tag">Via Tunnel</span></div>
       <div class="text-muted">Replicated storage · no login</div>
       <div class="text-muted"><code>kubectl port-forward</code> → <code>127.0.0.1:8080</code></div>
     </div>
@@ -43,31 +43,31 @@ Everything that has an address, grouped by purpose and ordered by priority withi
 | 🔧 **Occasional** | You open it when performing a specific task |
 | 🔍 **Diagnostics** | Only when something breaks or a panel shows empty |
 
-| Access method | Meaning |
+| Access Method | Meaning |
 |---|---|
 | 🌐 **Published** | Has its own DNS name and Gateway route: opens in the browser |
-| 🔌 **Via tunnel** | Not published: opens with `kubectl port-forward` from your machine ([see commands](#monitoring-consoles)) |
+| 🔌 **Via Tunnel** | Not published: opens with `kubectl port-forward` from your machine ([see commands](#monitoring-consoles)) |
 | 💻 **Server** | Used with a command-line tool, not a browser |
 
 ### 1. Management
 
 What you use to **operate and change** the HomeLab.
 
-| Priority | Product | Address | Access method | Access | Purpose |
+| Priority | Product | Address | Access Method | Access | Purpose |
 |---|---|---|---|---|---|
 | ⭐ | **Argo CD** | [`https://argocd.homelab.local`](https://argocd.homelab.local) | 🌐 | GitHub SSO (team `devops`) | See what's deployed, sync, and compare with git |
 | 🔧 | **Open WebUI** (AI assistant) | [`https://open-webui.homelab.local`](https://open-webui.homelab.local) | 🌐 | GitHub SSO (team `devops`) | Chat with the HomeLab's local assistant; a real message can wake an Ollama node ([guide](ia-ollama.md)) |
 | ⭐ | **Incus UI** | [`https://incus.homelab.local:8443/ui/`](https://incus.homelab.local:8443/ui/) | 🌐 | GitHub SSO or TLS certificate | Virtual machines, containers, networks, and load balancers |
 | ⭐ | **SSH to servers** | `ssh devops@<servidor>.homelab.local` (`invincible`, `oliver`, `deborah`) | 💻 | GitHub identity with `opkssh` ([guide](acceso-ssh.md)) | Access the nodes |
-| ⭐ | **Kubernetes API** | `https://192.168.20.5:6443` (`deborah`) | 💻 | `kubeconfig` | `kubectl` on the cluster |
+| ⭐ | **Kubernetes API** | `https://192.168.20.5:6443` (`deborah`) | 💻 | `kubeconfig` | `kubectl` over the cluster |
 | 🔧 | **Longhorn UI** | [`http://127.0.0.1:8080`](http://127.0.0.1:8080) | 🔌 | No login | Volumes, replicas, and disks of the storage |
-| 🔧 | **vCluster Platform** | [`https://vcluster.homelab.local`](https://vcluster.homelab.local) | 🌐 | GitHub SSO | Virtual clusters. Enabled in Phase 5; without it the URL returns 404 |
+| 🔧 | **vCluster** (CLI `vcluster`) | `vcluster connect <nombre> -n vcluster-<nombre>` | 💻 | The `kubeconfig` with GitHub ([guide](acceso-kubernetes.md)) | Virtual clusters (optional, Phase 5); no URL or web UI ([operations](vcluster.md)) |
 
 ### 2. Observability
 
-To **see how** the HomeLab is doing and handle alerts. The main one is Grafana; the others are technical consoles for each component.
+To **see how the HomeLab is doing** and handle alerts. The main one is Grafana; the others are technical consoles for each component.
 
-| Priority | Product | Address | Access method | Access | Purpose |
+| Priority | Product | Address | Access Method | Access | Purpose |
 |---|---|---|---|---|---|
 | ⭐ | **Grafana** | [`https://grafana.homelab.local`](https://grafana.homelab.local) | 🌐 | GitHub SSO (team `devops`, Admin role); fallback: user `admin` from item `grafana-admin` | Node, temperature, Argo CD, Longhorn, Kong, Incus panels… ([what to watch](monitoreo.md)) |
 | 🔧 | **Alertmanager** | [`http://127.0.0.1:9093`](http://127.0.0.1:9093) | 🔌 | No login | Active alerts and **silence** one for a while |
@@ -78,12 +78,12 @@ To **see how** the HomeLab is doing and handle alerts. The main one is Grafana; 
 
 ### 3. Platform (no UI you open daily)
 
-Pieces the others depend on. Used for diagnostics.
+Pieces the rest depend on. Used for diagnostics.
 
-| Priority | Product | Address | Access method | Access | Purpose |
+| Priority | Product | Address | Access Method | Access | Purpose |
 |---|---|---|---|---|---|
-| 🔍 | **Dex** (SSO) | [`https://argocd.homelab.local/api/dex`](https://argocd.homelab.local/api/dex/.well-known/openid-configuration) | 🌐 | No UI of its own | OIDC issuer: used by Argo CD, Incus UI, vCluster, Grafana, and SSH with `opkssh` |
-| 🔍 | **Gateway** (Kong) | `192.168.23.200` | 💻 | — | Receives traffic from `argocd`, `grafana`, `vcluster`, `api`, `open-webui`, and `ollama` |
+| 🔍 | **Dex** (SSO) | [`https://argocd.homelab.local/api/dex`](https://argocd.homelab.local/api/dex/.well-known/openid-configuration) | 🌐 | No UI of its own | OIDC issuer: used by Argo CD, Incus UI, Grafana, Open WebUI, `kubectl`, and SSH with `opkssh` |
+| 🔍 | **Gateway** (Kong) | `192.168.23.200` | 💻 | — | Receives traffic from `argocd`, `grafana`, `api`, `open-webui`, and `ollama` |
 | 🔍 | **Ollama** (AI API) | `https://ollama.homelab.local` | 💻 | Bearer Token (one token per client) | Single router for Ollama nodes; HTTPS only. Inside cluster: `http://ollama-router.ai.svc`. Used by Open WebUI, K8sGPT, reports, and translation ([guide](ia-ollama.md), [add a node](agregar-nodo-ollama.md)) |
 | 🔍 | **DNS** (BIND) | `192.168.20.5` | 💻 | — | Zones `homelab.local` and `mco.local` |
 
@@ -97,7 +97,7 @@ Pieces the others depend on. Used for diagnostics.
 | 🔍 | **Reusable pipelines** | [`maceosoft/core-pipelines`](https://github.com/maceosoft/core-pipelines) |
 
 !!! note "Each name has its record in BIND"
-    The zone `homelab.local` points `argocd`, `vcluster`, `api`, `grafana`, `open-webui`, and `ollama` to the Gateway IP (`192.168.23.200`), `incus` to the cluster leader (`invincible`, `192.168.20.6`), and each server (`invincible`, `oliver`, `deborah`) to its own IP. There is no wildcard: a new name does not resolve until its record is added. Only Argo CD, Grafana, Open WebUI, and Ollama have a route in the Gateway; that is why `vcluster.homelab.local` resolves but returns 404.
+    The zone `homelab.local` points `argocd`, `api`, `grafana`, `open-webui`, and `ollama` to the Gateway IP (`192.168.23.200`), `incus` to the cluster leader (`invincible`, `192.168.20.6`), and each server (`invincible`, `oliver`, `deborah`) to its own IP. There is no wildcard: a new name does not resolve until its record is added. Only Argo CD, Grafana, Open WebUI, and Ollama have a route in the Gateway.
 
 !!! info "If you add a new interface"
     Document it here in the same change: a row in the corresponding group (with its priority and how to access it) and, if it is not published, its tunnel command in [Monitoring consoles](#monitoring-consoles) or in its own section.
@@ -107,7 +107,7 @@ Pieces the others depend on. Used for diagnostics.
 The GitOps interface. It prompts for login with GitHub (Dex); only members of the `devops` team in the `maceosoft` organization can enter.
 
 ??? note "View screenshot: Argo CD login"
-    ![Argo CD login screen with the 'Log in via GitHub' button](../assets/screenshots/argocd-login.jpg){ loading=lazy }
+    ![Argo CD login screen with the «Log in via GitHub» button](../assets/screenshots/argocd-login.jpg){ loading=lazy }
 
 Inside, the Application `homelab-bootstrap` shows the ApplicationSet `homelab` and, below it, all the others (tree view). The screenshot is from the previous model, with a root Application (`homelab-root`) that no longer exists:
 
@@ -121,16 +121,16 @@ More on the catalog and common issues: [GitOps — catalog and troubleshooting](
 The Incus cluster web interface. It is on node `invincible` (the leader), port `8443`; each node also exposes its own API on that port. It offers two ways to log in:
 
 ??? note "View screenshot: Incus UI access"
-    ![Incus UI access screen with the 'Login with SSO' and 'Login with TLS' options](../assets/screenshots/incus-ui-login.jpg){ loading=lazy }
+    ![Incus UI access screen with the «Login with SSO» and «Login with TLS» options](../assets/screenshots/incus-ui-login.jpg){ loading=lazy }
 
 - **Login with SSO:** GitHub via Dex (OIDC, standard login). See [Incus Cluster — OIDC via Dex](../incus/cluster-setup.md#oidc-via-dex-fase-4).
 - **Login with TLS:** with a client certificate installed in the browser.
 
-Network load balancers are in **Networks → `ovn-lan` → 'Load balancers' tab** (see [Load Balancing and OVN](../incus/cluster-setup.md#load-balancing-and-ovn)).
+Network load balancers are in **Networks → `ovn-lan` → «Load balancers» tab** (see [Load Balancing and OVN](../incus/cluster-setup.md#load-balancing-and-ovn)).
 
 ## Longhorn UI
 
-The replicated storage has its own dashboard, **with no login screen and no route in the Gateway**: it is an internal Service. Open it with a temporary tunnel from your machine:
+The replicated storage has its own dashboard, **with no login screen and no route in the Gateway**: it is an internal Service. It is opened with a temporary tunnel from your machine:
 
 ```bash
 export KUBECONFIG=~/.kube/homelab-k3s.yaml
@@ -165,10 +165,10 @@ Each needs its own terminal, and the `vmalert` port is `8880` to avoid clashing 
 
 | Console | Address | Purpose |
 |---|---|---|
-| **vmui** (VictoriaMetrics) | `http://127.0.0.1:8428/vmui/` | Query and graph metrics without Grafana. The **Cardinality explorer** tab shows which metrics take up the most space (useful for trimming), and **Top queries** the slowest queries |
-| **vmagent** | `http://127.0.0.1:8429/targets` | What is being collected, which are failing, and with what error. It is the first thing to check when a panel comes up empty |
-| **vmalert** | `http://127.0.0.1:8880` | Alert rules, their state (`firing`, `pending`), and the last evaluation error |
-| **Alertmanager** | `http://127.0.0.1:9093` | Active alerts, silences (to mute an alert for a while), and the Discord route configuration |
+| **vmui** (VictoriaMetrics) | `http://127.0.0.1:8428/vmui/` | Query and graph metrics without Grafana. The **Cardinality explorer** tab shows which metrics take up the most space (useful for trimming), and **Top queries** shows the slowest queries |
+| **vmagent** | `http://127.0.0.1:8429/targets` | What is being collected, which ones fail, and with what error. This is the first thing to check when a panel comes up empty |
+| **vmalert** | `http://127.0.0.1:8880` | Alert rules, their status (`firing`, `pending`), and the last evaluation error |
+| **Alertmanager** | `http://127.0.0.1:9093` | Active alerts, silences (to mute an alert for a while), and the Discord routing configuration |
 | **blackbox-exporter** | `http://127.0.0.1:9115` | Results of external probes (Argo CD, Dex, Grafana, redirects, and DNS) and their modules |
 
 !!! warning "Why they are not published"
@@ -176,15 +176,15 @@ Each needs its own terminal, and the `vmalert` port is `8880` to avoid clashing 
 
 What is monitored and what to do for each alert: [Monitoring and alerts](monitoreo.md).
 
-## vCluster Platform
+## vCluster
 
-Its address is [`https://vcluster.homelab.local`](https://vcluster.homelab.local), but **it is not deployed by default**: its Application is in `gitops/bootstrap/components/apagadas/` and there is no `HTTPRoute`, so until it is enabled in [Phase 5](../implementacion/fase-5-vcluster.md) the URL returns 404.
+It has no address or web interface: each virtual cluster is created with the `vcluster` CLI (or with the example Application `vcluster-demo`, in `gitops/bootstrap/components/apagadas/`) and accessed with `vcluster connect <nombre> -n vcluster-<nombre>`, which opens a tunnel (`port-forward`) using your [`kubeconfig` with GitHub](acceso-kubernetes.md). See [Phase 5](../implementacion/fase-5-vcluster.md) and [Common vCluster Operations](vcluster.md).
 
-## No dedicated interface
+## No UI of their own
 
 These components have no UI; they are inspected with `kubectl` or with Argo CD:
 
-| Product | How to inspect |
+| Product | How to view it |
 |---|---|
 | **MetalLB** (IP of the `LoadBalancer`) | `kubectl get ipaddresspool,l2advertisement -n metallb-system`; pool `192.168.23.200–.220` |
 | **Calico** (pod network) | `kubectl get tigerastatus` and `kubectl get installation default` |
@@ -199,10 +199,10 @@ The repositories are in the [catalog](#4-documentacion-y-codigo). Also:
 
 | What | Where |
 |---|---|
-| Full plain-text documentation (for AI) | [`llms-full.txt`](https://homelab.maceo.cl/llms-full.txt) |
+| Full documentation in plain text (for AI) | [`llms-full.txt`](https://homelab.maceo.cl/llms-full.txt) |
 | AI study notebook | [Learn with AI](../aprende.md) |
 
-## Verify they respond
+## Check they respond
 
 ```bash
 for u in https://argocd.homelab.local/ https://grafana.homelab.local/api/health https://incus.homelab.local:8443/ui/; do

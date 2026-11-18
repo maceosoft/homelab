@@ -3,7 +3,7 @@
 This section is the **main walkthrough** of the HomeLab: from bare-metal nodes to full GitOps. Each phase is executable, verifiable, and links to the [tech stack](stack-tecnologico.md) and deep-dive pages.
 
 !!! tip "How to use this guide"
-    Follow the phases in order the first time. In subsequent deployments you can jump to the phase you need if prerequisites are already met. Where there is **more than one alternative**, each phase includes a brief **trade-off analysis** (benefit vs cost/risk).
+    Follow the phases in order the first time. In subsequent deployments you can jump to the phase you need if the prerequisites are already met. Where there is **more than one alternative**, each phase includes a brief **trade-off analysis** (benefit vs cost/risk).
 
 ## Phase timeline
 
@@ -80,7 +80,7 @@ flowchart LR
     </div>
     <div class="card stepper-card">
       <div class="card-title"><a href="fase-5-vcluster/">vCluster</a> <span class="tag tag-neutral">Optional</span></div>
-      <div class="card-body">Virtual clusters + web kubeconfig.</div>
+      <div class="card-body">Open-source virtual clusters with the <code>vcluster</code> CLI.</div>
       <div class="card-meta">Manual Application</div>
     </div>
   </div>
@@ -96,7 +96,7 @@ flowchart LR
   </div>
 </div>
 
-**End of guide:** **[HomeLab Summary](resumen-homelab.md)** — global checklist, URLs, `/etc/hosts`, nodes and verification.
+**End of guide:** **[HomeLab Summary](resumen-homelab.md)** — global checklist, URLs, `/etc/hosts`, nodes, and verification.
 
 ## Two repos, two responsibilities
 
@@ -107,91 +107,97 @@ flowchart LR
 
 ## Tech stack
 
-Layer diagram, product list with official links and role in the HomeLab:
+Layered diagram, product list with official links and role in the HomeLab:
 
 **[View full tech stack →](stack-tecnologico.md)**
 
 Complementary architectural view: [C4 Architecture](../architecture/overview.md).
 
-## Decision map (forks)
+## Mapa de decisiones (forks)
 
-| Decision | Option A (default HomeLab) | Option B |
+| Decisión | Opción A (default HomeLab) | Opción B |
 |---|---|---|
-| Stable K3s API | Name `k3s.homelab.local` to control plane (`deborah`, `192.168.20.5`) | [kube-vip](https://kube-vip.io/) (`kube_vip.enabled: true` on `k3s_install.yml`) |
-| Install K3s | `playbook-k3s.yml` | Manual curl ([reference](../k3s/index.md)) |
-| **CNI** | [Calico](https://docs.tigera.io/calico/latest/about/) (`k3s_cni: calico`) | [Flannel](https://github.com/flannel-io/flannel) embedded (`vxlan`), [Canal](https://docs.tigera.io/calico/latest/getting-started/kubernetes/flannel/flannel), [Cilium](https://docs.cilium.io/) |
-| OAuth Secrets | [1Password SDK](https://github.com/1Password/onepassword-sdk-python) — personal account, vault `HomeLab` | Company account or other vault via env vars |
-| vCluster / CAPN | In `gitops/bootstrap/components/apagadas/` | Move them to `bootstrap/components/` when ready |
-| HA Storage | [Longhorn](https://longhorn.io/docs/) on invincible+deborah | Only [OpenEBS](https://openebs.io/docs) |
+| API K3s estable | Nombre `k3s.homelab.local` hacia el control plane (`deborah`, `192.168.20.5`) | [kube-vip](https://kube-vip.io/) (`kube_vip.enabled: true` en `k3s_install.yml`) |
+| Instalar K3s | `playbook-k3s.yml` | curl manual ([referencia](../k3s/index.md)) |
+| **CNI** | [Calico](https://docs.tigera.io/calico/latest/about/) (`k3s_cni: calico`) | [Flannel](https://github.com/flannel-io/flannel) embebido (`vxlan`), [Canal](https://docs.tigera.io/calico/latest/getting-started/kubernetes/flannel/flannel), [Cilium](https://docs.cilium.io/) |
+| Secretos OAuth | [1Password SDK](https://github.com/1Password/onepassword-sdk-python) — cuenta personal, bóveda `HomeLab` | Cuenta empresa u otra bóveda vía env vars |
+| vCluster / CAPN | En `gitops/bootstrap/components/apagadas/` | Moverlas a `bootstrap/components/` cuando estés listo |
+| Storage HA | [Longhorn](https://longhorn.io/docs/) en invincible+deborah | Solo [OpenEBS](https://openebs.io/docs) |
 
 <div class="card">
-  <div class="card-kicker">Trade-off analysis</div>
+  <div class="card-kicker">Análisis de trade-offs</div>
   <div class="option-grid">
     <div class="card-col">
-      <div class="card-title">Fixed IP vs kube-vip</div>
-      <div class="text-muted">Fixed IP: zero extra components</div>
-      <div class="text-muted">kube-vip: stable VIP <code>192.168.20.4</code> if CP changes node</div>
+      <div class="card-title">IP fija vs kube-vip</div>
+      <div class="text-muted">IP fija: cero componentes extra</div>
+      <div class="text-muted">kube-vip: VIP <code>192.168.20.4</code> estable si el CP cambia de nodo</div>
     </div>
     <div class="card-col">
       <div class="card-title">kube-vip</div>
-      <div class="text-muted">API on dedicated IP; agents don't depend on hostname</div>
-      <div class="text-muted">One more daemon; doesn't replace MetalLB</div>
+      <div class="text-muted">API en IP dedicada; agents no dependen de hostname</div>
+      <div class="text-muted">Un daemon más; no sustituye MetalLB</div>
     </div>
     <div class="card-col">
       <div class="card-title">Ansible vs curl K3s</div>
-      <div class="text-muted">Idempotent, flags in <code>group_vars</code></div>
-      <div class="text-muted">Manual only for one-off debugging</div>
+      <div class="text-muted">Idempotente, flags en <code>group_vars</code></div>
+      <div class="text-muted">Manual solo para depuración puntual</div>
     </div>
     <div class="card-col">
       <div class="card-title">Flannel</div>
-      <div class="text-muted">Embedded in K3s; low overhead</div>
-      <div class="text-muted">No native NetworkPolicy</div>
+      <div class="text-muted">Embebido en K3s; bajo consumo</div>
+      <div class="text-muted">Sin NetworkPolicy nativa</div>
     </div>
     <div class="card-col">
-      <div class="card-title">Calico <span class="tag tag-accent">chosen</span> · Canal / Cilium</div>
-      <div class="text-muted">Network policies (Canal/Calico) or eBPF (Cilium)</div>
-      <div class="text-muted"><code>--flannel-backend=none</code>; more RAM/CPU; choose <strong>before</strong> bootstrap</div>
+      <div class="card-title">Calico <span class="tag tag-accent">elegida</span> · Canal / Cilium</div>
+      <div class="text-muted">Políticas de red (Canal/Calico) o eBPF (Cilium)</div>
+      <div class="text-muted"><code>--flannel-backend=none</code>; más RAM/CPU; elegir <strong>antes</strong> del bootstrap</div>
     </div>
     <div class="card-col">
       <div class="card-title">1Password SDK</div>
-      <div class="text-muted">Secrets out of Git; local DesktopAuth</div>
-      <div class="text-muted">Requires unlocked 1Password app on workstation</div>
+      <div class="text-muted">Secretos fuera de Git; DesktopAuth local</div>
+      <div class="text-muted">Requiere app 1Password desbloqueada en la estación</div>
     </div>
     <div class="card-col">
       <div class="card-title">env vars / <code>kubectl patch</code></div>
-      <div class="text-muted">No 1Password</div>
-      <div class="text-muted">Secrets in shell/history; not idempotent</div>
+      <div class="text-muted">Sin 1Password</div>
+      <div class="text-muted">Secretos en shell/historial; no idempotente</div>
     </div>
     <div class="card-col">
-      <div class="card-title">Manual vCluster/CAPN sync</div>
-      <div class="text-muted">Prevents accidental deletion of ephemeral clusters</div>
-      <div class="text-muted">Extra step in Argo CD UI</div>
+      <div class="card-title">Sync manual vCluster/CAPN</div>
+      <div class="text-muted">Evita borrados accidentales de clústeres efímeros</div>
+      <div class="text-muted">Paso extra en Argo CD UI</div>
     </div>
     <div class="card-col">
       <div class="card-title">Longhorn</div>
-      <div class="text-muted">x86↔arm64 replication</div>
-      <div class="text-muted">Designed for 2 nodes; more pods than OpenEBS</div>
+      <div class="text-muted">Replicación x86↔arm64</div>
+      <div class="text-muted">Pensado para 2 nodos; más pods que OpenEBS</div>
     </div>
     <div class="card-col">
-      <div class="card-title">OpenEBS only</div>
-      <div class="text-muted">LocalPV on all nodes; simple</div>
-      <div class="text-muted">No HA across nodes</div>
+      <div class="card-title">Solo OpenEBS</div>
+      <div class="text-muted">LocalPV en todos los nodos; simple</div>
+      <div class="text-muted">Sin HA entre nodos</div>
     </div>
   </div>
 </div>
 
-CNI (Container Network Interface) detail: [Phase 3 — K3s](fase-3-k3s.md#options) · [playbook-options](../k3s/playbook-options.md#cni).
+Detalle CNI (Container Network Interface): [Fase 3 — K3s](fase-3-k3s.md#options) · [playbook-options](../k3s/playbook-options.md#cni).
 
-K3s flags detail (lightweight Kubernetes distribution): [Playbook options](../k3s/playbook-options.md).
+Detalle de flags K3s (distribución ligera de Kubernetes): [Opciones del playbook](../k3s/playbook-options.md).
 
-Ansible roles catalog: [Ansible — roles](../ansible/index.md).
+Catálogo de roles Ansible: [Ansible — roles](../ansible/index.md).
 
-## After the phases
+## Después de las fases
 
-With the platform running, the **local AI assistant** (Ollama on multiple nodes behind a router, with Open WebUI and Open Terminal), **centralized logs** with AI-powered weekly reports, and **security** layers (host firewall, per-service tokens, staged NetworkPolicy) are added. They are in [Operations](../operacion/index.md): [Local AI Assistant](../operacion/ia-ollama.md), [Logs](../operacion/logs.md), and [Authentication Model](../security/modelo-de-autenticacion.md). If you ever need to change the control plane node, the procedure is in [Move the control plane](../operacion/mover-control-plane.md).
+Con la plataforma en marcha se agregan el **asistente de IA local** (Ollama en varios nodos detrás de un router, con
+Open WebUI y Open Terminal), los **logs centralizados** con reportes semanales con IA y las capas de **seguridad**
+(firewall de host, tokens por servicio, NetworkPolicy por etapas). Están en
+[Operación](../operacion/index.md): [Asistente de IA local](../operacion/ia-ollama.md),
+[Logs](../operacion/logs.md) y [Modelo de autenticación](../security/modelo-de-autenticacion.md). Si algún día
+hiciera falta cambiar el nodo del control plane, el procedimiento está en
+[Mover el control plane](../operacion/mover-control-plane.md).
 
-## Start here
+## Empieza aquí
 
-**[→ Phase 0 — Preparation](fase-0-preparacion.md)**
+**[→ Fase 0 — Preparación](fase-0-preparacion.md)**
 
-Appendix outside the normal path: [Uninstall K3s](apendice-desinstalar.md).
+Apéndice fuera del recorrido normal: [Desinstalar K3s](apendice-desinstalar.md).
