@@ -57,7 +57,7 @@ su `README.md` con variables, tags y verificación.
 | [`setup_sudo.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/bootstrap/setup_sudo.yml) | Día 0 | Instala python3 y sudo y deja a tu usuario administrador con sudo (conecta como root; el usuario se puede indicar con `-e bootstrap_admin_user=<usuario>`) |
 | [`playbook-discovery.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-discovery.yml) | 0 | Inventario hardware → `ansible/reports/` |
 | [`playbook-incus-cluster.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-incus-cluster.yml) | 2 | Bootstrap/join/groups/UI Incus |
-| [`playbook-dex-oauth-secrets.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-dex-oauth-secrets.yml) | 4 | OAuth Dex: 1Password + Argo CD + Incus/vCluster |
+| [`playbook-dex-oauth-secrets.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-dex-oauth-secrets.yml) | 4 | OAuth Dex: 1Password + Argo CD + Incus |
 | [`playbook-rotate-root-passwords.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-rotate-root-passwords.yml) | Seguridad | Rota password de root → 1Password (bóveda HomeLab) |
 | [`playbook-k3s-uninstall.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-k3s-uninstall.yml) | Apéndice | Desinstala K3s en todos los nodos |
 

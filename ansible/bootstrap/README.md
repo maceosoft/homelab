@@ -82,7 +82,7 @@ ventiladores y WiFi). Detalle en [`roles/t2_mac/README.md`](../roles/t2_mac/READ
 ## Fuera de esta secuencia (no son "bootstrap de nodo")
 
 - `playbook-dex-oauth-secrets.yml` — secretos OAuth a nivel de clúster
-  (Argo CD/Incus/vCluster), se corre una vez que K3s+Argo CD ya están
+  (Argo CD/Incus), se corre una vez que K3s+Argo CD ya están
   arriba, no por nodo. Ver [Gestión de secretos](../../docs/secrets/index.md).
 - `playbook-k3s-uninstall.yml` — apéndice fuera del recorrido normal.
 

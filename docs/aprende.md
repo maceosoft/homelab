@@ -63,7 +63,7 @@ conceptos clave, un reto práctico seguro y tres preguntas para comprobar lo apr
 | [2 — Incus](implementacion/fase-2-incus.md) | Contenedores, máquinas virtuales y quórum | Ver los miembros del clúster y sus instancias |
 | [3 — K3s](implementacion/fase-3-k3s.md) | Kubernetes mantiene viva tu aplicación | Borrar un pod y ver cómo se repone |
 | [4 — GitOps](implementacion/fase-4-gitops.md) | Git manda: Argo CD corrige cualquier diferencia | Comparar el clúster con lo que declara Git |
-| [5 — vCluster](implementacion/fase-5-vcluster.md) | Clústeres virtuales dentro de un clúster | Explicar el inicio de sesión con GitHub en 4 pasos |
+| [5 — vCluster](implementacion/fase-5-vcluster.md) | Clústeres virtuales dentro de un clúster | Crear un vCluster y entrar con `vcluster connect` |
 | [6 — CAPN](implementacion/fase-6-capn.md) | Clústeres creados a partir de un manifiesto | Generar el YAML de un clúster sin aplicarlo |
 
 ## Plantillas de pregunta

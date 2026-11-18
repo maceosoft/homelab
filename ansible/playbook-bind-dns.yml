@@ -4,7 +4,7 @@
 #   - mco.local                  nombres de los hosts (un A por nodo, ns, k3s)
 #   - 20.168.192.in-addr.arpa    reversa de esa red (PTR)
 #   - homelab.local              servidores y servicios publicados, cada uno con su
-#                                registro (incus, argocd, vcluster y api -> gateway_ip).
+#                                registro (incus, argocd y api -> gateway_ip).
 #                                Sin comodín: un nombre nuevo necesita su registro.
 #
 # Ejecutar:

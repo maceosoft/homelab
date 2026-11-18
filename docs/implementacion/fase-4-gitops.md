@@ -110,7 +110,7 @@ flowchart LR
     UPG[K3s_upgrade]
   end
   subgraph manual [Manual]
-    VC[vCluster]
+    VC[vCluster_demo]
     CAPN[CAPN_demo]
   end
   root[ApplicationSet_homelab] --> wave0 --> wave1 --> wave2 --> wave3
@@ -200,13 +200,13 @@ kubectl get nodes
   <div class="option-grid">
     <div class="card-col">
       <div class="card-title">Kubeconfig local (Ansible o manual)</div>
-      <div class="text-muted">Funciona antes del Gateway y vCluster</div>
+      <div class="text-muted">Funciona antes del Gateway y de Dex</div>
       <div class="text-muted">Archivo en disco; rotación manual</div>
     </div>
     <div class="card-col">
-      <div class="card-title">vCluster Platform (Fase 5)</div>
-      <div class="text-muted">Kubeconfig vía SSO; connected cluster</div>
-      <div class="text-muted">Requiere Fase 4+5 y permisos asignados</div>
+      <div class="card-title">Kubeconfig con GitHub (Dex)</div>
+      <div class="text-muted">Sin llaves en disco; sirve también para <code>vcluster connect</code></div>
+      <div class="text-muted">Requiere Dex (4.5) y el team <code>devops</code></div>
     </div>
   </div>
 </div>
@@ -369,7 +369,7 @@ Espera `Healthy` en `argocd-route` y `argocd`.
 | Recurso | Producto | Para qué sirve |
 |---|---|---|
 | `argocd-route` | [Gateway API](https://gateway-api.sigs.k8s.io/) | `HTTPRoute` hacia `https://argocd.homelab.local` (el Gateway termina el TLS; `argocd-server` queda en HTTP con `server.insecure`) |
-| `argocd` | [Argo CD](https://argo-cd.readthedocs.io/) y [Dex](https://dexidp.io/docs/) | Argo CD se actualiza solo (tag `stable`); suma el connector GitHub, los staticClients de vCluster e Incus UI, el RBAC y el health check de Application ([Actualizar Argo CD](../operacion/actualizar-argocd.md)) |
+| `argocd` | [Argo CD](https://argo-cd.readthedocs.io/) y [Dex](https://dexidp.io/docs/) | Argo CD se actualiza solo (tag `stable`); suma el connector GitHub, los staticClients (Incus UI, Grafana, Open WebUI, `opkssh`, `kubectl`), el RBAC y el health check de Application ([Actualizar Argo CD](../operacion/actualizar-argocd.md)) |
 
 ---
 
@@ -393,7 +393,7 @@ No uses kube-vip para Services de aplicación.
 
 ---
 
-## 4.7 — Secretos OAuth (GitHub + vCluster + Incus UI)
+## 4.7 — Secretos OAuth (GitHub + Incus UI)
 
 Los valores sensibles **no van en Git**. Guárdalos en 1Password e inyecta
 `argocd-secret`.
@@ -438,8 +438,7 @@ cd ansible
 ansible-playbook -i inventory.ini playbook-dex-oauth-secrets.yml
 ```
 
-El campo `VCLUSTER_CLIENT_SECRET` se genera en
-1Password automáticamente si no existe. `GITHUB_CLIENT_ID` y `GITHUB_CLIENT_SECRET` salen de la OAuth App de GitHub
+`GITHUB_CLIENT_ID` y `GITHUB_CLIENT_SECRET` salen de la OAuth App de GitHub
 creada en la Fase 0 (ver la nota de arriba); si no la creaste, guárdalos a mano en 1Password antes de seguir.
 
 Alternativa script Python:
@@ -450,28 +449,23 @@ python3 gitops/addons/argocd/secrets/apply-from-1password.py.example
 kubectl rollout restart deployment argocd-dex-server -n argocd
 ```
 
-Connector **GitHub** (solo el team `devops` de la org `maceosoft`) y staticClients **vCluster** e **Incus UI**
-en [`dex.config`](https://github.com/maceosoft/gitops/blob/main/addons/argocd/config/dex.config).
+Connector **GitHub** (solo el team `devops` de la org `maceosoft`) y staticClients (**Incus UI**, Grafana, Open WebUI,
+`opkssh` y `kubectl`) en [`dex.config`](https://github.com/maceosoft/gitops/blob/main/addons/argocd/config/dex.config).
 
-`VCLUSTER_CLIENT_SECRET` **no** viene de GitHub.
-Ansible lo genera en 1Password si falta y lo aplica según destino. Incus **no usa secreto**:
-es un cliente OIDC (OpenID Connect) público (PKCE —Proof Key for Code Exchange—) en Dex.
-
-| Campo | Destinos (tags Ansible) |
-|---|---|
-| `VCLUSTER_CLIENT_SECRET` | `argocd-secret` (`argocd`) + Helm Platform (`vcluster`) |
+El único secreto de Dex es el de GitHub. Los staticClients **no usan secreto**: son clientes OIDC (OpenID Connect)
+públicos (PKCE —Proof Key for Code Exchange—), así que el playbook no genera ningún campo en 1Password
+(`dex_oauth_generated_fields: []`).
 
 ### Probar el login: URLs y qué esperar
 
-Primero comprueba que las tres claves llegaron a `argocd-secret` y que Dex se reinició:
+Primero comprueba que las dos claves llegaron a `argocd-secret` y que Dex se reinició:
 
 ```bash
 kubectl -n argocd get secret argocd-secret -o jsonpath='{.data}' | python3 -c "import sys,json;print(list(json.load(sys.stdin)))"
 kubectl -n argocd get pods -l app.kubernetes.io/name=argocd-dex-server
 ```
 
-Tienen que aparecer `dex.github.clientId`, `dex.github.clientSecret` y
-`dex.vcluster.platform.clientSecret`. Las URLs necesitan el [DNS de `*.homelab.local`](#48-dns-de-homelablocal)
+Tienen que aparecer `dex.github.clientId` y `dex.github.clientSecret`. Las URLs necesitan el [DNS de `*.homelab.local`](#48-dns-de-homelablocal)
 (o `/etc/hosts`); el certificado lo firma la CA del HomeLab, así que el navegador avisa hasta que la
 importes (y `curl` necesita `-k`).
 
@@ -482,7 +476,6 @@ importes (y `curl` necesita `-k`).
 | Argo CD (API) | [`https://argocd.homelab.local/api/version`](https://argocd.homelab.local/api/version) | `{"Version":"v3.x.x"}`: el servidor responde a través del Gateway |
 | **Dex** (descubrimiento) | [`https://argocd.homelab.local/api/dex/.well-known/openid-configuration`](https://argocd.homelab.local/api/dex/.well-known/openid-configuration) | JSON con `"issuer": "https://argocd.homelab.local/api/dex"` |
 | Dex (callback) | `https://argocd.homelab.local/api/dex/callback` | **No se abre a mano.** Es la URL que tiene que estar en *Redirect URIs* de la OAuth App de GitHub |
-| **vCluster Platform** | [`https://vcluster.homelab.local`](https://vcluster.homelab.local) | Login SSO con GitHub (Fase 5; antes no existe) |
 | **Incus UI** | [`https://incus.homelab.local:8443`](https://incus.homelab.local:8443) | **Login with SSO** → GitHub (ver más abajo) |
 
 Desde la terminal:
@@ -589,7 +582,7 @@ sequenceDiagram
 
 | Alternativa | Ventaja | Coste / riesgo |
 |---|---|---|
-| Ansible + 1Password SDK | Genera `VCLUSTER_CLIENT_SECRET` si falta; idempotente | App 1Password desbloqueada en la estación |
+| Ansible + 1Password SDK | Lee las credenciales de GitHub y reinicia Dex; idempotente | App 1Password desbloqueada en la estación |
 | Script Python manual | Mismo SDK sin playbook | Pasos sueltos; fácil olvidar restart Dex |
 | `kubectl patch` directo | Sin 1Password | Secretos en historial; no reproducible |
 
@@ -605,7 +598,7 @@ La zona `homelab.local` trae:
 |---|---|
 | `incus.homelab.local` | invincible (`192.168.20.6`) |
 | `invincible.homelab.local`, `oliver.homelab.local`, `deborah.homelab.local` | cada servidor, con su IP fija (`192.168.20.6`, `.7` y `.5`) |
-| `argocd.homelab.local`, `vcluster.homelab.local`, `api.homelab.local`, `grafana.homelab.local`, `open-webui.homelab.local`, `ollama.homelab.local` | el Gateway: `gateway_ip` = `192.168.23.200` (primera IP del pool de MetalLB) |
+| `argocd.homelab.local`, `api.homelab.local`, `grafana.homelab.local`, `open-webui.homelab.local`, `ollama.homelab.local` | el Gateway: `gateway_ip` = `192.168.23.200` (primera IP del pool de MetalLB) |
 
 No hay comodín: cada nombre es un registro explícito en
 [`db.homelab.local.j2`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/bind_dns/templates/db.homelab.local.j2).
@@ -629,7 +622,7 @@ Tu estación tiene que usar `192.168.20.5` como DNS. Si no puedes, el respaldo e
 `/etc/hosts`:
 
 ```
-192.168.23.200  argocd.homelab.local vcluster.homelab.local api.homelab.local grafana.homelab.local open-webui.homelab.local ollama.homelab.local
+192.168.23.200  argocd.homelab.local api.homelab.local grafana.homelab.local open-webui.homelab.local ollama.homelab.local
 192.168.20.6    incus.homelab.local invincible.homelab.local
 192.168.20.7    oliver.homelab.local
 192.168.20.5    deborah.homelab.local
@@ -758,7 +751,7 @@ Incus no entran aquí: se manejan con `incus exec` y el login SSO de la UI. Cóm
 
 **Requisitos.**
 
-- Dex funcionando ([4.5](#45-wave-2-argocd-en-lan-dex) y [4.7](#47-secretos-oauth-github-vcluster-incus-ui)).
+- Dex funcionando ([4.5](#45-wave-2-argocd-en-lan-dex) y [4.7](#47-secretos-oauth-github-incus-ui)).
 - El DNS de `homelab.local` aplicado ([4.8](#48-dns-de-homelablocal)) y **cada nodo usando el BIND de `deborah`**
   en su `/etc/resolv.conf` (se fija en la [Fase 1](fase-1-red.md) con `playbook-set-static-ip.yml`). Sin eso un nodo
   no puede validar ningún login.
@@ -1048,7 +1041,7 @@ elimina el namespace: `kubectl delete namespace monitoring` (destructivo: se pie
 
 ### Grafana con SSO de Dex
 
-Grafana usa el mismo Dex que Argo CD, Incus y vCluster (ver [4.7](#47-secretos-oauth-github-vcluster-incus-ui)). Todo viene en Git, sin
+Grafana usa el mismo Dex que Argo CD e Incus (ver [4.7](#47-secretos-oauth-github-incus-ui)). Todo viene en Git, sin
 secretos nuevos:
 
 - **Cliente `grafana` en Dex** ([`dex.config`](https://github.com/maceosoft/gitops/blob/main/addons/argocd/config/dex.config)): cliente
@@ -1204,7 +1197,7 @@ playbook de secretos ya aplicado.
 
 | Componente | Sync | Siguiente paso |
 |---|---|---|
-| [vCluster Platform](https://www.vcluster.com/docs/platform/) | manual | [Fase 5](fase-5-vcluster.md) |
+| [vCluster](https://www.vcluster.com/docs/vcluster/) (open source, ejemplo `vcluster-demo`) | manual | [Fase 5](fase-5-vcluster.md) |
 | [CAPN](https://capn.linuxcontainers.org/) | manual | [Fase 6](fase-6-capn.md) |
 | CNI externo (Calico en este HomeLab; Canal o Cilium) | Ansible | [Fase 3 — CNI](fase-3-k3s.md#cni); lo instala el rol `k3s_cni`, no Argo CD |
 
@@ -1213,7 +1206,7 @@ playbook de secretos ya aplicado.
 | Alternativa | Ventaja | Coste / riesgo |
 |---|---|---|
 | Terminar en Fase 4 | Management GitOps completo; menos superficie | Sin vClusters ni workload clusters CAPN |
-| Fase 5 vCluster | Kubeconfig web; clústeres virtuales ligeros | Más RAM en K3s; OAuth + permisos Platform |
+| Fase 5 vCluster | Clústeres virtuales ligeros; se entra con el kubeconfig de GitHub | Más RAM y disco (Longhorn) en K3s; sin UI, solo CLI |
 | Fase 6 CAPN | Clusters kubeadm reales sobre Incus | Alto consumo RAM; sync manual obligatorio |
 | CNI vía GitOps | Reinstalar Canal/Calico/Cilium sin Ansible | Solo con K3s en `flannel-backend=none`; no mezclar CNIs |
 | Sync manual (5/6) | No borra clusters efímeros por prune | Paso extra en Argo CD UI |
@@ -1228,7 +1221,7 @@ playbook de secretos ya aplicado.
 | `homelab-bootstrap` o el ApplicationSet `homelab` con `ComparisonError` / repo no accesible | Falta `argocd/repo-gitops`, o la App `maceosoft-argocd` no está instalada en `maceosoft/gitops`: re-correr `playbook-platform-secrets.yml` |
 | `arc-runners` `OutOfSync` y el pod del listener se reinicia cada pocos minutos | Argo CD poda en bucle los recursos que crea el controlador de ARC (`AutoscalingListener`, `Role`, `RoleBinding`: copian la etiqueta `app.kubernetes.io/instance`). Se corrige con `application.resourceTrackingMethod: annotation` en `argocd-cm` (ya está en `gitops/addons/argocd/config`). Comprueba: `kubectl -n argocd get cm argocd-cm -o jsonpath='{.data.application\.resourceTrackingMethod}'` → `annotation`; si no, sincroniza `argocd` y reinicia el controlador: `kubectl -n argocd rollout restart statefulset argocd-application-controller` |
 | Apps en `Error`: `ComparisonError … terminatingReplicas: field not declared in schema` | Argo CD es anterior a la 3.5 y el clúster tiene Kubernetes 1.34 o más nuevo: [Actualizar Argo CD](../operacion/actualizar-argocd.md#la-primera-vez-actualizar-a-mano-y-despues-activar-la-app) |
-| Login con GitHub da 404 (`client_id=.github.clientId`) | Faltan `dex.*` en `argocd-secret`: corre `playbook-dex-oauth-secrets.yml --tags argocd` ([4.7](#47-secretos-oauth-github-vcluster-incus-ui)) |
+| Login con GitHub da 404 (`client_id=.github.clientId`) | Faltan `dex.*` en `argocd-secret`: corre `playbook-dex-oauth-secrets.yml --tags argocd` ([4.7](#47-secretos-oauth-github-incus-ui)) |
 | Runner no aparece en GitHub | `kubectl logs -n arc-systems` del listener; Secret `arc-runners/arc-runners-github-app` (App instalada en `maceosoft`) |
 | Pipeline `tofu` sin runner o sin credenciales | Runner `arc-runners` Online. Los runners ya no llevan `TF_VAR_*` en su entorno: el pipeline tiene que recibir sus credenciales como secretos de GitHub Actions del repo que lo llama |
 | Longhorn pending | Etiquetas Longhorn ([playbook-options](../k3s/playbook-options.md)) |

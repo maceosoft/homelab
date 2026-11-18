@@ -25,7 +25,6 @@ k3s     IN      A       {{ k3s_api_ip }}
 
 ; Servicios publicados por el Gateway de GitOps (HTTPRoute en gitops)
 argocd  IN      A       {{ gateway_ip }}
-vcluster IN     A       {{ gateway_ip }}
 api     IN      A       {{ gateway_ip }}
 grafana IN      A       {{ gateway_ip }}
 ollama  IN      A       {{ gateway_ip }}

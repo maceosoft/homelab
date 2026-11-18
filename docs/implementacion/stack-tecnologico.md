@@ -37,7 +37,7 @@ flowchart TB
     OnePassword[1Password_SDK]
   end
   subgraph capa5 [Capa 5 — Opcionales y operaciones]
-    VCluster[vCluster_Platform]
+    VCluster[vCluster]
     CAPI[Cluster_API]
     CAPN[CAPN]
     SUC[system_upgrade_controller]
@@ -62,7 +62,7 @@ flowchart TB
   ArgoCD --> OpenEBS
   ArgoCD --> Longhorn
   ArgoCD --> SealedSecrets
-  Dex --> VCluster
+  K3s --> VCluster
   K3s --> CAPI --> CAPN
   Incus --> CAPN
   ArgoCD --> SUC
@@ -125,10 +125,10 @@ flowchart TB
 ## Capa 3 — GitOps, red y acceso
 
 - **[Argo CD](https://argo-cd.readthedocs.io/)** — ApplicationSet `homelab` (una Application por archivo de `bootstrap/components/`, por olas con RollingSync), administrado por la Application `homelab-bootstrap`; Fase 4.
-- **[Dex](https://dexidp.io/docs/)** — IdP (proveedor de identidad) OIDC embebido en Argo CD; SSO (inicio de sesión único) para Argo CD, Grafana, Open WebUI, vCluster Platform e Incus UI (interfaz de usuario); Fase 4.
+- **[Dex](https://dexidp.io/docs/)** — IdP (proveedor de identidad) OIDC embebido en Argo CD; SSO (inicio de sesión único) para Argo CD, Grafana, Open WebUI, Incus UI (interfaz de usuario) y `kubectl`; Fase 4.
 - **[GitHub](https://docs.github.com/en/apps/oauth-apps)** — Connector OAuth (Open Authorization) + repos GitOps; Fase 4.
 - **[MetalLB](https://metallb.universe.tf/)** — LoadBalancer en LAN (red local); Fase 4 wave 0–1.
-- **[Gateway API](https://gateway-api.sigs.k8s.io/)** con **[Kong Ingress Controller](https://developer.konghq.com/kubernetes-ingress-controller/)** — HTTP(S) hacia Argo CD, Grafana, Open WebUI, el router de Ollama y vCluster; Fase 4 wave 1 (alternativas: Traefik, NGINX Gateway Fabric).
+- **[Gateway API](https://gateway-api.sigs.k8s.io/)** con **[Kong Ingress Controller](https://developer.konghq.com/kubernetes-ingress-controller/)** — HTTP(S) hacia Argo CD, Grafana, Open WebUI y el router de Ollama; Fase 4 wave 1 (alternativas: Traefik, NGINX Gateway Fabric).
 - **[1Password Python SDK](https://github.com/1Password/onepassword-sdk-python)** — Secretos OAuth desde la app local; Fase 4.
 - **[VictoriaMetrics](https://docs.victoriametrics.com/)** (con **[Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/)**) — Métricas y alertas de nodos y plataforma, más ligero que Prometheus; Fase 4 (4.13, opcional).
 - **[Grafana](https://grafana.com/docs/grafana/latest/)** — Paneles de temperatura, memoria, disco, logs y Ollama en `grafana.homelab.local`; Fase 4 (4.13, opcional).
@@ -143,7 +143,8 @@ flowchart TB
 
 ## Capa 5 — Opcionales y operaciones
 
-- **[vCluster Platform](https://www.vcluster.com/docs/platform/)** — Clústeres virtuales + kubeconfig web (host K3s y vClusters); Fase 5.
+- **[vCluster](https://www.vcluster.com/docs/vcluster/)** (open source) — Clústeres virtuales dentro de K3s; se crean con el CLI `vcluster` y se
+  entra con `vcluster connect` y el kubeconfig de GitHub; Fase 5.
 - **[Cluster API](https://cluster-api.sigs.k8s.io/)** — API declarativa de clústeres; Fase 6.
 - **[CAPN](https://capn.linuxcontainers.org/)** — Provider Incus para CAPI (Cluster API); Fase 6.
 - **[clusterctl](https://cluster-api.sigs.k8s.io/user/quick-start.html)** — CLI (interfaz de línea de comandos) bootstrap CAPI; Fase 6.

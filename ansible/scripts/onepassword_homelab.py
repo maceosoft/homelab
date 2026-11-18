@@ -39,11 +39,11 @@ INTEGRATION_VERSION = os.getenv("ONEPASSWORD_INTEGRATION_VERSION", "1.0.0")
 DEX_OAUTH_FIELD_MAP: dict[str, str] = {
     "GITHUB_CLIENT_ID": "dex.github.clientId",
     "GITHUB_CLIENT_SECRET": "dex.github.clientSecret",
-    "VCLUSTER_CLIENT_SECRET": "dex.vcluster.platform.clientSecret",
 }
 
-# Generados por Ansible si faltan en 1Password (lista única — también en group_vars)
-DEFAULT_GENERATED_OAUTH_FIELDS = "VCLUSTER_CLIENT_SECRET"
+# Generados por Ansible si faltan en 1Password (lista única — también en group_vars). Hoy ninguno: todos los clientes
+# de Dex salvo GitHub son públicos (PKCE). Un cliente confidencial nuevo suma aquí su campo y su clave en el mapa.
+DEFAULT_GENERATED_OAUTH_FIELDS = ""
 
 
 def generated_oauth_fields() -> tuple[str, ...]:

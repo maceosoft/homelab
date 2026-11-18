@@ -44,7 +44,7 @@ export KUBECONFIG=~/.kube/homelab-k3s.yaml
 kubectl get nodes
 ```
 
-Alternativa web tras Fase 5: kubeconfig desde [vCluster Platform](../../../docs/implementacion/fase-5-vcluster.md).
+Para entrar con GitHub en vez del certificado de administrador: [Entrar a Kubernetes con GitHub](https://homelab.maceo.cl/operacion/acceso-kubernetes/).
 
 ## Documentación
 

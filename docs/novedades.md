@@ -10,21 +10,25 @@ pymdownx.snippets. Una línea de fecha y título en negrita, dos o tres frases y
 -->
 
 <!-- --8<-- [start:recientes] -->
+- **18 nov 2026 · vCluster open source en vez de vCluster Platform.** La interfaz web de vCluster no sirve sin pagar:
+  su plan gratis no incluye el login con GitHub. Ahora los clústeres virtuales se crean con el CLI `vcluster` o con una
+  Application de Argo CD, y se entra con la misma cuenta de GitHub que el resto del clúster.
+  [Operaciones frecuentes de vCluster](operacion/vcluster.md).
 - **17 nov 2026 · Kubernetes con login de GitHub y Secrets cifrados.** El API de K3s ahora acepta el login con
   GitHub a través de Dex: `kubectl` abre el navegador y el team `devops` entra con acceso total, sin copiar el
-  certificado de administrador. Los
-  Secrets del clúster quedaron cifrados en disco, y el certificado del API acepta el nombre `k3s.homelab.local`.
+  certificado de administrador. Los Secrets del clúster quedaron cifrados en disco, y el certificado del API acepta
+  el nombre `k3s.homelab.local`.
   [Entrar a Kubernetes con GitHub](operacion/acceso-kubernetes.md).
 - **17 nov 2026 · Respaldos de PostgreSQL en Incus.** El PostgreSQL compartido de la plataforma tendrá sus respaldos
   en un bucket de Incus en `invincible`, publicado por S3 (Simple Storage Service) con un certificado de la CA propia
   del HomeLab. Un proxy delante evita cambiar el certificado de la API de Incus, y las contraseñas y llaves salen de
   1Password. [PostgreSQL y respaldos en Incus](storage/postgres.md).
+<!-- --8<-- [end:recientes] -->
 - **17 nov 2026 · Nueva estructura del repo `gitops`.** Cada app de Argo CD es ahora un archivo en
   `bootstrap/components/`: activarla o apagarla es mover el archivo a `apagadas/`, sin volver a aplicar nada. El
   ApplicationSet `homelab` las despliega por olas (cada ola espera a que la anterior esté sana) y se puede pausar una
   app sin PR. Los manifiestos pasaron a `addons/<área>/` (red, seguridad, monitoreo, IA…).
   [Catálogo GitOps](gitops/index.md).
-<!-- --8<-- [end:recientes] -->
 - **17 nov 2026 · Runners sin credenciales en su entorno.** Los runners de GitHub Actions de `maceosoft` ya no cargan
   la App de OpenTofu, las credenciales FTP ni el token de Argo CD: cualquier job, incluido el de un PR, podía leerlos.
   El token del diff de `gitops` llega ahora como secreto de GitHub Actions solo al paso que lo usa, y vence a los 90

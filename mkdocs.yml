@@ -180,6 +180,7 @@ plugins:
             URLs y accesos de los productos: Product URLs and access
             Entrar por SSH a los servidores: SSH into the servers
             Entrar a Kubernetes con GitHub: Kubernetes login with GitHub
+            Operaciones frecuentes de vCluster: Common vCluster operations
             Monitoreo y alertas: Monitoring and alerts
             Agregar un repo: Add a repo
             Agregar un nodo: Add a node
@@ -305,6 +306,7 @@ nav:
       - URLs y accesos de los productos: operacion/urls-y-accesos.md
       - Entrar por SSH a los servidores: operacion/acceso-ssh.md
       - Entrar a Kubernetes con GitHub: operacion/acceso-kubernetes.md
+      - Operaciones frecuentes de vCluster: operacion/vcluster.md
       - Monitoreo y alertas: operacion/monitoreo.md
       - Agregar un repo: operacion/agregar-repo.md
       - Agregar un nodo: operacion/agregar-nodo.md
@@ -346,7 +348,7 @@ nav:
           - Catálogo de roles: ansible/index.md
       - GitOps:
           - Catálogo y troubleshooting: gitops/index.md
-          - vCluster Platform: vcluster/index.md
+          - vCluster: vcluster/index.md
       - CAPN: capn/index.md
       - Storage: storage/index.md
       - PostgreSQL y respaldos en Incus: storage/postgres.md
