@@ -120,7 +120,8 @@ Hay dos formas de crear un vCluster; las dos usan el mismo chart y los mismos va
     En el repo `gitops`, mueve `bootstrap/components/apagadas/vcluster-demo.yaml` a `bootstrap/components/` y mergea en
     `main`. El ApplicationSet `homelab` crea la Application `vcluster-demo` con la ola `manual` (no tiene sync
     automático): sincronízala a mano desde la interfaz de Argo CD o con `argocd app sync vcluster-demo`. El vCluster se
-    llama `demo` y vive en el namespace `vcluster-demo`.
+    llama `demo` y vive en el namespace `vcluster-demo`. Paso a paso (rama, PR, sync, comprobar):
+    [Activar el vCluster de GitOps](../operacion/vcluster.md#activar-el-vcluster-de-gitops-vcluster-demo).
 
     Para tener otro vCluster gestionado por Argo CD, copia ese archivo con otro `metadata.name`, `releaseName` y
     namespace.

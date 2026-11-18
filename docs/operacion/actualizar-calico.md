@@ -84,7 +84,7 @@ operador escribe, para que Argo CD y el operador no se pisen.
         Con la CLI de Argo CD (la Application ya trae `ServerSideApply=true`, así que no hace falta pasarlo):
 
         ```bash
-        argocd login argocd.homelab.local --grpc-web
+        argocd login argocd.homelab.local --sso --grpc-web
         argocd app sync calico-operator
         ```
 

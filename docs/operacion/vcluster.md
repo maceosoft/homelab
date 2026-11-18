@@ -21,6 +21,60 @@ kubectl -n vcluster-prueba rollout status statefulset/prueba --timeout=300s
 Tarda alrededor de un minuto. Sin los values (o sin `storageClass`), el volumen queda `Pending`: el clúster no tiene
 StorageClass por defecto. Para uno gestionado por Argo CD, ver la [Fase 5](../implementacion/fase-5-vcluster.md#ejecutar).
 
+## Activar el vCluster de GitOps (`vcluster-demo`)
+
+Para uno que quede declarado en git y lo mantenga Argo CD. La Application de ejemplo está apagada en `gitops`.
+
+1. **Activarla en git** (en tu copia de `gitops`, en una rama nueva):
+
+    ```bash
+    cd ~/src/maceosoft/gitops
+    git checkout main && git pull
+    git checkout -b vcluster/activar-demo
+    git mv bootstrap/components/apagadas/vcluster-demo.yaml bootstrap/components/vcluster-demo.yaml
+    git commit -m "vCluster: activar vcluster-demo"
+    ```
+
+    Quita también su línea de la regla "Applications opcionales que NO están activas" en `renovate.json5`, para que
+    Renovate avise de versiones nuevas del chart. Sube la rama, abre el PR y mergéalo.
+
+2. **Esperar a que aparezca la Application.** El ApplicationSet `homelab` la crea en uno o dos minutos con la ola
+   `manual`: queda `OutOfSync` y `Missing`, sin desplegar nada, porque no tiene sync automático.
+
+    ```bash
+    KUBECONFIG=~/.kube/homelab-k3s.yaml kubectl -n argocd get application vcluster-demo
+    ```
+
+3. **Sincronizarla a mano.**
+
+    === "🖱️ Desde la interfaz"
+
+        Abre [`https://argocd.homelab.local`](https://argocd.homelab.local), entra con GitHub, busca la Application
+        `vcluster-demo` y pulsa **Sync** → **Synchronize**.
+
+    === "⌨️ Desde la consola"
+
+        Con la CLI de Argo CD (`brew install argocd`). El usuario `admin` está desactivado: se entra con GitHub
+        (`--sso` abre el navegador).
+
+        ```bash
+        argocd login argocd.homelab.local --sso --grpc-web
+        argocd app sync vcluster-demo
+        argocd app wait vcluster-demo --health --timeout 300
+        ```
+
+4. **Comprobar y entrar.** Tarda alrededor de un minuto en quedar `Synced` y `Healthy`:
+
+    ```bash
+    export KUBECONFIG=~/.kube/homelab-github.yaml
+    kubectl -n argocd get application vcluster-demo     # Synced / Healthy
+    vcluster list                                       # demo   vcluster-demo   Running
+    vcluster connect demo -n vcluster-demo -- kubectl get ns
+    ```
+
+Cada cambio posterior (otra versión del chart, otros values) se hace en git y se vuelve a sincronizar a mano. Para
+apagarlo, ver [Borrar](#borrar).
+
 ## Ver los que hay
 
 ```bash
