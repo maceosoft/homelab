@@ -10,6 +10,10 @@ pymdownx.snippets. Una línea de fecha y título en negrita, dos o tres frases y
 -->
 
 <!-- --8<-- [start:recientes] -->
+- **18 nov 2026 · Las VMs de `ovn-lan` ya descargan todo.** En la red OVN las VMs quedaban con un tamaño de paquete
+  (MTU) mayor que el que cabe en el túnel, y las descargas grandes de Debian o GitHub se colgaban. El perfil de Incus
+  `ovn-lan` lo corrige con cloud-init: las instancias se crean con `-p default -p ovn-lan`.
+  [Instancias en `ovn-lan`](incus/cluster-setup.md#instancias-en-ovn-lan-el-perfil-y-el-mtu).
 - **18 nov 2026 · CAPN funciona.** Los clústeres de Kubernetes con nodos en Incus (Cluster API) ya arrancan en el
   HomeLab: la API queda en una IP fija con `kube-vip` en vez de la IPv6 que la dejaba inalcanzable. Se crean a mano,
   en unos 2 minutos, y la guía de operaciones (crear, escalar, actualizar, borrar) se probó comando por comando.
@@ -18,11 +22,11 @@ pymdownx.snippets. Una línea de fecha y título en negrita, dos o tres frases y
   (ExternalDNS), las instancias de Incus en `ovn-lan` (`<instancia>.ovn.homelab.local`) y los nodos del inventario
   (Ansible). Cada uno escribe con su propia llave y BIND impide que uno pise los nombres del otro.
   [DNS automático](networking/dns-automatico.md).
+<!-- --8<-- [end:recientes] -->
 - **18 nov 2026 · vCluster open source en vez de vCluster Platform.** La interfaz web de vCluster no sirve sin pagar:
   su plan gratis no incluye el login con GitHub. Ahora los clústeres virtuales se crean con el CLI `vcluster` o con una
   Application de Argo CD, y se entra con la misma cuenta de GitHub que el resto del clúster.
   [Operaciones frecuentes de vCluster](operacion/vcluster.md).
-<!-- --8<-- [end:recientes] -->
 - **17 nov 2026 · Kubernetes con login de GitHub y Secrets cifrados.** El API de K3s ahora acepta el login con
   GitHub a través de Dex: `kubectl` abre el navegador y el team `devops` entra con acceso total, sin copiar el
   certificado de administrador. Los Secrets del clúster quedaron cifrados en disco, y el certificado del API acepta

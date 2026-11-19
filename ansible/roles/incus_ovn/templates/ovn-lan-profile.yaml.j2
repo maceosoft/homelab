@@ -1,0 +1,21 @@
+# Perfil de Incus para instancias en {{ incus_ovn_network_name }} (rol incus_ovn, fase profile). Uso: -p default -p {{ incus_ovn_profile_name }}
+description: "Instancias en {{ incus_ovn_network_name }}: NIC en la red OVN y MTU del DHCP ({{ incus_ovn_network_name }} usa 1442) con cloud-init"
+config:
+  # systemd-networkd ignora el MTU del DHCP salvo que se le pida: sin esto las VMs quedan en 1500 y las descargas
+  # grandes se cuelgan. enp5s0 es la NIC de las VMs y eth0 la de los contenedores; la que no existe se ignora.
+  cloud-init.network-config: |
+    version: 2
+    ethernets:
+      enp5s0:
+        dhcp4: true
+        dhcp4-overrides:
+          use-mtu: true
+      eth0:
+        dhcp4: true
+        dhcp4-overrides:
+          use-mtu: true
+devices:
+  eth0:
+    name: eth0
+    network: {{ incus_ovn_network_name }}
+    type: nic

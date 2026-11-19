@@ -384,6 +384,41 @@ La dirección de escucha debe estar en el `ipv4.routes` de la uplink y no solapa
 con líder (`ovn-appctl -t /var/run/ovn/ovnnb_db.ctl cluster/status OVN_Northbound`); un *chassis* Geneve por nodo (`ovn-sbctl show`); y
 `UPLINK` y `ovn-lan` en estado `Created` (`incus network list`).
 
+### Instancias en `ovn-lan`: el perfil y el MTU
+
+`ovn-lan` tiene MTU (Maximum Transmission Unit, el tamaño máximo de paquete) **1442**, no 1500: el túnel Geneve con el
+que OVN lleva el tráfico entre nodos usa 58 bytes de cada paquete, y la red física (`br0`) es de 1500. El DHCP de OVN
+anuncia 1442, y los contenedores lo reciben de Incus, pero en las **VMs** `systemd-networkd` ignora el MTU del DHCP y
+la tarjeta queda en 1500. Con eso la VM le dice a cada servidor que acepta paquetes de 1500. El router de OVN rechaza
+los que no caben y avisa con un ICMP (Internet Control Message Protocol) "fragmentation needed", pero algunos
+servidores de internet nunca reciben o no aplican ese aviso. Resultado: los archivos chicos bajan y los grandes se
+cuelgan (`apt` con `Connection timed out` contra `deb.debian.org` o GitHub; Cloudflare sí funciona).
+
+Incus no deja fijar `mtu` en una NIC con `network` (`Cannot use "mtu" property in conjunction with "network"
+property`), y los jumbo frames (MTU 9000 en `br0` para que `ovn-lan` quede en 1500) no son posibles: el adaptador USB
+de `eve` llega a 1500. Lo resuelve el **perfil `ovn-lan`**, que crea el mismo rol: la NIC `eth0` en la red OVN y un
+`cloud-init.network-config` que le pide a la instancia usar el MTU del DHCP (`dhcp4-overrides: use-mtu: true`), para
+`enp5s0` (VMs) y `eth0` (contenedores).
+
+```bash
+ansible-playbook -i inventory.ini playbook-incus-cluster.yml --tags ovn-profile --skip-tags always \
+  -e incus_ovn_enabled=true -e incus_ovn_confirm=true --check --diff   # ver qué haría
+ansible-playbook -i inventory.ini playbook-incus-cluster.yml --tags ovn-profile --skip-tags always \
+  -e incus_ovn_enabled=true -e incus_ovn_confirm=true
+```
+
+Y cada instancia en `ovn-lan` se crea con los dos perfiles (el `eth0` de `ovn-lan` reemplaza al de `default`):
+
+```bash
+incus launch images:debian/13/cloud vm1 --vm -p default -p ovn-lan
+incus exec vm1 -- cat /sys/class/net/enp5s0/mtu     # 1442
+```
+
+Probado el 18 nov 2026: una VM Debian 13 con el perfil queda en 1442 y descarga 9,6 MB de `deb.debian.org`; sin el
+perfil, la misma descarga se cuelga. Una segunda corrida del playbook no cambia nada. El perfil solo sirve con imágenes
+que traen cloud-init (las `/cloud` de `images:`). Una VM instalada desde una ISO, o un Windows, se configura a mano
+con MTU 1442.
+
 !!! warning "La base de datos de OVN no va cifrada"
     Siguiendo la guía de Incus, el playbook publica las bases de datos de OVN por `tcp` sin SSL (Secure Sockets Layer) en la LAN de los nodos.
     Es aceptable en un laboratorio; para producción habría que activar SSL en OVN.

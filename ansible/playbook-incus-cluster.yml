@@ -69,3 +69,16 @@
     - role: incus_ovn
       when: incus_ovn_enabled | bool
   tags: [ovn]
+
+# Perfil ovn-lan (NIC en la red OVN y MTU 1442 por cloud-init). Solo el perfil:
+#   --tags ovn-profile -e incus_ovn_enabled=true -e incus_ovn_confirm=true
+- name: OVN - perfil para las instancias de la red OVN
+  hosts: invincible
+  become: true
+  gather_facts: false
+  vars:
+    incus_ovn_phase: profile
+  roles:
+    - role: incus_ovn
+      when: incus_ovn_enabled | bool
+  tags: [ovn, ovn-profile]

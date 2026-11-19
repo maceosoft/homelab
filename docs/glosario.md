@@ -58,6 +58,7 @@ paréntesis.
 | **HTTP** | Hypertext Transfer Protocol |  |
 | **HTTPS** | HTTP seguro (sobre TLS) |  |
 | **IA** | inteligencia artificial | Programas que responden preguntas, resumen textos o generan ejercicios; aquí sirven de tutor para estudiar la guía (ver [Aprende con IA](aprende.md)). |
+| **ICMP** | [Internet Control Message Protocol](https://www.rfc-editor.org/rfc/rfc792) | Mensajes de control de la red, como el aviso de que un paquete es demasiado grande para seguir ("fragmentation needed") o el ping. |
 | **IdP** | Identity Provider | Proveedor de identidad: el sistema que verifica quién eres (en el HomeLab, GitHub a través de Dex). |
 | **Incus** | [Incus](https://linuxcontainers.org/incus/) | Gestor de contenedores y máquinas virtuales (fork comunitario de LXD); aloja las instancias donde corren los nodos del HomeLab. |
 | **IP** / IPs | dirección IP | Dirección de un equipo en la red (Internet Protocol). |
@@ -83,6 +84,7 @@ paréntesis.
 | **MAC** | dirección MAC (Media Access Control) | Identificador único de una tarjeta de red; el router lo usa para reservar siempre la misma IP a un equipo. |
 | **MCP** | [Model Context Protocol](https://modelcontextprotocol.io/) | Estándar para darle herramientas a un modelo de IA (aquí, consultas de solo lectura al clúster). |
 | **MD5** | Message-Digest 5 | Algoritmo de resumen que BGP usaba para autenticar sesiones entre routers; aquí BGP corre sin él. |
+| **MTU** | [Maximum Transmission Unit](https://en.wikipedia.org/wiki/Maximum_transmission_unit) | Tamaño máximo de un paquete en una red: 1500 bytes en la LAN y 1442 en `ovn-lan`, porque el túnel de OVN usa 58 bytes de cada paquete. |
 | **NAT** | Network Address Translation | Traducción de direcciones que hace el router entre la red local e internet. |
 | **NFS** | Network File System | Protocolo de carpetas compartidas por red en Linux. |
 | **nftables** | [nftables](https://wiki.nftables.org/) | Firewall del kernel de Linux que usa el rol `host_firewall` en cada nodo. |

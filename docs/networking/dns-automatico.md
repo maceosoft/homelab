@@ -107,8 +107,9 @@ ExternalDNS recibe `REFUSED` sobre un nombre fijo; un registro nuevo en la zona 
 
 - **Publicar una app**: su `HTTPRoute` con `hostnames: [<app>.homelab.local]`. El nombre aparece solo; al borrar la
   ruta, se va.
-- **Instancia nueva de Incus**: créala en `ovn-lan` (`incus launch … --network ovn-lan`) y queda como
-  `<instancia>.ovn.homelab.local`. Las instancias en `br0` toman la IP del DHCP del router y no se registran.
+- **Instancia nueva de Incus**: créala en `ovn-lan` (`incus launch … -p default -p ovn-lan`, el perfil que además le
+  fija el MTU: ver [Instancias en `ovn-lan`](../incus/cluster-setup.md#instancias-en-ovn-lan-el-perfil-y-el-mtu)) y queda
+  como `<instancia>.ovn.homelab.local`. Las instancias en `br0` toman la IP del DHCP del router y no se registran.
 - **Nodo nuevo o IP fija nueva**: agrégalo al inventario y vuelve a correr `playbook-bind-dns.yml`.
 - **Un nombre fijo que alguien borró a mano**:
   `ansible-playbook -i inventory.ini playbook-bind-dns.yml -e bind_dns_force_records=true`.

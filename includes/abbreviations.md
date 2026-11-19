@@ -53,6 +53,7 @@
 *[HTTP]: Hypertext Transfer Protocol
 *[HTTPS]: HTTP seguro (sobre TLS)
 *[IA]: inteligencia artificial — Programas que responden preguntas, resumen textos o generan ejercicios; aquí sirven de tutor para estudiar la guía.
+*[ICMP]: Internet Control Message Protocol — Mensajes de control de la red, como el aviso de que un paquete es demasiado grande para seguir ("fragmentation needed") o el ping.
 *[IdP]: Identity Provider — Proveedor de identidad: el sistema que verifica quién eres (en el HomeLab, GitHub a través de Dex).
 *[Incus]: Incus — Gestor de contenedores y máquinas virtuales (fork comunitario de LXD); aloja las instancias donde corren los nodos del HomeLab.
 *[IP]: dirección IP — Dirección de un equipo en la red (Internet Protocol).
@@ -78,6 +79,7 @@
 *[MAC]: dirección MAC — Identificador único de una tarjeta de red; el router lo usa para reservar siempre la misma IP a un equipo.
 *[MCP]: Model Context Protocol — Estándar para darle herramientas a un modelo de IA (aquí, consultas de solo lectura al clúster).
 *[MD5]: Message-Digest 5 — Algoritmo de resumen que BGP usaba para autenticar sesiones entre routers; aquí BGP corre sin él.
+*[MTU]: Maximum Transmission Unit — Tamaño máximo de un paquete en una red; un túnel como el de OVN lo achica porque usa parte de cada paquete.
 *[NAT]: Network Address Translation — Traducción de direcciones que hace el router entre la red local e internet.
 *[NFS]: Network File System — Protocolo de carpetas compartidas por red en Linux.
 *[nftables]: nftables — Firewall del kernel de Linux que usa el rol `host_firewall` en cada nodo.
