@@ -28,7 +28,9 @@ Solo `deborah`.
    [wiki de Debian](https://wiki.debian.org/Bind9): crea los directorios,
    monta por bind mount (en `/etc/fstab`) `/dev/null`, `/dev/random`,
    `/usr/share/dns`, `/var/cache/bind`, `/var/lib/bind`, `/run/named` y
-   `/run/systemd/notify`, mueve `/etc/bind` al chroot y lo deja como symlink,
+   `/run/systemd/notify`, fija `/run/named` (tmpfs, se recrea en cada arranque) en `/etc/tmpfiles.d/named.conf`
+   con el mismo dueño que usa el paquete (`root:bind 0775`, variables `bind_dns_run_dir_*`), mueve `/etc/bind`
+   al chroot y lo deja como symlink,
    pone `OPTIONS="-u bind -t /var/lib/named"` en `/etc/default/named` y, si
    AppArmor está activo, agrega las rutas del chroot a
    `/etc/apparmor.d/local/usr.sbin.named`.

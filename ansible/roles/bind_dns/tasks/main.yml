@@ -32,7 +32,28 @@
   loop:
     - /var/cache/bind
     - /var/lib/bind
-    - /run/named
+
+# /run/named vive en tmpfs: lo que haga Ansible se pierde al reiniciar. En el arranque lo crea systemd-tmpfiles
+# con /usr/lib/tmpfiles.d/named.conf (de bind9); este archivo en /etc lo reemplaza con los valores del rol, así el
+# arranque y el playbook dejan el mismo dueño y modo (antes el rol ponía bind:bind y cada corrida tras un
+# reinicio daba changed).
+- name: Fijar /run/named en tmpfiles.d
+  ansible.builtin.copy:
+    dest: /etc/tmpfiles.d/named.conf
+    content: |
+      # Gestionado por Ansible (rol bind_dns). Reemplaza /usr/lib/tmpfiles.d/named.conf.
+      d /run/named {{ bind_dns_run_dir_mode }} {{ bind_dns_run_dir_owner }} {{ bind_dns_run_dir_group }} - -
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Crear /run/named (mismo dueño y modo que tmpfiles.d)
+  ansible.builtin.file:
+    path: /run/named
+    state: directory
+    owner: "{{ bind_dns_run_dir_owner }}"
+    group: "{{ bind_dns_run_dir_group }}"
+    mode: "{{ bind_dns_run_dir_mode }}"
 
 - name: Crear los directorios del chroot
   ansible.builtin.file:

@@ -14,6 +14,13 @@ bind_dns_chroot_dirs:
   - run
   - run/systemd
 
+# /run/named es tmpfs: se recrea en cada arranque con el tmpfiles.d de bind9 (root:bind 0775). El rol usa los
+# mismos valores (y los fija en /etc/tmpfiles.d/named.conf) para no pelear con el arranque: named escribe ahí
+# named.pid y session.key como usuario bind gracias al permiso de grupo.
+bind_dns_run_dir_owner: root
+bind_dns_run_dir_group: bind
+bind_dns_run_dir_mode: "0775"
+
 # Bind mounts hacia el chroot (origen fuera del chroot -> ruta dentro)
 bind_dns_chroot_mounts:
   - { src: /dev/null, path: dev/null, kind: file }
