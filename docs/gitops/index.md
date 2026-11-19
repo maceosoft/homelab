@@ -10,7 +10,7 @@ Referencia de **Applications** Argo CD y resolución de problemas. Manifiestos e
 Documentación relacionada:
 
 - [Opciones del playbook K3s](../k3s/playbook-options.md) — flags Ansible (kube-vip, Argo CD controller, …)
-- [vCluster Platform](../vcluster/index.md) — SSO (inicio de sesión único) Dex + kubeconfig web (K3s host + vClusters)
+- [vCluster](../vcluster/index.md) — clústeres virtuales open source (CLI `vcluster` + kubeconfig de GitHub)
 - [Clúster Incus](../incus/cluster-setup.md#ui-de-administracion) — UI (interfaz de usuario) web + OIDC (OpenID Connect) Dex
 - [Storage](../storage/index.md) / [Secretos](../secrets/index.md)
 - [Stack tecnológico](../implementacion/stack-tecnologico.md)
@@ -75,7 +75,7 @@ la anotación `argocd.argoproj.io/sync-wave` de su archivo (tabla en el
 | Application / carpeta | Producto | Para qué sirve |
 |---|---|---|
 | **`argocd-route`** | [Gateway API](https://gateway-api.sigs.k8s.io/) | `HTTPRoute`: UI en [`https://argocd.homelab.local`](https://argocd.homelab.local). |
-| **`addons/argocd/config/`** (`argocd`) | [Dex](https://dexidp.io/docs/) | Connector GitHub + staticClients vCluster e Incus UI. |
+| **`addons/argocd/config/`** (`argocd`) | [Dex](https://dexidp.io/docs/) | Connector GitHub + staticClients (Incus UI, Grafana, Open WebUI, `opkssh`, `kubectl`). |
 | **`victoria-metrics`** *(opcional)* | [VictoriaMetrics](https://docs.victoriametrics.com/helm/victoria-metrics-k8s-stack/) | Monitoreo: métricas, Alertmanager (alertas a Discord) y Grafana en [`https://grafana.homelab.local`](https://grafana.homelab.local). Necesita los Secrets de `playbook-platform-secrets.yml` antes de activarla ([4.13](../implementacion/fase-4-gitops.md#413-monitoreo-y-alertas-opcional)). |
 | [`addons/argocd/config/notifications/`](https://github.com/maceosoft/gitops/tree/main/addons/argocd/config/notifications) | Argo CD Notifications | Servicios, disparadores y plantillas de las notificaciones a Discord ([4.14](../implementacion/fase-4-gitops.md#414-notificaciones-de-argocd-a-discord-opcional)); `test.sh` las prueba sin enviar nada. |
 | [`addons/argocd/secrets/`](https://github.com/maceosoft/gitops/tree/main/addons/argocd/secrets) | [1Password SDK](https://github.com/1Password/onepassword-sdk-python) | OAuth desde app local |
@@ -145,7 +145,7 @@ Ver [Asistente de IA local](../operacion/ia-ollama.md).
 
 | Application | Producto | Para qué sirve |
 |---|---|---|
-| **`vcluster-platform`** | [vCluster Platform](https://www.vcluster.com/docs/platform/) | UI: kubeconfig del host K3s (connected) + vClusters. |
+| **`vcluster-demo`** | [vCluster](https://www.vcluster.com/docs/vcluster/) | vCluster de ejemplo (chart open source, disco `longhorn` de 5Gi). Se entra con `vcluster connect`. |
 | **`capn-demo`** | [CAPN](https://capn.linuxcontainers.org/) | Cluster API sobre Incus. |
 | **`calico-operator`** + **`calico-config`** | [Calico](https://docs.tigera.io/calico/latest/about/) | CNI Calico (CRDs + operador + `Installation`). **Activas**: Argo CD administra y actualiza Calico (v3.33.0); lo instaló Ansible al crear el clúster. Sync **manual**. Ver [Calico con Argo CD](../operacion/actualizar-calico.md). |
 | **`canal`** | [Canal](https://docs.tigera.io/calico/latest/getting-started/kubernetes/flannel/flannel) | CNI Canal (Flannel + políticas Calico). |
@@ -165,7 +165,7 @@ Ver [Asistente de IA local](../operacion/ia-ollama.md).
 | [`addons/network/metallb/`](https://github.com/maceosoft/gitops/tree/main/addons/network/metallb) | Pool + L2Advertisement. |
 | [`addons/cluster/k3s-upgrade/`](https://github.com/maceosoft/gitops/tree/main/addons/cluster/k3s-upgrade) | CRs `Plan` SUC. |
 | [`addons/monitoring/`](https://github.com/maceosoft/gitops/tree/main/addons/monitoring) | Values del chart de VictoriaMetrics, reglas, scrapes, ruta de Grafana y pruebas de las reglas (`victoria-metrics` y `victoria-metrics-config`). |
-| [`addons/cluster/vcluster/values/platform.yaml`](https://github.com/maceosoft/gitops/blob/main/addons/cluster/vcluster/values/platform.yaml) | Helm values Platform + OIDC Dex. |
+| [`addons/cluster/vcluster/values/demo.yaml`](https://github.com/maceosoft/gitops/blob/main/addons/cluster/vcluster/values/demo.yaml) | Values del vCluster de ejemplo (`vcluster-demo`); sirven también para `vcluster create -f`. |
 | [`addons/cluster/capn/clusters/`](https://github.com/maceosoft/gitops/tree/main/addons/cluster/capn/clusters) | Clusters generados con `clusterctl`. |
 | [`addons/ai/`](https://github.com/maceosoft/gitops/tree/main/addons/ai) | Manifiestos del asistente de IA: `ollama-router`, `open-webui`, `open-terminal`, `tools`, `alert-triage`, `k8sgpt` y `log-report`. |
 | [`addons/network/calico/`](https://github.com/maceosoft/gitops/tree/main/addons/network/calico) | Installation CR Calico (`calico-config` Application). |
@@ -191,7 +191,7 @@ Ver [Asistente de IA local](../operacion/ia-ollama.md).
 | `openebs` `OutOfSync` con el sync en `Running` | El Job del hook `pre-upgrade` del chart no termina y Argo CD lo espera. En OpenEBS usa una imagen (`bitnami/kubectl:1.25.15`) que ya no existe en Docker Hub; el hook solo migra de v3 a v4 y está desactivado en `bootstrap/components/openebs.yaml` (`preUpgradeHook.enabled: false`). Si el Job viejo sigue ahí con el finalizador `argocd.argoproj.io/hook-finalizer`, cancela la operación (`status.operationState.phase: Terminating`) y quítale el finalizador |
 | `longhorn` con el sync en `Running`: el Job `longhorn-pre-upgrade` no tiene pod (`serviceaccount "longhorn-service-account" not found`) | En una **instalación limpia** con Argo CD ese Job corre antes que su ServiceAccount y el sync espera para siempre: desactívalo con `preUpgradeChecker.jobEnabled: false` (ya está así en `bootstrap/components/longhorn.yaml`). Si cancelas la operación (`status.operationState.phase: Terminating`), quita el finalizador del Job y refresca. En una **actualización** el Job sí funciona y falla con razón si el salto no está soportado: lee `kubectl logs -n longhorn-system job/longhorn-pre-upgrade` antes de desactivarlo |
 | Gateway sin dirección | `metallb-config` sync, pool libre en LAN |
-| SSO vCluster falla | `playbook-dex-oauth-secrets.yml --tags ensure,argocd,vcluster`; restart Dex |
+| `vcluster connect` da `Unauthorized` o `forbidden` | Usa el kubeconfig con GitHub del team `devops` ([Entrar a Kubernetes con GitHub](../operacion/acceso-kubernetes.md)) |
 | Incus UI SSO falla | `incus config get oidc.issuer` / `oidc.client.id` en invincible; `invincible` debe confiar en la CA del HomeLab (`--tags incus_ca`); cliente `incus-ui` público en `dex.config`; restart Dex |
 | Dex login sin GitHub | Secretos GitHub en `argocd-secret`; Redirect URIs de la OAuth App correcto |
 | GitHub login rechazado | Usuario debe pertenecer al team `devops` de la org `maceosoft` |

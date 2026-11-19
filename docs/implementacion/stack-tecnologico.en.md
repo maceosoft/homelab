@@ -1,10 +1,12 @@
-# Tech stack
+# Technology Stack
 
-HomeLab technology inventory: **layer diagram** + list with official links in each product name.
+Inventory of HomeLab technologies: **layer diagram** + list with
+official links in each product name.
 
-Part of the [implementation guide](index.md). Complementary C4 view (C4 model): [Architecture](../architecture/overview.md) · [Level 3 — Components](../architecture/nivel-3-componentes.md) · [Level 4 — Deployment](../architecture/nivel-4-despliegue.md).
+Part of the [implementation guide](index.md). Complementary C4 view (C4 model):
+[Architecture](../architecture/overview.md) · [Level 3 — Components](../architecture/nivel-3-componentes.md) · [Level 4 — Deployment](../architecture/nivel-4-despliegue.md).
 
-## Layer diagram
+## Layer Diagram
 
 ```mermaid
 flowchart TB
@@ -35,7 +37,7 @@ flowchart TB
     OnePassword[1Password_SDK]
   end
   subgraph capa5 [Capa 5 — Opcionales y operaciones]
-    VCluster[vCluster_Platform]
+    VCluster[vCluster]
     CAPI[Cluster_API]
     CAPN[CAPN]
     SUC[system_upgrade_controller]
@@ -60,7 +62,7 @@ flowchart TB
   ArgoCD --> OpenEBS
   ArgoCD --> Longhorn
   ArgoCD --> SealedSecrets
-  Dex --> VCluster
+  K3s --> VCluster
   K3s --> CAPI --> CAPN
   Incus --> CAPN
   ArgoCD --> SUC
@@ -72,7 +74,7 @@ flowchart TB
   Ansible --> Ollama
 ```
 
-## Layer 0 — Hardware, OS and bootstrap
+## Layer 0 — Hardware, OS and Bootstrap
 
 - **[Ansible](https://docs.ansible.com/)** — Idempotent automation of OS, network, Incus and K3s (lightweight Kubernetes distribution); Phases 0–3.
 - **[Netplan](https://netplan.io/)** — Static IP on `br0`; Phase 1; node identity for Incus/K3s/CAPN (Cluster API Provider for Incus).
@@ -81,15 +83,15 @@ flowchart TB
 ## Layer 1 — Virtualization
 
 - **[Incus](https://linuxcontainers.org/incus/docs/main/)** — LXC cluster (Linux system containers)/VM with quorum; Phase 2; substrate for CAPN and instances.
-- **[Incus UI](https://linuxcontainers.org/incus/docs/main/howto/server_expose/#web-ui)** — Incus cluster web administration; Phase 2 (cert) + Phase 4 (OIDC —OpenID Connect— with Dex).
-- **[Zabbly Incus stable](https://github.com/zabbly/incus)** — Package repo; Phase 2.
+- **[Incus UI](https://linuxcontainers.org/incus/docs/main/howto/server_expose/#web-ui)** — Web administration of the Incus cluster; Phase 2 (cert) + Phase 4 (OIDC —OpenID Connect— with Dex).
+- **[Zabbly Incus stable](https://github.com/zabbly/incus)** — Package repository; Phase 2.
 
-## Layer 2 — Kubernetes management
+## Layer 2 — Kubernetes Management
 
 - **[K3s](https://docs.k3s.io/)** — Bare-metal management cluster; Phase 3.
-- **[kube-vip](https://kube-vip.io/)** — Optional API (Application Programming Interface) VIP (virtual IP) `:6443`; Phase 3 (fork).
+- **[kube-vip](https://kube-vip.io/)** — Optional API (Application Programming Interface) VIP (Virtual IP) `:6443`; Phase 3 (fork).
 - **CNI (choose one; in this HomeLab, Calico)** — Phase 3:
-  - **[Flannel](https://github.com/flannel-io/flannel)** — default embedded in K3s (`vxlan` in `br0`)
+  - **[Flannel](https://github.com/flannel-io/flannel)** — Default embedded in K3s (`vxlan` in `br0`)
   - **[Canal](https://docs.tigera.io/calico/latest/getting-started/kubernetes/flannel/flannel)** — Flannel + Calico policies
   - **[Calico](https://docs.tigera.io/calico/latest/about/)** — NetworkPolicy, optional BGP (Border Gateway Protocol)
   - **[Cilium](https://docs.cilium.io/)** — eBPF (extended Berkeley Packet Filter), Hubble, L3–L7 policies
@@ -120,52 +122,52 @@ flowchart TB
   </div>
 </div>
 
-## Layer 3 — GitOps, network and access
+## Layer 3 — GitOps, Networking and Access
 
-- **[Argo CD](https://argo-cd.readthedocs.io/)** — ApplicationSet `homelab` (one Application per `bootstrap/components/` file, in waves with RollingSync), managed by the Application `homelab-bootstrap`; Phase 4.
-- **[Dex](https://dexidp.io/docs/)** — Embedded OIDC IdP (identity provider) in Argo CD; SSO (single sign-on) for Argo CD, Grafana, Open WebUI, vCluster Platform and Incus UI (user interface); Phase 4.
-- **[GitHub](https://docs.github.com/en/apps/oauth-apps)** — OAuth (Open Authorization) connector + GitOps repos; Phase 4.
-- **[MetalLB](https://metallb.universe.tf/)** — LoadBalancer on LAN (local network); Phase 4 wave 0–1.
-- **[Gateway API](https://gateway-api.sigs.k8s.io/)** with **[Kong Ingress Controller](https://developer.konghq.com/kubernetes-ingress-controller/)** — HTTP(S) to Argo CD, Grafana, Open WebUI, the Ollama router and vCluster; Phase 4 wave 1 (alternatives: Traefik, NGINX Gateway Fabric).
+- **[Argo CD](https://argo-cd.readthedocs.io/)** — ApplicationSet `homelab` (one Application per `bootstrap/components/` file, in waves with RollingSync), managed by the `homelab-bootstrap` Application; Phase 4.
+- **[Dex](https://dexidp.io/docs/)** — Embedded OIDC IdP (Identity Provider) in Argo CD; SSO (Single Sign-On) for Argo CD, Grafana, Open WebUI, Incus UI and `kubectl`; Phase 4.
+- **[GitHub](https://docs.github.com/en/apps/oauth-apps)** — OAuth (Open Authorization) Connector + GitOps repos; Phase 4.
+- **[MetalLB](https://metallb.universe.tf/)** — LoadBalancer on LAN (Local Area Network); Phase 4 wave 0–1.
+- **[Gateway API](https://gateway-api.sigs.k8s.io/)** with **[Kong Ingress Controller](https://developer.konghq.com/kubernetes-ingress-controller/)** — HTTP(S) to Argo CD, Grafana, Open WebUI and the Ollama router; Phase 4 wave 1 (alternatives: Traefik, NGINX Gateway Fabric).
 - **[1Password Python SDK](https://github.com/1Password/onepassword-sdk-python)** — OAuth secrets from the local app; Phase 4.
 - **[VictoriaMetrics](https://docs.victoriametrics.com/)** (with **[Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/)**) — Node and platform metrics and alerts, lighter than Prometheus; Phase 4 (4.13, optional).
-- **[Grafana](https://grafana.com/docs/grafana/latest/)** — Dashboards for temperature, memory, disk, logs and Ollama in `grafana.homelab.local`; Phase 4 (4.13, optional).
-- **[Discord](https://discord.com/developers/docs/resources/webhook)** and **[healthchecks.io](https://healthchecks.io/docs/)** — Alert destination (webhooks) and external watchdog (*dead man's switch*) that receives a ping from Alertmanager, in case the whole cluster goes down; Phase 4 (4.13, optional).
+- **[Grafana](https://grafana.com/docs/grafana/latest/)** — Temperature, memory, disk, logs and Ollama dashboards on `grafana.homelab.local`; Phase 4 (4.13, optional).
+- **[Discord](https://discord.com/developers/docs/resources/webhook)** and **[healthchecks.io](https://healthchecks.io/docs/)** — Alert destination (webhooks) and external watchdog (*dead man's switch*) that receives a ping from Alertmanager, in case the entire cluster goes down; Phase 4 (4.13, optional).
 
-## Layer 4 — Storage and secrets
+## Layer 4 — Storage and Secrets
 
 - **[OpenEBS](https://openebs.io/docs)** — Default LocalPV; Phase 4 wave 0.
 - **[Longhorn](https://longhorn.io/docs/)** — Cross-arch replicated storage; Phase 4 wave 1.
 - **[Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets)** — Encrypted secrets in Git; Phase 4 and 6.
 - **[SOPS (Secrets OPerationS)](https://github.com/getsops/sops)** — Pre-bootstrap encryption; deep dive [Secrets](../secrets/index.md).
 
-## Layer 5 — Optionals and operations
+## Layer 5 — Optionals and Operations
 
-- **[vCluster Platform](https://www.vcluster.com/docs/platform/)** — Virtual clusters + web kubeconfig (host K3s and vClusters); Phase 5.
+- **[vCluster](https://www.vcluster.com/docs/vcluster/)** (open source) — Virtual clusters inside K3s; created with the `vcluster` CLI and accessed with `vcluster connect` and the GitHub kubeconfig; Phase 5.
 - **[Cluster API](https://cluster-api.sigs.k8s.io/)** — Declarative cluster API; Phase 6.
 - **[CAPN](https://capn.linuxcontainers.org/)** — Incus provider for CAPI (Cluster API); Phase 6.
-- **[clusterctl](https://cluster-api.sigs.k8s.io/user/quick-start.html)** — CLI (command-line interface) CAPI bootstrap; Phase 6.
+- **[clusterctl](https://cluster-api.sigs.k8s.io/user/quick-start.html)** — CAPI bootstrap CLI (Command Line Interface); Phase 6.
 - **[system-upgrade-controller](https://github.com/rancher/system-upgrade-controller)** — Staggered K3s upgrades; Phase 4 wave 3.
 
-## Layer 6 — Local AI, logs, and security
+## Layer 6 — Local AI, logs and security
 
 - **[Ollama](https://ollama.com/)** — Language models (LLM, *Large Language Model*) on CPU (central processing unit), on demand in
-  `deborah`, `invincible`, and `oliver`, and on machines added as nodes. [Guide](../operacion/ia-ollama.md) · [add a node](../operacion/agregar-nodo-ollama.md).
-- **Ollama Router** (`ollama-router`, custom) — Single entry point (`ollama.homelab.local`): automatic node registration,
-  model-based selection, per-client token, and per-model and per-node metrics.
+  `deborah`, `invincible` and `oliver`, and on machines that join as nodes. [Guide](../operacion/ia-ollama.md) · [add a node](../operacion/agregar-nodo-ollama.md).
+- **Ollama Router** (`ollama-router`, custom) — Single entry point (`ollama.homelab.local`): automatic node
+  registration, model-based selection, per-client token, and per-model and per-node metrics.
 - **[Open WebUI](https://docs.openwebui.com/)** — Chat with the assistant, with Dex login; **[Open Terminal](https://docs.openwebui.com/features/open-terminal)**
-  as an isolated terminal (sandbox) for the assistant to run code.
+  as an isolated terminal (sandbox) for the assistant to execute code.
 - **K8sGPT** — Cluster analysis with Ollama; **staged** (its operator requests cluster-wide permissions).
 - **[Vector](https://vector.dev/)** → **[VictoriaLogs](https://docs.victoriametrics.com/victorialogs/)** → Grafana —
-  Centralized logs (30 days) and daily and weekly AI reports in the `#ia` Discord channel ([guide](../operacion/logs.md)).
+  Centralized logs (30 days) and daily and weekly AI-powered reports in the `#ia` Discord channel ([guide](../operacion/logs.md)).
 - **[nftables](https://wiki.nftables.org/)** — Host firewall on each node (role `host_firewall`), with automatic rollback.
-- **NetworkPolicy** `default-deny` per namespace and **`oauth2-proxy`** — prepared and **to be enabled** in stages
-  ([Authentication model](../security/modelo-de-autenticacion.md)).
+- **NetworkPolicy** `default-deny` per namespace and **`oauth2-proxy`** — ready and **to be enabled** in stages
+  ([Authentication Model](../security/modelo-de-autenticacion.md)).
 
 ## Each layer in the enterprise and in the cloud
 
 The same stack, viewed through each lens. The detail of each row (trade-offs, benefits, and official links) is in the
-"This decision in other environments" block of the linked page.
+"Decision in other environments" block of the linked page.
 
 === "🏠 At home"
 
@@ -174,7 +176,7 @@ The same stack, viewed through each lens. The detail of each row (trade-offs, be
 
 === "🏢 In a company"
 
-    | Layer | What changes in a company | Detail |
+    | Layer | What changes in an enterprise | Detail |
     |---|---|---|
     | Virtualization | Supported platform (vSphere, Proxmox VE, Nutanix, OpenStack) | [Phase 2](fase-2-incus.md) |
     | Kubernetes | 3 control planes with etcd and a supported distribution (RKE2, OpenShift) | [Phase 3](fase-3-k3s.md) |
@@ -206,5 +208,5 @@ The same stack, viewed through each lens. The detail of each row (trade-offs, be
     | AI | Gemini Enterprise Agent Platform | Bedrock | Microsoft Foundry | OCI Generative AI |
     | Backups | Backup and DR and Backup for GKE | AWS Backup | Azure Backup | Block Volume Backups |
 
-    In general you gain managed operations, SLA, and scale; you lose control, pay per use, and become more locked in to each
+    In general you gain managed operations, SLAs, and scale; you lose control, pay per use, and become more locked in to each
     provider.

@@ -43,8 +43,8 @@ k3s_install:
     secrets_encryption: true
     # OIDC hacia Dex: login humano al kube-apiserver con el cliente público "kubernetes"
     # (PKCE; se declara en dex.config de gitops). Con los prefijos de abajo, el grupo
-    # maceosoft:devops llega al API como "oidc:maceosoft:devops"; gitops define un
-    # ClusterRoleBinding de ese grupo con el ClusterRole "view".
+    # maceosoft:devops llega al API como "oidc:maceosoft:devops"; gitops le da cluster-admin
+    # (addons/security/rbac). El rol k3s_server lo escribe como AuthenticationConfiguration (auth_config_path).
     oidc:
       enabled: true
       issuer_url: https://argocd.homelab.local/api/dex
@@ -55,9 +55,15 @@ k3s_install:
       username_prefix: "oidc:"
       groups_prefix: "oidc:"
       # CA que firma el certificado de Dex (homelab-ca). La instala el rol opkssh en el
-      # almacén del sistema; el rol k3s_server falla si el archivo no existe. Vacío = no pasar
-      # --oidc-ca-file (el apiserver usaría el almacén raíz del sistema).
+      # almacén del sistema; el rol k3s_server falla si el archivo no existe y la copia dentro de la config.
+      # Vacío = sin CA propia (el apiserver usaría el almacén raíz del sistema).
       ca_file: /usr/local/share/ca-certificates/homelab-ca.crt
+      # Teams de Dex (claim groups, sin prefijo) que pueden autenticarse en el API. Dex también deja entrar a
+      # otros teams (ia, para Open WebUI): sin esta lista, sus tokens recibirían lo que tiene system:authenticated.
+      required_groups:
+        - maceosoft:devops
+      # Config de autenticación del kube-apiserver (--authentication-config). Reemplaza a las flags --oidc-*.
+      auth_config_path: /etc/rancher/k3s/authentication-config.yaml
 
   kube_vip:
     enabled: false

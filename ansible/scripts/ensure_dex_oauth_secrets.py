@@ -3,7 +3,7 @@
 
 Genera cada campo listado en DEX_OAUTH_GENERATED_FIELDS (o
 dex_oauth_generated_fields en group_vars) si no existe en el ítem.
-Por defecto: VCLUSTER_CLIENT_SECRET.
+Por defecto: ninguno (todos los clientes de Dex salvo GitHub son públicos, con PKCE).
 Usado por playbook-dex-oauth-secrets.yml (Ansible).
 
 Uso:

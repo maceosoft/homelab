@@ -33,6 +33,27 @@
     - k3s_server_oidc_enabled | bool
     - k3s_install.security.oidc.ca_file | length > 0
 
+- name: Leer la CA de OIDC (Dex) del nodo
+  ansible.builtin.slurp:
+    src: "{{ k3s_install.security.oidc.ca_file }}"
+  register: k3s_server_oidc_ca_file
+  when:
+    - k3s_server_oidc_enabled | bool
+    - k3s_install.security.oidc.ca_file | length > 0
+
+# Va antes del instalador: el kube-apiserver no arranca si --authentication-config apunta a un archivo que no
+# existe. Con K3s ya corriendo, el cambio se aplica sin reiniciar (el apiserver vuelve a leer el archivo).
+- name: Escribir la config de autenticación del API (Dex)
+  ansible.builtin.template:
+    src: authentication-config.yaml.j2
+    dest: "{{ k3s_install.security.oidc.auth_config_path }}"
+    owner: root
+    group: root
+    mode: "0600"
+  vars:
+    k3s_server_oidc_ca_pem: "{{ k3s_server_oidc_ca_file.content | default('') | b64decode }}"
+  when: k3s_server_oidc_enabled | bool
+
 # Igual que en k3s_agent: se necesita el código de salida de systemctl is-active.
 - name: Comprobar si K3s server ya está activo  # noqa: command-instead-of-module
   ansible.builtin.command: systemctl is-active k3s
@@ -63,15 +84,7 @@
       {% if k3s_server_cluster_init | bool %}--cluster-init {% endif %}\
       {% if k3s_server_join_url | length > 0 %}--server {{ k3s_server_join_url }} {% endif %}\
       {% if k3s_server_secrets_encryption | bool %}--secrets-encryption {% endif %}\
-      {% if k3s_server_oidc_enabled | bool %}\
-      --kube-apiserver-arg=oidc-username-prefix={{ k3s_install.security.oidc.username_prefix }} \
-      --kube-apiserver-arg=oidc-groups-prefix={{ k3s_install.security.oidc.groups_prefix }} \
-      --kube-apiserver-arg=oidc-issuer-url={{ k3s_install.security.oidc.issuer_url }} \
-      --kube-apiserver-arg=oidc-client-id={{ k3s_install.security.oidc.client_id }} \
-      --kube-apiserver-arg=oidc-username-claim={{ k3s_install.security.oidc.username_claim }} \
-      --kube-apiserver-arg=oidc-groups-claim={{ k3s_install.security.oidc.groups_claim }} \
-      {% if k3s_install.security.oidc.ca_file | length > 0 %}--kube-apiserver-arg=oidc-ca-file={{ k3s_install.security.oidc.ca_file }} {% endif %}\
-      {% endif %}\
+      {% if k3s_server_oidc_enabled | bool %}--kube-apiserver-arg=authentication-config={{ k3s_install.security.oidc.auth_config_path }} {% endif %}\
       {% for arg in k3s_agent_kubelet_args | default([]) %}--kubelet-arg={{ arg }} {% endfor %}\
       {% for san in k3s_server_effective_tls_sans %}--tls-san {{ san }} {% endfor %}" \
       sh {{ k3s_installer_path }}

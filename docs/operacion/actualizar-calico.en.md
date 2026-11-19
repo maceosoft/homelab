@@ -10,7 +10,7 @@ Calico is the cluster's CNI (Container Network Interface, the pod network). It i
 
 | Application | What it manages | Where |
 |---|---|---|
-| `calico-operator` | CRDs and the operator (`tigera-operator`) at the chosen version | `addons/network/calico-operator/kustomization.yaml` |
+| `calico-operator` | CRDs and the operator (`tigera-operator`) in the chosen version | `addons/network/calico-operator/kustomization.yaml` |
 | `calico-config` | `Installation` (pod CIDR `10.42.0.0/16`, VXLAN cross-subnet) and `APIServer` | `addons/network/calico/custom-resources.yaml` |
 
 !!! warning "Manual sync, no prune"
@@ -42,7 +42,7 @@ Both Applications carry `argocd.argoproj.io/compare-options: ServerSideDiff=true
 `OutOfSync` on Calico CRDs and on fields the operator populates (like `assignmentMode` in the pool, new in v3.31),
 even though `kubectl diff --server-side` comes out empty.
 
-!!! danger "This is the pod network of all nodes"
+!!! danger "It is the pod network of all nodes"
     If a stage fails, the pod network is compromised and **there is no simple rollback**. Do it during a maintenance
     window and with direct access to the nodes. It is the same mistake that broke Longhorn when jumping from 1.6 to 1.13:
     never skip more versions than the project documentation supports.
@@ -65,14 +65,14 @@ kustomize build gitops/addons/network/calico-operator | kubectl diff --server-si
 kubectl diff --server-side --force-conflicts -f gitops/addons/network/calico/custom-resources.yaml
 ```
 
-The second one must come out **empty**: the YAML of `calico-config` declares all fields that the
-operator writes, so Argo CD and the operator do not step on each other.
+The second one must come out **empty**: the `calico-config` YAML declares all fields the
+operator writes, so Argo CD and the operator don't step on each other.
 
 **Sync, in order:**
 
 1. Both Applications are already in `gitops/bootstrap/components/` (`calico-operator.yaml` and `calico-config.yaml`):
-   the ApplicationSet `homelab` creates them with wave `manual`, without syncing them. Nothing needs to be applied.
-2. **Sync** of `calico-operator` (with *Server-Side Apply*, already enabled). The operator
+   the ApplicationSet `homelab` creates them with wave `manual`, without syncing them. Nothing to apply.
+2. **Sync** `calico-operator` (with *Server-Side Apply*, already enabled). The operator
    updates and restarts the `calico-node` **node by node** (`maxUnavailable: 1`).
 
     === "🖱️ From the UI"
@@ -84,7 +84,7 @@ operator writes, so Argo CD and the operator do not step on each other.
         With the Argo CD CLI (the Application already brings `ServerSideApply=true`, so no need to pass it):
 
         ```bash
-        argocd login argocd.homelab.local --grpc-web
+        argocd login argocd.homelab.local --sso --grpc-web
         argocd app sync calico-operator
         ```
 
@@ -119,7 +119,7 @@ The last one checks that a pod can still reach a service on another node.
 ## Subsequent changes
 
 - **Upgrade version:** change the two `addons/network/calico-operator/kustomization.yaml` URLs, push
-  and **Sync** manually. Upgrade one or two minor versions at a time and review the release notes for each version.
+  and **Sync** manually. Raise one or two minor versions at a time and review the release notes for each version.
 - **Do not change** `cidr`, `encapsulation` or `blockSize` of the pool without a maintenance
   window: they change the network of all pods.
 - **Do not run** `--tags cni` from Ansible again on an already adopted cluster: the role detects

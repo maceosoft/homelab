@@ -187,11 +187,16 @@
     openssl s_client -connect {{ incus_s3_listen_address }}:{{ incus_s3_port }} \
       -CAfile {{ incus_s3_dir }}/homelab-ca.crt -verify_return_error -verify_ip {{ incus_s3_listen_address }} \
       </dev/null 2>&1 | grep -E '^(Verify return code|subject=|issuer=)'
+    # El nombre estable que usa CloudNativePG (endpointURL de gitops) también tiene que verificar, no solo la IP.
+    openssl s_client -connect {{ incus_s3_listen_address }}:{{ incus_s3_port }} \
+      -CAfile {{ incus_s3_dir }}/homelab-ca.crt -verify_return_error \
+      -verify_hostname {{ incus_s3_dns_name | default('s3.homelab.local') }} </dev/null 2>&1 \
+      | grep -E '^Verify return code' | sed 's/^/{{ incus_s3_dns_name | default('s3.homelab.local') }}: /'
   args:
     executable: /bin/bash
   register: incus_s3_tls_verify
   changed_when: false
-  failed_when: "'Verify return code: 0 (ok)' not in incus_s3_tls_verify.stdout"
+  failed_when: "incus_s3_tls_verify.stdout.count('Verify return code: 0 (ok)') < 2"
   when: not ansible_check_mode
 
 # Sin credenciales, Incus tiene que contestar con un error S3 (403/AccessDenied): prueba que detrás está su S3.

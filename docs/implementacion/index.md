@@ -85,7 +85,7 @@ flowchart LR
     </div>
     <div class="card stepper-card">
       <div class="card-title"><a href="fase-5-vcluster/">vCluster</a> <span class="tag tag-neutral">Opcional</span></div>
-      <div class="card-body">Clústeres virtuales + kubeconfig web.</div>
+      <div class="card-body">Clústeres virtuales open source con el CLI <code>vcluster</code>.</div>
       <div class="card-meta">Application manual</div>
     </div>
   </div>

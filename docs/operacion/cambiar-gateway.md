@@ -4,7 +4,7 @@ El HomeLab publica sus servicios con [Gateway API](https://gateway-api.sigs.k8s.
 (`Gateway` y `HTTPRoute`), no con `Ingress`. Hay un solo `Gateway`, llamado
 `homelab` (namespace `gateway`), con un listener HTTP (80) y uno HTTPS (443)
 para `*.homelab.local`. Cada app se engancha con su propio `HTTPRoute`
-(`addons/argocd/route`, `addons/cluster/vcluster/route`).
+(por ejemplo `addons/argocd/route` o `addons/monitoring/config/route`).
 
 Quien atiende ese Gateway es **un controlador a la vez**; los tres comparten las
 IP 80/443 de MetalLB y no pueden convivir:
@@ -137,6 +137,6 @@ Gateway esté `Programmed`, entra a Argo CD con
 | `HTTPRoute` sin `Accepted` | `kubectl describe httproute -n argocd argocd-server`: `parentRefs` debe apuntar a `homelab` en `gateway` |
 | Con Kong, los pods no llegan a `Ready` y el log del controlador dice `failed posting new config to /config` | Ver el punto de Kong en *Cómo funciona el TLS*; confirma que existe el Secret `kong-default-tls` (`kubectl -n kong get certificate,secret`) |
 | Con Kong, el listener queda sin programar | KIC enlaza el Gateway con los puertos del Kong del chart; revisa `kubectl describe gateway` y los puertos del Service `kong-gateway-proxy` |
-| Con Kong, `kubectl -n kong logs deploy/kong-controller` dice `invalid config.location: missing host in url` | Un `HTTPRoute` con filtro `RequestRedirect` sin `hostname`: Kong arma el plugin `redirect` con una URL completa. Agrega `hostname` al filtro (ya está en `addons/argocd/route` y `addons/cluster/vcluster/route`) |
+| Con Kong, `kubectl -n kong logs deploy/kong-controller` dice `invalid config.location: missing host in url` | Un `HTTPRoute` con filtro `RequestRedirect` sin `hostname`: Kong arma el plugin `redirect` con una URL completa. Agrega `hostname` al filtro (ya está en `addons/argocd/route`) |
 | Argo CD responde `307` hacia la misma URL (bucle) o `too many redirects` | `server.insecure` se lee solo al arrancar: reinicia el pod (`kubectl -n argocd rollout restart deploy/argocd-server`) y comprueba el valor (`kubectl -n argocd get cm argocd-cmd-params-cm -o yaml`) |
-| Con Kong, `http://…` responde `426 Upgrade Required` | La ruta solo-HTTPS gana a la de redirección: la anotación `konghq.com/https-redirect-status-code: "301"` del `HTTPRoute` hace que Kong redirija (ya está en `addons/argocd/route` y `addons/cluster/vcluster/route`) |
+| Con Kong, `http://…` responde `426 Upgrade Required` | La ruta solo-HTTPS gana a la de redirección: la anotación `konghq.com/https-redirect-status-code: "301"` del `HTTPRoute` hace que Kong redirija (ya está en `addons/argocd/route`) |

@@ -130,7 +130,7 @@ inputs:
 |---|---|---|
 | `argocd-diff` | `true` | Desactivar el diff |
 | `allowed-secrets` | `bootstrap/repositories/arc-helm-repo.yaml bootstrap/repositories/nginx-gateway-helm-repo.yaml` | Rutas que pueden tener un `Secret` en texto plano (separadas por espacio) |
-| `no-wave-apps` | `vcluster-platform capn-demo canal cilium` (gitops pasa además `homelab-bootstrap`) | Applications que pueden no tener `sync-wave` |
+| `no-wave-apps` | `vcluster-platform capn-demo canal cilium`; gitops pasa `vcluster-demo capn-demo canal cilium homelab-bootstrap` | Applications que pueden no tener `sync-wave` |
 
 En el propio repo `gitops`: `.yamllint.yaml` (reglas de yamllint) y
 `.gitleaks.toml` (excepciones de gitleaks; hoy, las plantillas

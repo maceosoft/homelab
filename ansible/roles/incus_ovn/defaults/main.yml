@@ -1,5 +1,5 @@
 ---
-incus_ovn_phase: preflight  # preflight | install | networks (el playbook lo sobreescribe)
+incus_ovn_phase: preflight  # preflight | install | networks | profile (el playbook lo sobreescribe)
 incus_ovn_confirm: false    # false = solo preflight, no cambia nada
 incus_ovn_min_free_mb: 1500
 incus_ovn_leader: "{{ incus_cluster_leader | default('invincible') }}"
@@ -8,6 +8,7 @@ incus_ovn_uplink_parent: "{{ incus_bridge | default('br0') }}"
 incus_ovn_uplink_gateway: 192.168.20.1/22
 incus_ovn_dns: 192.168.20.5
 incus_ovn_network_name: ovn-lan
+incus_ovn_profile_name: ovn-lan  # perfil para sus instancias (fase profile)
 incus_ovn_db_hosts: "{{ groups['incus_cluster'] }}"
 incus_ovn_nb_conn: "{{ incus_ovn_db_hosts | map('extract', hostvars, 'static_ip') | map('regex_replace', '^(.*)$', 'tcp:\\1:6641') | join(',') }}"
 incus_ovn_sb_conn: "{{ incus_ovn_db_hosts | map('extract', hostvars, 'static_ip') | map('regex_replace', '^(.*)$', 'tcp:\\1:6642') | join(',') }}"

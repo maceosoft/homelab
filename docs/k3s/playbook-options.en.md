@@ -77,13 +77,13 @@ ansible-playbook -i inventory.ini playbook-k3s.yml
 
 ## CNI
 
-K3s ships with **embedded Flannel**. Canal, Calico and Cilium require
+K3s ships with **Flannel** embedded. Canal, Calico and Cilium require
 `--flannel-backend=none` and `--disable-network-policy` (role [`k3s_cni`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/k3s_cni/README.md),
 tag `cni`, **after** server and **before** agents).
 
 | CNI | `k3s_install.core.cni` | Installation |
 |---|---|---|
-| [Flannel](https://github.com/flannel-io/flannel) | `flannel` (default) | Embedded; tune `flannel_backend` |
+| [Flannel](https://github.com/flannel-io/flannel) | `flannel` (default) | Embedded; adjusts `flannel_backend` |
 | [Canal](https://docs.tigera.io/calico/latest/getting-started/kubernetes/flannel/flannel) | `canal` | Canal manifest (Ansible or Application `canal`) |
 | [Calico](https://docs.tigera.io/calico/latest/about/) | `calico` | Tigera operator + custom resources |
 | [Cilium](https://docs.cilium.io/) | `cilium` | Official Helm chart |
@@ -98,7 +98,7 @@ ansible-playbook -i inventory.ini playbook-k3s.yml
 !!! warning "`-e k3s_install.x.y=valor` does not work"
     Ansible does not merge dotted keys into an existing dict — it creates a
     separate new variable (literally named `"k3s_install.x.y"`) and
-    `k3s_install` remains untouched: **the default CNI was installed silently**. A `-e` with
+    `k3s_install` remains untouched: **the default CNI was installed without warning**. A `-e` with
     JSON does not help either: it **replaces** the entire dict, so `core.version`,
     `cluster_cidr`, etc. are lost. The playbook now detects both cases and **fails** before touching the nodes.
 
@@ -120,9 +120,9 @@ ansible-playbook -i inventory.ini playbook-k3s.yml \
 The CNI is chosen **before creating the cluster**: changing it later on a running cluster does not reinstall the network and can leave two CNIs fighting. If you already installed with another, the change is a migration, not a flag.
 
 Calico is managed by Argo CD after bootstrap (Applications `calico-operator` + `calico-config`, manual sync; see
-[Calico with Argo CD](../operacion/actualizar-calico.md)). Alternative GitOps (manual sync):
+[Calico with Argo CD](../operacion/actualizar-calico.md)). GitOps alternatives (manual sync):
 `canal` or `cilium` in [`gitops/bootstrap/components/apagadas/`](https://github.com/maceosoft/gitops/tree/main/bootstrap/components/apagadas) —
-only if you installed K3s with `cni` different from `flannel` via Ansible **or** you apply the
+only if you installed K3s with `cni` other than `flannel` via Ansible **or** you apply the
 manifest after `--flannel-backend=none`. **Do not** enable more than one CNI (Container Network Interface) app at a time.
 
 ### Trade-off Analysis — CNI
@@ -152,7 +152,7 @@ The `cni` play is skipped if `k3s_install.core.cni` is `flannel` (default).
 
 ### kube-vip
 
-Control-plane **VIP** (virtual IP) only (`cp_enable=true`, `svc_enable=false`). Does not
+Control plane **VIP** (virtual IP) only (`cp_enable=true`, `svc_enable=false`). Does not
 replace MetalLB or K3s ServiceLB.
 
 | Field | Default | Description |
@@ -196,9 +196,9 @@ Full catalog and step-by-step guide in [Phase 4 — GitOps](../implementacion/fa
 | Longhorn | `longhorn` | auto (wave 1) |
 | Argo CD Dex/route | `argocd-route`, `argocd` | auto (wave 2) |
 | K3s upgrades | `k3s-upgrade` | auto (wave 3) |
-| vCluster Platform | `vcluster-platform` | manual |
+| vCluster (example) | `vcluster-demo` | manual |
 | CAPN demo | `capn-demo` | manual |
-| CNI Calico | `calico-operator`, `calico-config` | manual (enabled) |
+| CNI Calico | `calico-operator`, `calico-config` | manual (active) |
 | Alternative CNIs (optional) | `canal`, `cilium` | manual |
 
 ### Trade-off Analysis — kube-vip vs MetalLB
@@ -217,24 +217,21 @@ Continue in [Phase 4 — GitOps](../implementacion/fase-4-gitops.md).
 ## OAuth Dex Playbook (Phase 4)
 
 [`playbook-dex-oauth-secrets.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-dex-oauth-secrets.yml) —
-generates `VCLUSTER_CLIENT_SECRET` in 1Password if missing,
+reads GitHub credentials from 1Password,
 applies `argocd-secret` and configures Incus OIDC (OpenID Connect) on invincible. Requires
 `KUBECONFIG` exported and the 1Password app unlocked.
 
 | Tag | What it does |
 |---|---|
-| `ensure` | Generates the missing secret in 1Password (`VCLUSTER_CLIENT_SECRET`) |
+| `ensure` | Generates missing `dex_oauth_generated_fields` fields in 1Password (none today: Dex clients are public) |
 | `argocd` | Applies `dex.*` keys in `argocd-secret` and restarts Dex |
 | `incus` | Installs HomeLab CA on invincible, **restarts `incus`** (if CA changed) and configures `oidc.issuer` and `oidc.client.id` |
 | `incus_ca` | Only installs HomeLab CA on invincible (and restarts `incus` if changed) |
-| `vcluster` | Applies `VCLUSTER_CLIENT_SECRET` on vCluster Platform (requires `apply_vcluster: true`) |
 
 ```bash
 cd ansible
 ansible-playbook -i inventory.ini playbook-dex-oauth-secrets.yml --tags ensure,argocd,incus
 ansible-playbook -i inventory.ini playbook-dex-oauth-secrets.yml --tags incus_ca
-ansible-playbook -i inventory.ini playbook-dex-oauth-secrets.yml --tags vcluster \
-  -e dex_oauth.apply_vcluster=true
 ```
 
 `apply_incus` is in `true` by default on `group_vars`.

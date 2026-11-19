@@ -14,6 +14,13 @@ bind_dns_chroot_dirs:
   - run
   - run/systemd
 
+# /run/named es tmpfs: se recrea en cada arranque con el tmpfiles.d de bind9 (root:bind 0775). El rol usa los
+# mismos valores (y los fija en /etc/tmpfiles.d/named.conf) para no pelear con el arranque: named escribe ahí
+# named.pid y session.key como usuario bind gracias al permiso de grupo.
+bind_dns_run_dir_owner: root
+bind_dns_run_dir_group: bind
+bind_dns_run_dir_mode: "0775"
+
 # Bind mounts hacia el chroot (origen fuera del chroot -> ruta dentro)
 bind_dns_chroot_mounts:
   - { src: /dev/null, path: dev/null, kind: file }
@@ -39,3 +46,50 @@ bind_dns_allowed_clients:
 bind_dns_rate_limit_enabled: false
 bind_dns_rate_limit_rps: 20
 bind_dns_rate_limit_exempt: "{{ bind_dns_allowed_clients }}"
+
+# --- Zona dinámica homelab.local (RFC 2136) ---------------------------------
+# Llaves TSIG que firman los cambios. Los secretos salen de 1Password (item bind_dns_tsig_op_item, un
+# campo por llave; se crean con `openssl rand -base64 32`). homelab-externaldns la usa también el Secret
+# de ExternalDNS en el clúster (apply_platform_secrets.py).
+bind_dns_tsig_op_item: bind-tsig
+bind_dns_tsig_keys:
+  - { name: homelab-ansible, field: ansible }
+  - { name: homelab-externaldns, field: externaldns }
+
+# Registros fijos de homelab.local (los escribe Ansible; ExternalDNS no puede tocarlos). s3 apunta al nodo con los
+# buckets de Incus (incus_s3_host, rol incus_s3), no al líder del clúster.
+bind_dns_static_records: >-
+  {{
+    [{'name': 'ns', 'ip': dns_primary},
+     {'name': 'incus', 'ip': hostvars[incus_cluster_leader].static_ip},
+     {'name': incus_s3_dns_name.split('.')[0], 'ip': hostvars[incus_s3_host].static_ip},
+     {'name': 'k3s', 'ip': k3s_api_ip}]
+    + bind_dns_node_records
+  }}
+# Un registro por nodo de incus_cluster (static_ip) y otro <nodo>-wifi si tiene wifi_ip.
+bind_dns_node_records: >-
+  {%- set out = [] -%}
+  {%- for host in groups['incus_cluster'] -%}
+  {%- set _ = out.append({'name': host, 'ip': hostvars[host].static_ip}) -%}
+  {%- if hostvars[host].wifi_ip is defined -%}
+  {%- set _ = out.append({'name': host ~ '-wifi', 'ip': hostvars[host].wifi_ip}) -%}
+  {%- endif -%}
+  {%- endfor -%}
+  {{ out }}
+
+# Nombres que Ansible borra de la zona: los que antes escribía a mano y ahora publica ExternalDNS (o que ya
+# no existen). Se aplica solo cuando cambia esta lista: borra todos sus registros y ExternalDNS vuelve a
+# crear los suyos en su siguiente ciclo (≈1 min sin esos nombres, una vez).
+bind_dns_removed_names:
+  - argocd
+  - api
+  - grafana
+  - ollama
+  - open-webui
+  - vcluster
+
+# --- Zona de Incus (instancias de ovn-lan; ver dns_incus_* en group_vars/all.yml) ---------
+bind_dns_incus_zone_enabled: true
+bind_dns_incus_zone: "{{ dns_incus_zone }}"
+bind_dns_incus_zone_network: "{{ dns_incus_zone_network }}"
+bind_dns_incus_dns_port: "{{ dns_incus_port }}"

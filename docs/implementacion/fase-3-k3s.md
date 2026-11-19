@@ -118,8 +118,8 @@ Profundización: [Opciones del playbook](../k3s/playbook-options.md) · [Catálo
 
 ## Antes de empezar
 
-- [ ] [Fases 0](fase-0-preparacion.md), [1](fase-1-red.md) y [2](fase-2-incus.md) completadas.
-- [ ] Clúster de Incus sano (opcional pero recomendado antes de CAPN —Cluster API Provider for Incus—).
+- [X] [Fases 0](fase-0-preparacion.md), [1](fase-1-red.md) y [2](fase-2-incus.md) completadas.
+- [X] Clúster de Incus sano (opcional pero recomendado antes de CAPN —Cluster API Provider for Incus—).
 
 ## Ejecutar
 

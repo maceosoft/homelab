@@ -1,16 +1,26 @@
 ---
-# Instala BIND en deborah dentro de un chroot, lo configura para escuchar en
-# su IP de la LAN y sirve tres zonas, generadas desde el inventario y group_vars:
-#   - mco.local                  nombres de los hosts (un A por nodo, ns, k3s)
-#   - 20.168.192.in-addr.arpa    reversa de esa red (PTR)
-#   - homelab.local              servidores y servicios publicados, cada uno con su
-#                                registro (incus, argocd, vcluster y api -> gateway_ip).
-#                                Sin comodín: un nombre nuevo necesita su registro.
+# DNS del HomeLab. BIND en deborah (chroot), escuchando en su IP de la LAN, con estas zonas:
+#   - mco.local                  nombres de los hosts (un A por nodo, ns, k3s), estática
+#   - 20.168.192.in-addr.arpa    reversa de esa red (PTR), estática
+#   - homelab.local              DINÁMICA (RFC 2136): Ansible escribe los nombres fijos (nodos, <nodo>-wifi,
+#                                k3s, incus, ns) y ExternalDNS (gitops) los de las apps de Kubernetes
+#   - ovn.homelab.local          secundaria: la genera Incus con las instancias de ovn-lan
 #
-# Ejecutar:
+# Requiere el item bind-tsig de 1Password (campos ansible y externaldns) y ONEPASSWORD_ACCOUNT_NAME.
+#
+# Ejecutar (primero ver qué cambia):
+#   ansible-playbook -i inventory.ini playbook-bind-dns.yml --check --diff
 #   ansible-playbook -i inventory.ini playbook-bind-dns.yml
 
-- name: Instalar y configurar BIND (mco.local, homelab.local)
+- name: Zona DNS de Incus para las instancias de ovn-lan
+  # El líder del clúster (incus_cluster_leader en group_vars/incus_cluster/vars.yml); hosts: no ve group_vars.
+  hosts: invincible
+  become: true
+  gather_facts: false
+  roles:
+    - role: incus_dns_zone
+
+- name: Instalar y configurar BIND (mco.local, homelab.local, ovn.homelab.local)
   hosts: deborah
   become: true
   roles:

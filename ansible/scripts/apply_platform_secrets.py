@@ -33,6 +33,8 @@ GitOps, y que no pueden vivir en git:
   postgres/postgres-s3                     llave del bucket postgres-backups de Incus (opcional; respaldos)
   postgres/incus-s3-ca                     CA del HomeLab (solo el certificado público, ca.crt de
                                            cert-manager/homelab-ca): valida el S3 de Incus
+  external-dns/external-dns-tsig           llave TSIG con la que ExternalDNS escribe en BIND (opcional; item bind-tsig,
+                                           campo externaldns; clave "secret"; el namespace es de GitOps)
   namespace terraform                      state de OpenTofu (lo escribe el runner)
 
 Además BORRA de arc-runners los Secrets terraform-app, tofu-vars y argocd-ci si
@@ -145,9 +147,10 @@ OLLAMA_CLIENT_TOKENS = {
 }
 # Items de un solo campo: item -> (campo, [(namespace, Secret, clave), ...]); el mismo valor va a cada destino.
 SANDBOX_NAMESPACE = "ai-sandbox"
+EXTERNAL_DNS_NAMESPACE = "external-dns"
 # Namespaces cuyas etiquetas PSA declara GitOps (ai-sandbox: restricted en gitops addons/ai/open-terminal/namespace.yaml): este script
 # solo se asegura de que existan, sin etiqueta PSA, y con la anotación que impide que ArgoCD los pode.
-GITOPS_NAMESPACES = (AI_NAMESPACE, SANDBOX_NAMESPACE)
+GITOPS_NAMESPACES = (AI_NAMESPACE, SANDBOX_NAMESPACE, EXTERNAL_DNS_NAMESPACE)
 SINGLE_TOKEN_ITEMS = {
     "alert-triage-webhook": ("token", [(MONITORING_NAMESPACE, "alert-triage-webhook", "token")]),
     # mcpo (gitops: addons/ai/tools) la exige; alert-triage (monitoring) la presenta para diagnosticar con las herramientas.
@@ -156,6 +159,9 @@ SINGLE_TOKEN_ITEMS = {
     "Anthropic-apikey": ("api-key", [(MONITORING_NAMESPACE, "anthropic-api-key", "api_key"), (AI_NAMESPACE, "anthropic-api-key", "api_key")]),
     "Nvidia-Apikey": ("password", [(AI_NAMESPACE, "nvidia-api-key", "api_key")]),
     "open-terminal": ("api_key", [(SANDBOX_NAMESPACE, "open-terminal-api-key", "api_key"), (AI_NAMESPACE, "open-terminal-api-key", "api_key")]),
+    # ExternalDNS (gitops: bootstrap/components/external-dns.yaml) escribe en la zona dinámica homelab.local de BIND con esta
+    # llave TSIG. El mismo campo lo lee el rol bind_dns de Ansible para declararla en BIND.
+    "bind-tsig": ("externaldns", [(EXTERNAL_DNS_NAMESPACE, "external-dns-tsig", "secret")]),
 }
 # Un token corto o con espacios sería adivinable o rompería la cabecera Authorization.
 TOKEN_MIN_LEN = 32
@@ -589,7 +595,7 @@ async def build_manifests(dry_run: bool = False) -> list[dict]:
                 ensure_namespace(manifests, ns, privileged=(ns == MONITORING_NAMESPACE), keep=(ns in GITOPS_NAMESPACES))
                 manifests.append(secret(ns, name, {key: value}))
         else:
-            print(f"Aviso: sin item {item!r} en 1Password: no se crean sus Secrets (opcional: IA).", file=sys.stderr)
+            print(f"Aviso: sin item {item!r} en 1Password: no se crean sus Secrets (opcional).", file=sys.stderr)
 
     # PostgreSQL de la plataforma: rol de homelab-agent (contraseña generada si falta) y su cadena de conexión.
     ensure_namespace(manifests, POSTGRES_NAMESPACE, keep=True)

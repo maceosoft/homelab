@@ -1,171 +1,79 @@
-# vCluster Platform
+# vCluster
 
-!!! info "Part of the implementation guide"
-    **[Phase 5 — vCluster](../implementacion/fase-5-vcluster.md)** — actionable steps.
-    Requires **[Phase 4 — GitOps](../implementacion/fase-4-gitops.md)** (Dex, Gateway).
+Open source [vCluster](https://www.vcluster.com/docs) creates **virtual Kubernetes clusters** inside the HomeLab's K3s. Each one has its own API (Application Programming Interface), its own namespaces, its own CRDs, and its own admin permissions, but runs as pods in a namespace on the host (`vcluster-<nombre>`). The step-by-step guide is in
+[Phase 5](../implementacion/fase-5-vcluster.md), and day-to-day tasks are in [Common operations](../operacion/vcluster.md).
 
-Deep-dive add-on. vCluster Platform provides a **web UI**, **SSO (single sign-on) via
-Argo CD Dex**, and **kubeconfig download** for the management K3s (connected
-cluster) and vClusters, without relying solely on the CLI (command-line interface).
-
-## What it's for
-
-| Capability | Description |
-|---|---|
-| Virtual clusters | Isolated Kubernetes API inside management K3s, no Incus VMs needed |
-| Web UI | Create/delete vClusters, view status, connect from browser |
-| SSO | OIDC login via **Dex** → **GitHub** (team `devops` of org `maceosoft`); credentials in 1Password |
-| Kubeconfig | **Download kubeconfig** / **Connect** for the **host K3s** (connected cluster) and each **vCluster** |
-
-Manual **sync** — Application `vcluster-platform` (in `gitops/bootstrap/components/apagadas/`: activated by moving it to `bootstrap/components/` and synced manually).
-
-## Components involved
-
-| Resource | Purpose |
-|---|---|
-| [`vcluster-platform.yaml`](https://github.com/maceosoft/gitops/blob/main/bootstrap/components/apagadas/vcluster-platform.yaml) | Helm Application that installs Loft Platform in `vcluster-platform` |
-| [`addons/cluster/vcluster/values/platform.yaml`](https://github.com/maceosoft/gitops/blob/main/addons/cluster/vcluster/values/platform.yaml) | HTTPRoute `vcluster.homelab.local` (`addons/cluster/vcluster/route`), OIDC issuer → Argo CD Dex |
-| [`addons/argocd/config/dex.config`](https://github.com/maceosoft/gitops/blob/main/addons/argocd/config/dex.config) | GitHub Connector + OAuth client `vcluster-platform` |
-| [`addons/argocd/secrets/1password.md`](https://github.com/maceosoft/gitops/blob/main/addons/argocd/secrets/1password.md) | 1Password Items → `argocd-secret` |
-| **`argocd-route`** | Exposes Argo CD/Dex at `argocd.homelab.local` (see [GitOps](../gitops/index.md)) |
-
-## Authentication flow
+## How it works here
 
 ```mermaid
-sequenceDiagram
-  participant U as Usuario
-  participant VP as vcluster_homelab_local
-  participant Dex as argocd_api_dex
-  U->>VP: Login SSO
-  VP->>Dex: OIDC authorize
-  Dex->>U: GitHub OAuth
-  Dex->>VP: token
-  VP->>U: UI + kubeconfig
+flowchart LR
+  subgraph host[K3s anfitrión]
+    subgraph ns[namespace vcluster-nombre]
+      cp[Pod nombre-0<br/>API + base de datos + syncer]
+      pvc[(PVC en Longhorn)]
+      pods[Pods sincronizados<br/>app-x-default-x-nombre]
+    end
+  end
+  you[Tú, team devops] -->|kubeconfig de GitHub| host
+  you -->|vcluster connect| cp
+  cp --- pvc
+  cp -->|crea| pods
 ```
 
-| URL | Role |
+1. **The control plane** of the vCluster is a pod (`<nombre>-0`, a StatefulSet) with its own Kubernetes API, an embedded
+   database, and the **syncer**. It stores its state on a Longhorn volume.
+2. **What you create inside** (Deployments, ConfigMaps, namespaces…) lives only in that database.
+3. **The syncer** copies to the host the minimum needed for workloads to run: the pods, their Services, mounted Secrets and ConfigMaps,
+   and the PVCs. On the host they have names like `web-7fbc…-x-default-x-<nombre>` and are scheduled by the
+   K3s scheduler on the usual nodes.
+4. **To get in**, you use your GitHub kubeconfig against the host ([Access Kubernetes with
+   GitHub](../operacion/acceso-kubernetes.md)), and `vcluster connect` opens a port-forward to the vCluster pod and gives you
+   an admin kubeconfig **for that vCluster**.
+
+## Pieces in the `gitops` repo
+
+| File | Purpose |
 |---|---|
-| [`https://argocd.homelab.local`](https://argocd.homelab.local) | Argo CD UI; Dex issuer at `/api/dex` |
-| [`https://vcluster.homelab.local`](https://vcluster.homelab.local) | vCluster Platform UI |
+| [`bootstrap/components/apagadas/vcluster-demo.yaml`](https://github.com/maceosoft/gitops/blob/main/bootstrap/components/apagadas/vcluster-demo.yaml) | Example Application: the `vcluster` 0.38.x chart as vCluster `demo` in `vcluster-demo`. Turned off; manual sync when you enable it |
+| [`addons/cluster/vcluster/values/demo.yaml`](https://github.com/maceosoft/gitops/blob/main/addons/cluster/vcluster/values/demo.yaml) | Values: volume on `longhorn`, 5 Gi |
 
-## Implementation (summary)
+vClusters created with the CLI are not kept in git: they are for testing and get deleted. One that needs to stay is declared as an
+Application, by copying `vcluster-demo.yaml`.
 
-Follow **[Phase 4 — GitOps](../implementacion/fase-4-gitops.md)** until
-completing Dex OAuth and the Gateway. Then:
+## Requirements
 
-### 1. OAuth secrets (step 4.7 of the GitOps guide)
+- **GitHub login to the K3s API** and the `devops` team with `cluster-admin` (creating a vCluster creates a namespace, Role,
+  ServiceAccount, and StatefulSet).
+- A healthy **Longhorn**: the control plane volume goes there.
+- **`vcluster` CLI** of the same version as the chart (0.38.0), for `connect`, `pause`, and `list`.
 
-Ansible generates and applies the local secrets; in 1Password you only need to
-manually create `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET`:
+No DNS, certificate, HTTPRoute, or Dex client is needed: nothing is published on the Gateway.
 
-```bash
-cd ansible
-ansible-playbook -i inventory.ini playbook-dex-oauth-secrets.yml
-# Tras desplegar Platform (paso 2):
-ansible-playbook -i inventory.ini playbook-dex-oauth-secrets.yml \
-  --tags vcluster -e dex_oauth.apply_vcluster=true
-```
+## Tested in the HomeLab
 
-### 2. Deploy Platform
+On Nov 18, 2026, with chart 0.38.0 and the GitHub user (`oidc:…`, team `devops`):
 
-In the `gitops` repo, move `bootstrap/components/apagadas/vcluster-platform.yaml` to `bootstrap/components/` and merge into
-`main`. The ApplicationSet `homelab` creates the Application with wave `manual` (no auto-sync): sync it manually.
-
-=== "🖱️ From the UI"
-
-    Argo CD UI → `vcluster-platform` → **Sync**.
-
-=== "⌨️ From the console"
-
-    With the Argo CD CLI:
-
-    ```bash
-    argocd login argocd.homelab.local --grpc-web
-    argocd app sync vcluster-platform
-    ```
-
-### 3. Validate GitHub SSO
-
-After `argocd` sync, login in Argo CD or Platform should offer **GitHub**.
-If it fails, check the OAuth App Redirect URIs and team `maceosoft/devops` in
-[`dex.config`](https://github.com/maceosoft/gitops/blob/main/addons/argocd/config/dex.config).
-
-With stable SSO, put `auth.password.disabled: true` in `platform.yaml`.
-
-### 4. DNS
-
-`vcluster.homelab.local` and `argocd.homelab.local` are resolved by the LAN DNS
-(BIND on `deborah`) to the Gateway's fixed IP, `192.168.23.200`
-([Phase 4 — 4.8](../implementacion/fase-4-gitops.md#48-homelablocal-dns)). Use
-`192.168.20.5` as DNS; if you can't, the fallback is `/etc/hosts`:
-
-```
-192.168.23.200  argocd.homelab.local vcluster.homelab.local
-192.168.20.6    incus.homelab.local
-```
-
-## Daily use
-
-1. Open [`https://vcluster.homelab.local`](https://vcluster.homelab.local)
-2. **Login with SSO** (GitHub) or local admin until password is disabled
-3. **New Virtual Cluster** → name → **Create**
-4. In the vcluster: **Connect** / **Download kubeconfig**
-5. `export KUBECONFIG=~/Downloads/kubeconfig.yaml` and `kubectl get nodes`
-
-### Management K3s kubeconfig (connected cluster)
-
-The host cluster where Platform runs appears in **Clusters** as a connected
-cluster. Same SSO flow → **Connect** / **Download kubeconfig**. Without explicit
-**Cluster Access**, the authenticated user **does not see the cluster** (deny by
-default). Assign permissions to the user/team `loft-*` in the Platform UI.
-
-Alternative without web: [`fase-4-gitops.md` 4.1](../implementacion/fase-4-gitops.md#41-kubectl-access).
-
-Alternative CLI:
-
-```bash
-vcluster connect <nombre> -n <namespace>
-```
+| Test | Result |
+|---|---|
+| `vcluster create` with the values from `demo.yaml` | Control plane ready in ~60 s, 5 Gi PVC in `longhorn` |
+| `vcluster connect -- kubectl get ns` | Only the vCluster's namespaces |
+| Deployment `nginx` + Service inside, `curl` from another pod | `HTTP 200`; the pod shows up on the host as `web-…-x-default-x-prueba` |
+| `vcluster pause` / `vcluster resume` | Paused: 0 pods on the host. On resume, the Deployment is still there |
+| The same config as an Argo CD Application | `Synced` and `Healthy` within 60 s, no differences after a forced refresh |
+| `vcluster delete --delete-namespace` and deleting the Application | No leftovers in the cluster (CRDs, webhooks, ClusterRoles, volumes) |
 
 ## vCluster vs CAPN
 
-| | vCluster Platform | CAPN |
+| | vCluster | CAPN |
 |---|---|---|
-| Auth | Argo CD Dex + UI kubeconfig | Sealed Incus secret |
-| Runtime | Pods in management K3s | Incus instances |
-| RAM | Moderate (1 vcluster) | High per kubeadm node |
-| Argo CD Sync | manual | manual |
+| What it creates | A control plane as a pod in K3s | Full kubeadm clusters on Incus instances |
+| Nodes | K3s's own nodes (shares the kernel) | Dedicated (Incus VMs or containers) |
+| RAM | Low (one pod per vCluster) | High per node |
+| Isolation | By namespace | Machine-level |
+| Access | GitHub login + `vcluster connect` | Kubeconfig of the created cluster |
 
-<div class="card">
-  <div class="card-kicker">vCluster vs CAPN</div>
-  <div class="option-grid">
-    <div class="card-col">
-      <div class="card-title">vCluster Platform</div>
-      <div class="text-muted">Pods in K3s; web kubeconfig; Dex SSO</div>
-      <div class="text-muted">Overhead per vcluster; Platform permissions</div>
-    </div>
-    <div class="card-col">
-      <div class="card-title">CAPN</div>
-      <div class="text-muted">Real kubeadm clusters in Incus</div>
-      <div class="text-muted">Lots of RAM per node; sealed Incus secret</div>
-    </div>
-    <div class="card-col">
-      <div class="card-title">Web kubeconfig (Platform)</div>
-      <div class="text-muted">No <code>scp</code>; centralized audit</div>
-      <div class="text-muted">Requires explicit Cluster Access</div>
-    </div>
-    <div class="card-col">
-      <div class="card-title"><code>scp</code> / CLI</div>
-      <div class="text-muted">Works before Phase 5</div>
-      <div class="text-muted">Local file; no SSO in the flow</div>
-    </div>
-  </div>
-</div>
+See [Phase 6 — CAPN](../implementacion/fase-6-capn.md).
 
-## Dependencies
+## vCluster Platform (discarded)
 
-Must be **Healthy** before syncing Platform:
-
-- `openebs`, `homelab-storage` (PVCs)
-- `metallb`, `metallb-config`, `cert-manager-config` and the Gateway controller (`kong`) (HTTPS URLs)
-- `argocd-route`, `argocd` (Dex + staticClient)
+[vCluster Platform](https://www.vcluster.com/docs/platform/) adds a web interface, projects, and kubeconfig download. It was tested in the HomeLab on Nov 17, 2026: it started with the "vCluster Free" license, in which the single sign-on (SSO) feature is not enabled, so the GitHub login via Dex doesn't appear and, with password login disabled, nobody can get in. It also installs about 30 CRDs, webhooks, and APIServices of its own on the host. It was replaced by the open source vCluster.

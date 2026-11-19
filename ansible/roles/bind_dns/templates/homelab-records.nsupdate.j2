@@ -1,0 +1,9 @@
+; Gestionado por Ansible (rol bind_dns). Registros fijos de homelab.local: se aplican con
+; nsupdate y la llave homelab-ansible cada vez que este archivo cambia.
+server 127.0.0.1
+zone homelab.local
+{% for rec in bind_dns_static_records %}
+update delete {{ rec.name }}.homelab.local. A
+update add {{ rec.name }}.homelab.local. 300 A {{ rec.ip }}
+{% endfor %}
+send

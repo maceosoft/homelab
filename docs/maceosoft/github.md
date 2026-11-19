@@ -73,7 +73,7 @@ export ONEPASSWORD_ACCOUNT_NAME="Mi Cuenta"
 | `symintel-arc-runners` *(opcional)* | Nota segura | `app_id`, `installation_id`, `private_key` | ARC de la **org antigua** (`symintel`): registro de su scale set. Ver [Dos organizaciones](#dos-organizaciones-un-scale-set-por-org) |
 | `symintel-terraform` *(opcional)* | Nota segura | `app_id`, `installation_id`, `private_key` | OpenTofu de la org antigua; sin él, esos runners no tienen credenciales de OpenTofu |
 | `sealed-secrets` | Nota segura | `certificate`, `private_key` *(opcional hasta la Fase 6)* | Llave de cifrado de Sealed Secrets: sobrevive si reinstalas K3s |
-| `maceosoft-dex` | Nota segura | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` (+ `VCLUSTER_CLIENT_SECRET`, que genera el playbook) | Dex (login con GitHub) |
+| `maceosoft-dex` | Nota segura | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | Dex (login con GitHub) |
 | `discord-webhooks` | Nota segura | `critical`, `warnings`: URL de un webhook de Discord por canal; `deployments` *(opcional)*: el del canal `despliegues` para las notificaciones de Argo CD *(opcional: monitoreo)* | Alertmanager envía las alertas ([4.13](../implementacion/fase-4-gitops.md#413-monitoreo-y-alertas-opcional)). Cómo crearlos: [Discord y healthchecks.io](discord-healthchecks.md#parte-1-discord) |
 | `healthchecks-ping` | Nota segura | `url`: ping URL del check de healthchecks.io *(opcional: monitoreo)* | Alertmanager le manda un ping cada 5 minutos para avisar que el monitoreo sigue vivo. Cómo crearla: [Discord y healthchecks.io](discord-healthchecks.md#parte-2-healthchecksio) |
 | `grafana-admin` | Nota segura | `password` y, si quieres, `username` (por defecto `admin`) *(opcional: monitoreo)* | Administrador de Grafana |
@@ -311,16 +311,16 @@ con estos dos campos:
 | `GITHUB_CLIENT_ID` | Texto | Client ID | Página de la OAuth App: línea **Client ID** |
 | `GITHUB_CLIENT_SECRET` | Contraseña | Client secret | Misma página → **Generate a new client secret**. GitHub lo muestra **una sola vez**: cópialo en ese momento |
 
-Así queda el item (el último campo lo agrega solo
-`playbook-dex-oauth-secrets.yml` la primera vez que corre: es el secreto
-del cliente vCluster de Dex, no viene de GitHub):
+Así queda el item:
 
 ```text
 maceosoft-dex              (Nota segura · bóveda HomeLab)
 ├── GITHUB_CLIENT_ID      Ov23li…
-├── GITHUB_CLIENT_SECRET  ••••••••
-└── VCLUSTER_CLIENT_SECRET ••••••••  (lo genera el playbook)
+└── GITHUB_CLIENT_SECRET  ••••••••
 ```
+
+Si tu item todavía tiene el campo `VCLUSTER_CLIENT_SECRET` (lo generaba el playbook para vCluster Platform, que ya no
+se usa), nadie lo lee: puedes borrarlo a mano.
 
 **Crear la OAuth App y generar su client secret se hace solo desde la web**: GitHub no tiene API para OAuth Apps. Guardar
 los dos valores en 1Password lo puedes hacer de las dos formas:
@@ -351,7 +351,7 @@ Para comprobar que alguien está en el team `devops` (o agregarlo) desde la cons
 
 Solo puede entrar el team **`devops`** de `maceosoft`, y sus miembros quedan
 como admin de Argo CD. Se aplica en el
-[paso 4.7 de la Fase 4](../implementacion/fase-4-gitops.md#47-secretos-oauth-github-vcluster-incus-ui).
+[paso 4.7 de la Fase 4](../implementacion/fase-4-gitops.md#47-secretos-oauth-github-incus-ui).
 
 ## Paso 2 — Repos, App de Argo CD y FTP (manual) {#paso-2-repos-app-de-argocd-y-ftp-manual}
 

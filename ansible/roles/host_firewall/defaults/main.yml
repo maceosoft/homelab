@@ -86,6 +86,8 @@ host_firewall_services:
   - { name: k3s-api, proto: [tcp], ports: [6443], from: [nodes, operator, pods] }
   - { name: kubelet, proto: [tcp], ports: [10250], from: [nodes, pods] }
   - { name: incus-api, proto: [tcp], ports: [8443], from: [nodes, operator, pods] }
+  # DNS de Incus (rol incus_dns_zone): BIND en deborah copia la zona ovn.homelab.local (AXFR) y recibe sus NOTIFY.
+  - { name: incus-dns, proto: [tcp, udp], ports: [8853], from: [nodes] }
   # S3 de Incus (HAProxy en invincible, rol incus_s3) para los respaldos de CloudNativePG. Los pods de otros nodos llegan
   # con la IP de su nodo (Calico natOutgoing) y los del propio invincible con su IP de pod: por eso nodes y pods.
   - { name: incus-s3, proto: [tcp], ports: [8555], from: [nodes, pods, operator] }

@@ -19,3 +19,7 @@
 - name: Redes de Incus (uplink y red OVN)
   ansible.builtin.include_tasks: networks.yml
   when: incus_ovn_phase == 'networks'
+
+- name: Perfil para las instancias de la red OVN (NIC y MTU)
+  ansible.builtin.include_tasks: profile.yml
+  when: incus_ovn_phase == 'profile'

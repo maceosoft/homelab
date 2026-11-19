@@ -1,4 +1,13 @@
 ---
+# Primero se refrescan las listas: así la lista de pendientes (y la confirmación de los nodos
+# críticos) muestra lo que de verdad se va a instalar, no lo de la última vez que alguien corrió
+# apt-get update. En --check el módulo apt no baja las listas: se usan las que ya hay en el nodo.
+- name: Refrescar las listas de apt (apt-get update)
+  ansible.builtin.apt:
+    update_cache: true
+    lock_timeout: "{{ node_patch_apt_lock_timeout }}"
+  changed_when: false
+
 - name: "Paquetes que se actualizarían (apt list --upgradable, solo lectura)"
   ansible.builtin.command: apt list --upgradable
   register: node_patch_upgradable
@@ -18,12 +27,13 @@
   when:
     - inventory_hostname in node_patch_critical_hosts
     - not ansible_check_mode
+    - node_patch_upgradable.stdout_lines | reject('match', '^Listing') | list | length > 0
 
-- name: Actualizar paquetes (apt-get update y dist-upgrade)
+- name: Actualizar paquetes (dist-upgrade)
   ansible.builtin.apt:
-    update_cache: true
     upgrade: dist
     autoremove: "{{ node_patch_autoremove }}"
+    lock_timeout: "{{ node_patch_apt_lock_timeout }}"
   register: node_patch_apt
 
 - name: Resultado de apt  # noqa: no-handler

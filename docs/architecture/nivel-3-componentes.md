@@ -11,7 +11,7 @@ Volver a [Overview (Nivel 1–2)](overview.md).
 Desglose del clúster bare-metal de control: GitOps (Argo CD), identidad (Dex),
 provisioning CAPI/CAPN, red de servicios (MetalLB, Gateway), operadores de
 storage (OpenEBS, Longhorn), secretos (Sealed Secrets), upgrades (SUC) y
-vCluster Platform opcional.
+clústeres virtuales con vCluster (open source, opcional).
 
 Detalle operativo: [Stack tecnológico](../implementacion/stack-tecnologico.md),
 [GitOps](../gitops/index.md).
@@ -30,7 +30,7 @@ flowchart LR
     subgraph k3s_mgmt["K3s Management"]
         direction LR
         argocd["<span style='color:#000'><b>Argo CD</b><br/><small>[Component: Helm]</small><br/>GitOps controller + server</span>"]
-        dex["<span style='color:#000'><b>Dex</b><br/><small>[Component: OIDC]</small><br/>SSO ArgoCD / vCluster / Incus UI</span>"]
+        dex["<span style='color:#000'><b>Dex</b><br/><small>[Component: OIDC]</small><br/>SSO ArgoCD / Grafana / Incus UI / kubectl</span>"]
         subgraph apps["Applications de Argo CD"]
             direction TB
             sealed["<span style='color:#000'><b>Sealed Secrets</b><br/><small>[Component: controller]</small><br/>Descifra SealedSecret</span>"]
@@ -39,7 +39,7 @@ flowchart LR
             openebs["<span style='color:#000'><b>OpenEBS</b><br/><small>[Component: Helm]</small><br/>LocalPV provisioner</span>"]
             longhorn["<span style='color:#000'><b>Longhorn</b><br/><small>[Component: Helm]</small><br/>Storage replicado v1</span>"]
             suc["<span style='color:#000'><b>SUC</b><br/><small>[Component: Helm]</small><br/>Upgrades K3s escalonados</span>"]
-            vcluster["<span style='color:#000'><b>vCluster Platform</b><br/><small>[Component: Helm]</small><br/>Sync manual opcional</span>"]
+            vcluster["<span style='color:#000'><b>vCluster</b><br/><small>[Component: Helm]</small><br/>Open source, sync manual opcional</span>"]
         end
         capi["<span style='color:#000'><b>Cluster API</b><br/><small>[Component: controllers]</small><br/>Core CAPI controllers</span>"]
         capn["<span style='color:#000'><b>CAPN</b><br/><small>[Component: provider]</small><br/>Incus provider controller</span>"]

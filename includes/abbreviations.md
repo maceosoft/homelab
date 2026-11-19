@@ -3,6 +3,7 @@
      Al agregar una sigla nueva, sumarla también a docs/glosario.md. -->
 
 *[ACL]: Access Control List — Lista de control de acceso: quién puede consultar un servicio (en BIND, una lista `lan` podría limitar las consultas a ciertas redes; en este HomeLab el DNS queda abierto a toda la red).
+*[AKS]: Azure Kubernetes Service — Kubernetes administrado de Microsoft Azure (tiene su propio kubelogin, distinto del de int128).
 *[API]: Application Programming Interface — Interfaz por la que un programa expone operaciones a otros (p. ej. la API de Kubernetes en :6443).
 *[ARC]: Actions Runner Controller — Controlador que corre runners de GitHub Actions dentro de Kubernetes.
 *[ARM64]: arquitectura ARM de 64 bits — Arquitectura de CPU del Orange Pi (deborah); los otros nodos son x86_64.
@@ -52,6 +53,7 @@
 *[HTTP]: Hypertext Transfer Protocol
 *[HTTPS]: HTTP seguro (sobre TLS)
 *[IA]: inteligencia artificial — Programas que responden preguntas, resumen textos o generan ejercicios; aquí sirven de tutor para estudiar la guía.
+*[ICMP]: Internet Control Message Protocol — Mensajes de control de la red, como el aviso de que un paquete es demasiado grande para seguir ("fragmentation needed") o el ping.
 *[IdP]: Identity Provider — Proveedor de identidad: el sistema que verifica quién eres (en el HomeLab, GitHub a través de Dex).
 *[Incus]: Incus — Gestor de contenedores y máquinas virtuales (fork comunitario de LXD); aloja las instancias donde corren los nodos del HomeLab.
 *[IP]: dirección IP — Dirección de un equipo en la red (Internet Protocol).
@@ -77,6 +79,7 @@
 *[MAC]: dirección MAC — Identificador único de una tarjeta de red; el router lo usa para reservar siempre la misma IP a un equipo.
 *[MCP]: Model Context Protocol — Estándar para darle herramientas a un modelo de IA (aquí, consultas de solo lectura al clúster).
 *[MD5]: Message-Digest 5 — Algoritmo de resumen que BGP usaba para autenticar sesiones entre routers; aquí BGP corre sin él.
+*[MTU]: Maximum Transmission Unit — Tamaño máximo de un paquete en una red; un túnel como el de OVN lo achica porque usa parte de cada paquete.
 *[NAT]: Network Address Translation — Traducción de direcciones que hace el router entre la red local e internet.
 *[NFS]: Network File System — Protocolo de carpetas compartidas por red en Linux.
 *[nftables]: nftables — Firewall del kernel de Linux que usa el rol `host_firewall` en cada nodo.
@@ -130,6 +133,7 @@
 *[T2]: chip Apple T2 — Coprocesador de seguridad de las Mac Intel 2018-2020; maneja teclado, trackpad, audio y Touch ID, y en Linux necesita el kernel linux-t2 (nodo eve).
 *[TCP]: Transmission Control Protocol — Protocolo de transporte con conexión y entrega ordenada; sobre él viajan HTTP, TLS y SSH.
 *[TLS]: Transport Layer Security — Cifrado de las conexiones (lo que pone la S en HTTPS).
+*[TSIG]: Transaction SIGnature — Secreto compartido con el que se firman los cambios a un DNS (RFC 2845); BIND solo acepta los firmados con una llave conocida.
 *[TTL]: Time To Live — Tiempo que se guarda un dato en caché antes de volver a pedirlo.
 *[UDP]: User Datagram Protocol — Protocolo de transporte sin conexión; lo usan, por ejemplo, el DNS y VXLAN.
 *[UEFI]: Unified Extensible Firmware Interface — Firmware de arranque de los equipos modernos (reemplaza a la BIOS).

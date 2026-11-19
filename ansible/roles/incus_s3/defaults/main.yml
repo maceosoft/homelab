@@ -26,6 +26,9 @@ incus_s3_tls_common_name: incus-s3
 incus_s3_tls_sans:
   - "IP:{{ incus_s3_listen_address }}"
   - "DNS:{{ inventory_hostname }}"
+  - "DNS:{{ inventory_hostname }}.homelab.local"
+  # Nombre estable del endpoint (registro de bind_dns); CloudNativePG lo usa en gitops.
+  - "DNS:{{ incus_s3_dns_name | default('s3.homelab.local') }}"
 incus_s3_tls_duration: 8760h   # 1 año
 incus_s3_tls_renew_days: 30    # se renueva al correr el playbook si vence en menos de esto
 incus_s3_tls_force_renew: false

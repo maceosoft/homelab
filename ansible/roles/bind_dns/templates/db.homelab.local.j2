@@ -1,33 +1,15 @@
+; Gestionado por Ansible (rol bind_dns): solo crea la zona la primera vez.
+; Es una zona DINÁMICA: los registros los escriben por RFC 2136 (nsupdate) Ansible, con la llave
+; homelab-ansible (nodos, k3s, incus: homelab-records.nsupdate.j2), y ExternalDNS desde Kubernetes, con
+; homelab-externaldns (apps publicadas en el Gateway). BIND guarda los cambios en un diario (.jnl):
+; no edites este archivo a mano ni lo vuelvas a templar (se perderían los registros de ExternalDNS).
 $TTL    300
 @       IN      SOA     ns.homelab.local. root.homelab.local. (
-                   {{ '%Y%m%d01' | strftime }}           ; Serial
+                   {{ '%Y%m%d01' | strftime }}           ; Serial (BIND lo incrementa en cada cambio)
                           300           ; Refresh [5m]
                           150           ; Retry   [2.5m]
                          3600           ; Expire  [1h]
-                          600 )         ; Negative Cache TTL [1h]
+                          600 )         ; Negative Cache TTL
 ;
 @       IN      NS      ns.homelab.local.
-
 ns      IN      A       {{ dns_primary }}
-incus   IN      A       {{ hostvars[incus_cluster_leader].static_ip }}
-
-; Cada servidor con su propio registro
-{% for host in groups['incus_cluster'] %}
-{{ host }}     IN      A       {{ hostvars[host].static_ip }}
-{% if hostvars[host].wifi_ip is defined %}
-{{ host }}-wifi     IN      A       {{ hostvars[host].wifi_ip }}
-{% endif %}
-{% endfor %}
-
-; Endpoint estable del API de K3s (k3s_api_endpoint). Apunta al control-plane
-; actual (k3s_api_ip); la mudanza del control-plane solo cambia esa variable.
-k3s     IN      A       {{ k3s_api_ip }}
-
-; Servicios publicados por el Gateway de GitOps (HTTPRoute en gitops)
-argocd  IN      A       {{ gateway_ip }}
-vcluster IN     A       {{ gateway_ip }}
-api     IN      A       {{ gateway_ip }}
-grafana IN      A       {{ gateway_ip }}
-ollama  IN      A       {{ gateway_ip }}
-open-webui IN   A       {{ gateway_ip }}
-; No hay comodín: cada nombre nuevo (HTTPRoute) necesita su propio registro aquí.

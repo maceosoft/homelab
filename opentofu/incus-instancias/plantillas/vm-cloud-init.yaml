@@ -1,0 +1,29 @@
+#cloud-config
+# cloud-init de la VM (lo aplica la imagen images:debian/13/cloud al primer arranque): instala nginx y publica una
+# página con datos de la propia VM, generados en ese momento. El contenedor web la muestra en /vm/.
+package_update: true
+packages:
+  - nginx
+write_files:
+  - path: /usr/local/bin/pagina-vm
+    permissions: "0755"
+    content: |
+      #!/bin/sh
+      cat > /var/www/html/index.html <<HTML
+      <!doctype html>
+      <html lang="es"><head><meta charset="utf-8"><title>VM ${prefix}</title>
+      <style>body{font-family:sans-serif;max-width:40rem;margin:3rem auto;color:#1e1b4b}code{color:#6d28d9}</style>
+      </head><body>
+      <h1>Hola desde la VM</h1>
+      <p>Esta página la generó <strong>cloud-init</strong> dentro de la VM al instalar nginx.</p>
+      <ul>
+        <li>VM: <code>$(hostname)</code></li>
+        <li>Kernel: <code>$(uname -r)</code></li>
+        <li>nginx: <code>$(nginx -v 2>&1 | cut -d/ -f2)</code></li>
+        <li>Instalada: <code>$(date -Iseconds)</code></li>
+      </ul>
+      </body></html>
+      HTML
+runcmd:
+  - /usr/local/bin/pagina-vm
+  - systemctl enable --now nginx

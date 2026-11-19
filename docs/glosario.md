@@ -10,6 +10,7 @@ paréntesis.
 
 | Sigla | Significado | Qué es |
 |---|---|---|
+| **AKS** | [Azure Kubernetes Service](https://learn.microsoft.com/azure/aks/) | Kubernetes administrado de Microsoft Azure. Su plugin `kubelogin` se llama igual que el de int128 que usa este HomeLab, pero no sirve con Dex. |
 | **ACL** | Access Control List | Lista de control de acceso: quién puede consultar un servicio (en BIND, una lista `lan` podría limitar las consultas a ciertas redes; en este HomeLab el DNS queda abierto a toda la red). |
 | **API** | Application Programming Interface | Interfaz por la que un programa expone operaciones a otros (p. ej. la API de Kubernetes en :6443). |
 | **ARC** | [Actions Runner Controller](https://github.com/actions/actions-runner-controller) | Controlador que corre runners de GitHub Actions dentro de Kubernetes. |
@@ -57,6 +58,7 @@ paréntesis.
 | **HTTP** | Hypertext Transfer Protocol |  |
 | **HTTPS** | HTTP seguro (sobre TLS) |  |
 | **IA** | inteligencia artificial | Programas que responden preguntas, resumen textos o generan ejercicios; aquí sirven de tutor para estudiar la guía (ver [Aprende con IA](aprende.md)). |
+| **ICMP** | [Internet Control Message Protocol](https://www.rfc-editor.org/rfc/rfc792) | Mensajes de control de la red, como el aviso de que un paquete es demasiado grande para seguir ("fragmentation needed") o el ping. |
 | **IdP** | Identity Provider | Proveedor de identidad: el sistema que verifica quién eres (en el HomeLab, GitHub a través de Dex). |
 | **Incus** | [Incus](https://linuxcontainers.org/incus/) | Gestor de contenedores y máquinas virtuales (fork comunitario de LXD); aloja las instancias donde corren los nodos del HomeLab. |
 | **IP** / IPs | dirección IP | Dirección de un equipo en la red (Internet Protocol). |
@@ -67,7 +69,7 @@ paréntesis.
 | **K8s** | [Kubernetes](https://kubernetes.io/) | Abreviatura de Kubernetes: la K, las 8 letras del medio y la s. |
 | **KIC** | [Kong Ingress Controller](https://developer.konghq.com/kubernetes-ingress-controller/) | Controlador de Kong para Kubernetes; aquí implementa Gateway API. |
 | **Kubernetes** | [Kubernetes](https://kubernetes.io/) (K8s) | Plataforma que orquesta contenedores: decide en qué nodo corre cada pod, lo reinicia si falla y le da red y almacenamiento. En este HomeLab corre como K3s. |
-| **KVM** | [Kernel-based Virtual Machine](https://linux-kvm.org/) | Virtualización por hardware integrada en el kernel de Linux; la usan las VMs de Incus. |
+| **KVM** | [Kernel-based Virtual Machine](https://docs.kernel.org/virt/kvm/index.html) | Virtualización por hardware integrada en el kernel de Linux; la usan las VMs de Incus. |
 | **L2** | capa 2 del modelo OSI | Capa de enlace del modelo OSI: tráfico dentro de la misma red local (MAC, ARP). |
 | **L3** | capa 3 del modelo OSI | Capa de red del modelo OSI: IPs y ruteo. |
 | **L7** | capa 7 del modelo OSI | Capa de aplicación del modelo OSI: HTTP y similares. |
@@ -82,6 +84,7 @@ paréntesis.
 | **MAC** | dirección MAC (Media Access Control) | Identificador único de una tarjeta de red; el router lo usa para reservar siempre la misma IP a un equipo. |
 | **MCP** | [Model Context Protocol](https://modelcontextprotocol.io/) | Estándar para darle herramientas a un modelo de IA (aquí, consultas de solo lectura al clúster). |
 | **MD5** | Message-Digest 5 | Algoritmo de resumen que BGP usaba para autenticar sesiones entre routers; aquí BGP corre sin él. |
+| **MTU** | [Maximum Transmission Unit](https://en.wikipedia.org/wiki/Maximum_transmission_unit) | Tamaño máximo de un paquete en una red: 1500 bytes en la LAN y 1442 en `ovn-lan`, porque el túnel de OVN usa 58 bytes de cada paquete. |
 | **NAT** | Network Address Translation | Traducción de direcciones que hace el router entre la red local e internet. |
 | **NFS** | Network File System | Protocolo de carpetas compartidas por red en Linux. |
 | **nftables** | [nftables](https://wiki.nftables.org/) | Firewall del kernel de Linux que usa el rol `host_firewall` en cada nodo. |
@@ -133,6 +136,7 @@ paréntesis.
 | **T2** | [chip Apple T2](https://wiki.t2linux.org/) | Coprocesador de seguridad de las Mac Intel 2018-2020; maneja teclado, trackpad, audio y Touch ID, y en Linux necesita el kernel `linux-t2` (nodo `eve`). |
 | **TCP** | Transmission Control Protocol | Protocolo de transporte con conexión y entrega ordenada; sobre él viajan HTTP, TLS y SSH. |
 | **TLS** | Transport Layer Security | Cifrado de las conexiones (lo que pone la S en HTTPS). |
+| **TSIG** | [Transaction SIGnature](https://datatracker.ietf.org/doc/html/rfc8945) | Secreto compartido con el que se firman los cambios a un DNS. ExternalDNS y Ansible escriben en BIND cada uno con su llave. |
 | **TTL** | Time To Live | Tiempo que se guarda un dato en caché antes de volver a pedirlo. |
 | **UDP** | User Datagram Protocol | Protocolo de transporte sin conexión; lo usan, por ejemplo, el DNS y VXLAN. |
 | **UEFI** | Unified Extensible Firmware Interface | Firmware de arranque de los equipos modernos (reemplaza a la BIOS). |
@@ -185,6 +189,7 @@ operación. Si una palabra te frena al leer, búscala aquí.
 | **[dqlite](https://dqlite.io/)** | Base de datos SQLite distribuida donde Incus guarda el estado del clúster, replicada entre los miembros: 3 votan y 1 queda de reserva. |
 | **Docker** | Herramienta para crear y correr contenedores en un computador ([docker.com](https://www.docker.com/)). En el HomeLab la usan los runners de ARC para construir imágenes. |
 | **Drift** / **self-heal** | Drift es la diferencia entre lo que dice Git y lo que hay de verdad en el clúster. Con self-heal, Argo CD la corrige solo. |
+| **[ExternalDNS](https://kubernetes-sigs.github.io/external-dns/)** | Controlador de Kubernetes que publica en un DNS los nombres de los `HTTPRoute` y Services, y los borra cuando desaparecen. En el HomeLab escribe en BIND: [DNS automático](networking/dns-automatico.md). |
 | **Exporter** | Programa pequeño que publica métricas para que vmagent las recoja: node-exporter da las del sistema de cada nodo y blackbox-exporter prueba URLs y DNS desde afuera. |
 | **Firewall** | Filtro que decide qué tráfico de red se permite y cuál se bloquea (en Linux, ufw o nftables). |
 | **[Flannel](https://github.com/flannel-io/flannel)** | El CNI que trae K3s por defecto. Este HomeLab lo reemplaza por Calico. |

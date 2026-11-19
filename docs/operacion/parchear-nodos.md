@@ -1,9 +1,18 @@
 # Parchear los nodos
 
-Los parches de Debian **no se instalan solos**: el monitoreo solo avisa. Cada nodo publica cuántos parches tiene
-pendientes (y cuántos son de seguridad) y si necesita reiniciar; cuando algo lleva demasiado tiempo sin atenderse, llega una
-alerta a Discord (`ParchesDeSeguridadPendientes`, `ReinicioPendiente`; ver [Monitoreo y alertas](monitoreo.md#que-te-puede-llegar)).
-Este procedimiento es lo que haces al recibirla.
+Los parches **de seguridad** de Debian se instalan solos cada noche (entre las 03:30 y las 04:00) con
+`unattended-upgrades`, que configura el rol `host_hardening`. Nunca reinicia: si un parche (por ejemplo, un kernel nuevo)
+pide reinicio, el nodo queda esperando. El resto de los paquetes y los reinicios los haces tú con este procedimiento.
+
+El monitoreo avisa: cada nodo publica cuántos parches tiene pendientes (y cuántos son de seguridad) y si necesita reiniciar;
+cuando algo lleva demasiado tiempo sin atenderse, llega una alerta a Discord (`ParchesDeSeguridadPendientes`,
+`ReinicioPendiente`; ver [Monitoreo y alertas](monitoreo.md#que-te-puede-llegar)). Este procedimiento es lo que haces al
+recibirla.
+
+!!! note "El kernel de deborah no se actualiza con apt"
+    `deborah` (Orange Pi 5 Plus) arranca con el kernel y el cargador de arranque del fabricante
+    (`linux-image-legacy-rockchip-rk3588`, 5.10). Esos paquetes no tienen repositorio configurado, así que ni
+    `unattended-upgrades` ni este procedimiento los actualizan, y las métricas no los cuentan como pendientes.
 
 ## Una sola vez: activar el aviso
 
@@ -67,11 +76,13 @@ En cada nodo:
 1. **Pre-chequeo** (tag `precheck`): todos los nodos `Ready` y ningún volumen de Longhorn `degraded` o `faulted`. Si no, se
    detiene sin tocar nada. Los volúmenes desconectados (`detached`) aparecen como `unknown` y no cuentan como fallo.
 2. **Actualización** (tag `upgrade`): lista los paquetes pendientes y ejecuta `apt-get update` y `dist-upgrade`.
-3. **Reinicio** (tag `reboot`), solo si existe `/var/run/reboot-required`: drena el nodo desde tu equipo, lo reinicia, espera a
-   que vuelva `Ready` y hace `uncordon`. Si no hace falta reiniciar, no drena. Si algo falla con el nodo drenado, intenta el
-   `uncordon` y se detiene con un mensaje.
-4. **Post-chequeo** (tag `postcheck`): espera, hasta 15 minutos, a que el nodo esté `Ready` y Longhorn sin volúmenes
-   degradados antes de pasar al siguiente.
+3. **Reinicio** (tag `reboot`), solo si existe `/var/run/reboot-required`: drena el nodo desde tu equipo, lo reinicia, espera
+   (hasta 15 minutos) a que la API de K3s responda y el nodo vuelva `Ready` tras un arranque nuevo, y hace `uncordon`. Si no
+   hace falta reiniciar, no drena. Si algo falla con el nodo drenado, intenta el `uncordon` y se detiene con un mensaje.
+   Reiniciar `deborah` corta la API de K3s: el playbook reintenta hasta que vuelve, en vez de fallar al primer intento.
+4. **Post-chequeo** (tag `postcheck`): espera, hasta 15 minutos, a que el nodo esté `Ready` en Kubernetes y en Longhorn, y
+   Longhorn sin volúmenes degradados (las réplicas del nodo reconstruidas) antes de pasar al siguiente. Al final recalcula
+   las métricas de paquetes del nodo, así las alertas de parches y de reinicio se resuelven enseguida.
 
 El orden lo fija la variable `node_patch_order`, no el inventario. El control plane de K3s y `deborah` se mueven siempre al
 final, aunque se escriban antes, y **piden confirmación dos veces**: antes de actualizar (si se actualiza `bind9`, `named` se
@@ -85,7 +96,8 @@ ansible-playbook -i inventory.ini playbook-parchear.yml -l oliver --tags upgrade
 ```
 
 Variables útiles (con `-e`): `node_patch_order`, `node_patch_autoremove` (borra dependencias sin uso; por defecto `false`),
-`node_patch_drain_timeout`, `node_patch_reboot_timeout`, `node_patch_postcheck_minutes`.
+`node_patch_drain_timeout`, `node_patch_reboot_timeout`, `node_patch_ready_timeout_seconds`,
+`node_patch_postcheck_minutes`.
 
 ## A mano
 
@@ -99,4 +111,5 @@ Si no puedes usar Ansible, por cada nodo:
 4. Cuando vuelva, `kubectl uncordon <nodo>` y espera a que el nodo esté `Ready` y los volúmenes de Longhorn sanos
    antes de pasar al siguiente.
 
-Pasado un rato (hasta 6 horas, o ejecuta `sudo systemctl start node-apt-metrics.service`), las alertas de ese nodo se resuelven solas.
+Con Ansible, las alertas de ese nodo se resuelven al terminar. A mano, pasado un rato (hasta 6 horas, o ejecuta
+`sudo systemctl start node-apt-metrics.service`).

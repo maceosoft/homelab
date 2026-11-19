@@ -101,8 +101,8 @@ Desde `ansible/`:
 Al terminar, el playbook **no modifica el inventario**: lo haces tú, como se explica más abajo. Los agents dejan de usar
 el token de servidor y pasan a un **agent-token** propio, que queda en `<k3s_move_backup_dir>/agent-token`.
 
-Con la mudanza también quedan aplicados los endurecimientos del servidor nuevo: banderas `oidc-*` hacia Dex (login
-de personas, con `--oidc-username-prefix=oidc:` y `--oidc-groups-prefix=oidc:`), `--secrets-encryption` (cifrado de Secrets en reposo) y el instalador de K3s verificado por suma de
+Con la mudanza también quedan aplicados los endurecimientos del servidor nuevo: login de personas con Dex
+(`--authentication-config`, con los prefijos `oidc:` y solo el team `devops`), `--secrets-encryption` (cifrado de Secrets en reposo) y el instalador de K3s verificado por suma de
 control en vez de `curl | sh`. El certificado de administrador queda solo para emergencias. Ver
 [Modelo de autenticación](../security/modelo-de-autenticacion.md).
 
@@ -181,19 +181,8 @@ dejarlo como estaba.
 
 ### Login de personas con Dex (kubelogin)
 
-Con las banderas `oidc-*` activas, puedes entrar a la API con tu cuenta de GitHub en lugar del certificado de
-administrador. Instala el plugin `kubelogin` (`kubectl oidc-login`) y pide un token:
-
-```bash
-kubectl oidc-login get-token \
-  --oidc-issuer-url=https://argocd.homelab.local/api/dex \
-  --oidc-client-id=kubernetes \
-  --oidc-extra-scope=email,groups
-```
-
-Se abre el navegador; el cliente de Dex `kubernetes` es público (PKCE) y recibe la respuesta en
-`http://localhost:8000` (o, de respaldo, `18000`): esos puertos tienen que estar libres en tu equipo. Para usarlo
-siempre, configura un usuario en tu kubeconfig con `exec` hacia ese comando.
+Con el login de Dex activo, puedes entrar a la API con tu cuenta de GitHub en lugar del certificado de
+administrador: ver [Entrar a Kubernetes con GitHub](acceso-kubernetes.md).
 
 ## Riesgos
 

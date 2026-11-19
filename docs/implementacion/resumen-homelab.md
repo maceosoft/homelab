@@ -13,7 +13,7 @@ al terminar la Fase 4 como mínimo; las fases 5 y 6 son opcionales.
 | [2 — Incus](fase-2-incus.md) | Clúster HA, groups, UI, storage `dir` | `playbook-bootstrap.yml` + `playbook-incus-cluster.yml` |
 | [3 — K3s](fase-3-k3s.md) | Management cluster + Argo CD controller; CNI **Calico** | `playbook-k3s.yml` |
 | [4 — GitOps](fase-4-gitops.md) | MetalLB, Gateway API, storage, Dex/GitHub SSO | Argo CD + `playbook-dex-oauth-secrets.yml` |
-| [5 — vCluster](fase-5-vcluster.md) *(opc.)* | Platform, kubeconfig web (connected cluster) | Application Argo CD |
+| [5 — vCluster](fase-5-vcluster.md) *(opc.)* | vCluster open source: CLI `vcluster` + kubeconfig de GitHub | CLI `vcluster` o Application `vcluster-demo` |
 | [6 — CAPN](fase-6-capn.md) *(opc.)* | Workload clusters sobre Incus | `clusterctl` + `capn-demo.yaml` |
 
 ## URLs y accesos web
@@ -22,7 +22,6 @@ al terminar la Fase 4 como mínimo; las fases 5 y 6 son opcionales.
 |---|---|---|---|
 | **Argo CD** | [`https://argocd.homelab.local`](https://argocd.homelab.local) | SSO GitHub vía Dex | 4 |
 | **Dex** (issuer) | `https://argocd.homelab.local/api/dex` | — | 4 |
-| **vCluster Platform** | [`https://vcluster.homelab.local`](https://vcluster.homelab.local) | SSO Dex → GitHub | 5 |
 | **Incus UI** | [`https://incus.homelab.local:8443`](https://incus.homelab.local:8443) | SSO Dex (o cert cliente antes Fase 4) | 2 / 4 |
 | **Grafana** *(opcional)* | [`https://grafana.homelab.local`](https://grafana.homelab.local) | SSO GitHub vía Dex (respaldo: `admin` del item `grafana-admin`) | 4 ([4.13](fase-4-gitops.md#413-monitoreo-y-alertas-opcional)) |
 | **Open WebUI** (asistente de IA) | [`https://open-webui.homelab.local`](https://open-webui.homelab.local) | SSO GitHub vía Dex (team `devops`) | [IA local](../operacion/ia-ollama.md) |
@@ -33,19 +32,19 @@ al terminar la Fase 4 como mínimo; las fases 5 y 6 son opcionales.
 
 | Clúster | Cómo obtenerlo |
 |---|---|
-| Management K3s | vCluster Platform (connected cluster) o `playbook-k3s.yml` con `fetch_kubeconfig` |
-| vClusters | UI [vCluster Platform](fase-5-vcluster.md) |
+| Management K3s | [Kubeconfig con GitHub](../operacion/acceso-kubernetes.md) (team `devops`) o `playbook-k3s.yml` con `fetch_kubeconfig` |
+| vClusters | `vcluster connect <nombre> -n vcluster-<nombre>` con el kubeconfig de GitHub ([Fase 5](fase-5-vcluster.md)) |
 | Workload CAPN | `clusterctl get kubeconfig` (Fase 6) |
 
 ## DNS en tu estación de trabajo
 
-Usa `192.168.20.5` (BIND en `deborah`) como DNS: `argocd`, `vcluster`, `api`, `grafana`, `open-webui` y `ollama` (`.homelab.local`) apuntan al Gateway
+Usa `192.168.20.5` (BIND en `deborah`) como DNS: `argocd`, `api`, `grafana`, `open-webui` y `ollama` (`.homelab.local`) apuntan al Gateway
 (`192.168.23.200`, IP fija) e `incus.homelab.local` a invincible
 ([Fase 4 — 4.8](fase-4-gitops.md#48-dns-de-homelablocal)). Si no puedes, el respaldo
 es `/etc/hosts`:
 
 ```
-192.168.23.200  argocd.homelab.local vcluster.homelab.local api.homelab.local grafana.homelab.local open-webui.homelab.local ollama.homelab.local
+192.168.23.200  argocd.homelab.local api.homelab.local grafana.homelab.local open-webui.homelab.local ollama.homelab.local
 192.168.20.6    incus.homelab.local
 ```
 
@@ -53,7 +52,6 @@ Verificación:
 
 ```bash
 curl -kI https://argocd.homelab.local
-curl -kI https://vcluster.homelab.local
 # solo si instalaste el monitoreo (4.13)
 curl -kI https://grafana.homelab.local
 curl -kI https://incus.homelab.local:8443
@@ -96,15 +94,14 @@ kubectl get pods -n calico-system -l k8s-app=calico-node
 | Campo 1Password | Uso |
 |---|---|
 | `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | Dex → GitHub OAuth (manual en GitHub + 1Password) |
-| `VCLUSTER_CLIENT_SECRET` | Dex + Helm Platform (Ansible genera si falta) |
 
 Cuenta **Personal**, bóveda **`HomeLab`** (configurable vía env vars).
 Playbook: `playbook-dex-oauth-secrets.yml`.
 
 !!! important "Permisos por defecto"
-    En vCluster Platform, los usuarios SSO (inicio de sesión único) **no ven nada** hasta asignarles
-    acceso. En Incus, quien entra por SSO tiene acceso completo: el control es que Dex solo deja
-    pasar al team `devops` de `maceosoft`. Ver [Fase 4](fase-4-gitops.md) y [Fase 5](fase-5-vcluster.md).
+    En Incus, quien entra por SSO (inicio de sesión único) tiene acceso completo: el control es que Dex solo deja
+    pasar al team `devops` de `maceosoft`. En K3s (y por lo tanto en los vClusters) entra solo ese team. Ver
+    [Fase 4](fase-4-gitops.md) y [Fase 5](fase-5-vcluster.md).
 
 Documentación: [Secretos OAuth](https://github.com/maceosoft/gitops/blob/main/addons/argocd/secrets/1password.md)
 
@@ -113,7 +110,7 @@ Documentación: [Secretos OAuth](https://github.com/maceosoft/gitops/blob/main/a
 Apps típicas en `Healthy` tras Fase 4:
 
 - `argocd`, `argocd-route`, `metallb`, `homelab-storage`, `kong`, …
-- Opcionales (sync manual): `vcluster-platform`, `capn-demo`
+- Opcionales (sync manual): `vcluster-demo`, `capn-demo`
 - CNI: `calico-operator` + `calico-config` (sync manual); `canal` o `cilium` como alternativas — **una** a la vez
 - IA y logs: `ollama-router`, `open-webui`, `open-terminal`, `ai-tools`, `alert-triage`, `log-report`, `victoria-logs`, `vector`; `k8sgpt` está etapado
 
@@ -142,7 +139,7 @@ incus cluster group list
 kubectl get nodes
 kubectl get applications -n argocd
 
-# SSO — login GitHub en ArgoCD, Grafana, Open WebUI, vCluster e Incus UI
+# SSO — login GitHub en ArgoCD, Grafana, Open WebUI, Incus UI y kubectl (también vcluster connect)
 
 # CAPN (si Fase 6)
 kubectl get clusters,machines
@@ -151,7 +148,7 @@ kubectl get clusters,machines
 ## Enlaces oficiales del stack
 
 - [Incus](https://linuxcontainers.org/incus/docs/main/) · [K3s](https://docs.k3s.io/) · [Argo CD](https://argo-cd.readthedocs.io/)
-- [vCluster Platform](https://www.vcluster.com/docs/platform/) · [Cluster API](https://cluster-api.sigs.k8s.io/) · [CAPN](https://capn.linuxcontainers.org/)
+- [vCluster](https://www.vcluster.com/docs/vcluster/) · [Cluster API](https://cluster-api.sigs.k8s.io/) · [CAPN](https://capn.linuxcontainers.org/)
 - [1Password SDK](https://github.com/1Password/onepassword-sdk-python)
 
 ## Mantenimiento y profundización

@@ -179,6 +179,9 @@ plugins:
             Procedimientos de rutina: Routine procedures
             URLs y accesos de los productos: Product URLs and access
             Entrar por SSH a los servidores: SSH into the servers
+            Entrar a Kubernetes con GitHub: Kubernetes login with GitHub
+            Operaciones frecuentes de vCluster: Common vCluster operations
+            Operaciones frecuentes de CAPN: Common CAPN operations
             Monitoreo y alertas: Monitoring and alerts
             Agregar un repo: Add a repo
             Agregar un nodo: Add a node
@@ -209,6 +212,7 @@ plugins:
             Referencia técnica: Technical reference
             Inventario: Inventory
             Red: Network
+            DNS automático: Automatic DNS
             Clúster: Cluster
             Instalación manual: Manual installation
             Opciones del playbook: Playbook options
@@ -303,6 +307,9 @@ nav:
       - Procedimientos de rutina: operacion/index.md
       - URLs y accesos de los productos: operacion/urls-y-accesos.md
       - Entrar por SSH a los servidores: operacion/acceso-ssh.md
+      - Entrar a Kubernetes con GitHub: operacion/acceso-kubernetes.md
+      - Operaciones frecuentes de vCluster: operacion/vcluster.md
+      - Operaciones frecuentes de CAPN: operacion/capn.md
       - Monitoreo y alertas: operacion/monitoreo.md
       - Agregar un repo: operacion/agregar-repo.md
       - Agregar un nodo: operacion/agregar-nodo.md
@@ -335,6 +342,7 @@ nav:
           - Inventario: hardware/inventory.md
           - Discovery (Ansible): hardware/discovery.md
       - Red: networking/index.md
+      - DNS automático: networking/dns-automatico.md
       - Incus:
           - Clúster: incus/cluster-setup.md
       - K3s:
@@ -344,7 +352,7 @@ nav:
           - Catálogo de roles: ansible/index.md
       - GitOps:
           - Catálogo y troubleshooting: gitops/index.md
-          - vCluster Platform: vcluster/index.md
+          - vCluster: vcluster/index.md
       - CAPN: capn/index.md
       - Storage: storage/index.md
       - PostgreSQL y respaldos en Incus: storage/postgres.md

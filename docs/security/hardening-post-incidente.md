@@ -72,7 +72,7 @@ etapas (NetworkPolicy `default-deny`, etiquetas PSA —Pod Security Admission—
 | node-exporter y métricas de MetalLB y FRR abiertos a la LAN | Escuchar solo en la IP del nodo y `nftables` hacia el recolector |
 | `alert-triage` y `mcpo` sin token | Token Bearer o clave de API, NetworkPolicy |
 | BIND sin transferencias de zona y con la versión visible | `allow-transfer { none; }` y versión oculta. El DNS sirve a toda la red (otras subredes del router, VPN): no se limita por origen ni se activa el límite de tasa (opt-in con `bind_dns_restrict_clients` y `bind_dns_rate_limit_enabled`) |
-| K3s sin Dex ni cifrado de Secrets | Banderas `oidc-*` hacia Dex, `--secrets-encryption` e instalador con suma de verificación, configurados en `k3s_install` (`group_vars/incus_cluster/k3s_install.yml`); el server los toma al reinstalarse o al [mover el control plane](../operacion/mover-control-plane.md) |
+| K3s sin Dex ni cifrado de Secrets | Login con Dex por `--authentication-config` (solo el team `devops`), `--secrets-encryption` e instalador con suma de verificación, configurados en `k3s_install` (`group_vars/incus_cluster/k3s_install.yml`). Activos en `deborah` desde el 17 nov 2026: [Entrar a Kubernetes con GitHub](../operacion/acceso-kubernetes.md#activar-oidc-y-el-cifrado-de-secrets-en-un-server-ya-instalado) |
 | `rpcbind`, `dnsmasq`, SSH con `AllowUsers` sin definir, `auditd` mínimo | Deshabilitar lo que no se usa, `AllowUsers devops amaceo` y reglas de `auditd` enviadas a [VictoriaLogs](../operacion/logs.md) |
 
 !!! danger "El firewall se aplica con auto-reversión"
@@ -172,8 +172,6 @@ Estos cambios se hacen **solo desde la interfaz web del router**; los menús dep
   `NetworkPolicy`, Pod Security Admission). Ver
   [guía oficial de K3s](https://docs.k3s.io/security/hardening-guide) y
   [`kube-bench`](https://github.com/aquasecurity/kube-bench).
-- **Cifrado de secrets en reposo** en K3s (`--secrets-encryption`): ya está en `k3s_install`; el server lo toma al
-  reinstalarse (o al [mover el control plane](../operacion/mover-control-plane.md), si algún día se hace).
 - **NetworkPolicies** `default-deny` entre namespaces (`ai`, `monitoring`, `longhorn-system`,
   `kong`, `gateway`, `arc-*`): los manifiestos están listos pero se activan por etapas,
   namespace por namespace. Ver [Qué está activo](modelo-de-autenticacion.md#que-esta-activo-y-que-esta-por-activar).

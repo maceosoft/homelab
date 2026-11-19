@@ -710,7 +710,7 @@
       check_mode: false
       failed_when: >-
         (k3s_install.security.secrets_encryption | bool and '--secrets-encryption' not in k3s_move_unit.stdout) or
-        (k3s_install.security.oidc.enabled | bool and 'oidc-issuer-url' not in k3s_move_unit.stdout)
+        (k3s_install.security.oidc.enabled | bool and 'authentication-config' not in k3s_move_unit.stdout)
 
     - name: Volúmenes de Longhorn sin degradar
       ansible.builtin.command: k3s kubectl -n longhorn-system get volumes.longhorn.io -o json

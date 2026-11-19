@@ -146,7 +146,7 @@ jobs:
 
       # tofu se descarga en la caché del runner (RUNNER_CACHE, /cache en ARC) y solo se vuelve a bajar si falta o su
       # sha256 no coincide con el publicado por OpenTofu (setup-opentofu lo bajaba en cada job). Los providers los
-      # reutiliza de TF_PLUGIN_CACHE_DIR gracias a opentofu/.terraform.lock.hcl.
+      # reutiliza de TF_PLUGIN_CACHE_DIR gracias al .terraform.lock.hcl de cada ejemplo.
       - name: Instalar OpenTofu
         env:
           TOFU_VERSION: 1.13.2
@@ -170,9 +170,12 @@ jobs:
           echo "$RUNNER_TEMP/tofu" >> "$GITHUB_PATH"
           "$RUNNER_TEMP/tofu/tofu" version
 
+      # Cada carpeta de opentofu/ es un ejemplo independiente (su propio provider y lock).
       - name: tofu fmt -check y validate
         run: |
-          cd opentofu
-          tofu fmt -check -recursive
-          tofu init -backend=false
-          tofu validate
+          set -euo pipefail
+          tofu fmt -check -recursive opentofu
+          for dir in opentofu/*/; do
+            echo "== $dir"
+            (cd "$dir" && tofu init -backend=false -input=false >/dev/null && tofu validate)
+          done

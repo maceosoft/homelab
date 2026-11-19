@@ -2,7 +2,7 @@
 
 !!! info "Parte de la guía de implementación"
     - **[Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets)** — Fase 4 wave 0; CAPN (Cluster API Provider for Incus) Fase 6.
-    - **OAuth (Open Authorization) Dex** — [Fase 4 paso 4.7](../implementacion/fase-4-gitops.md#47-secretos-oauth-github-vcluster-incus-ui).
+    - **OAuth (Open Authorization) Dex** — [Fase 4 paso 4.7](../implementacion/fase-4-gitops.md#47-secretos-oauth-github-incus-ui).
     - **Plataforma maceosoft** (Apps de Argo CD, ARC —Actions Runner Controller— y OpenTofu, FTP) — [1Password → clúster](../maceosoft/github.md#paso-3-cluster-y-secretos-de-plataforma).
 
 ## Diagrama — tres vías de secretos
@@ -57,25 +57,21 @@ age-keygen -o key.txt
 sops --encrypt --age <public-key> secrets.yaml > secrets.enc.yaml
 ```
 
-## OAuth Dex (GitHub + vCluster + Incus UI) — 1Password SDK local
+## OAuth Dex (GitHub + Incus UI) — 1Password SDK local
 
-Credenciales de **GitHub OAuth App** y clientes Dex **vCluster Platform** e
-**Incus UI (interfaz de usuario)** no van en Git.
+Las credenciales de la **GitHub OAuth App** no van en Git. Es el único secreto de Dex: sus clientes (Grafana, Open
+WebUI, **Incus UI** —interfaz de usuario—, SSH con `opkssh` y `kubectl`) son clientes OIDC —OpenID Connect— públicos
+con PKCE, sin secreto.
 
 | Origen | Campos |
 |---|---|
 | **GitHub** (OAuth App de la org `maceosoft`) | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` |
-| **Ansible** (`playbook-dex-oauth-secrets.yml`) | `VCLUSTER_CLIENT_SECRET` (genera en 1Password si falta; aplica en Dex y Helm) |
-
-`VCLUSTER_CLIENT_SECRET` **no** se crea en GitHub: Ansible lo genera en 1Password si falta.
-Incus no usa secreto (es un cliente OIDC —OpenID Connect— público en Dex).
 
 Se leen con el **[1Password Python SDK](https://github.com/1Password/onepassword-sdk-python)**
 y **DesktopAuth** en la estación donde la app 1Password está desbloqueada.
 
 Por defecto: **cuenta personal** (`ONEPASSWORD_ACCOUNT_NAME=Personal`), bóveda
-**`HomeLab`**, un item con campos `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`,
-`VCLUSTER_CLIENT_SECRET`. Probar: `ansible/scripts/check_1password.py`.
+**`HomeLab`**, un item con campos `GITHUB_CLIENT_ID` y `GITHUB_CLIENT_SECRET`. Probar: `ansible/scripts/check_1password.py`.
 
 Homepage `https://argocd.homelab.local` (informativa); Redirect URIs
 `https://argocd.homelab.local/api/dex/callback` (crítico).
@@ -84,7 +80,7 @@ Con la CLI: la OAuth App y su client secret se crean **solo desde la web**; guar
 [Plataforma maceosoft — GitHub](../maceosoft/github.md#oauth-app-maceosoft-dex). Para leer un campo sin mostrarlo:
 `op read "op://HomeLab/maceosoft-dex/GITHUB_CLIENT_ID" | wc -c`.
 
-Detalle: [Fase 4 — 4.7](../implementacion/fase-4-gitops.md#47-secretos-oauth-github-vcluster-incus-ui)
+Detalle: [Fase 4 — 4.7](../implementacion/fase-4-gitops.md#47-secretos-oauth-github-incus-ui)
 · [`1password.md`](https://github.com/maceosoft/gitops/blob/main/addons/argocd/secrets/1password.md)
 
 ## Monitoreo: webhooks de Discord, ping de healthchecks.io y Grafana (1Password → Secrets del clúster)
@@ -108,7 +104,7 @@ en el namespace `monitoring`, tres Secrets desde 1Password; sus valores nunca pa
 
 Los tokens se generan con `openssl rand -hex 32` (el script exige al menos 32 caracteres y sin espacios). El campo `translate` no
 crea ningún Secret en el clúster: es el valor del secreto `OLLAMA_TOKEN` de GitHub Actions. Si el cliente de Dex de Open WebUI
-resulta ser confidencial (porque no admita PKCE —Proof Key for Code Exchange—), su secreto se genera con `playbook-dex-oauth-secrets.yml`, como `VCLUSTER_CLIENT_SECRET`.
+resulta ser confidencial (porque no admita PKCE —Proof Key for Code Exchange—), su secreto se genera con `playbook-dex-oauth-secrets.yml` (agregándolo a `dex_oauth_generated_fields`, hoy vacío).
 
 El playbook aplica los Secrets con `--server-side` y funciona con Python 3.9 o posterior. Todos los items de IA son
 opcionales (Open Terminal, el canal `#ia`, los tokens): si falta uno, solo se omite lo que depende de él. Los namespaces

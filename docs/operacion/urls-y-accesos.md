@@ -63,7 +63,7 @@ Lo que usas para **operar y cambiar** el HomeLab.
 | ⭐ | **SSH a los servidores** | `ssh devops@<servidor>.homelab.local` (`invincible`, `oliver`, `deborah`) | 💻 | Identidad de GitHub con `opkssh` ([guía](acceso-ssh.md)) | Entrar a los nodos |
 | ⭐ | **API de Kubernetes** | `https://192.168.20.5:6443` (`deborah`) | 💻 | `kubeconfig` | `kubectl` sobre el clúster |
 | 🔧 | **Longhorn UI** | [`http://127.0.0.1:8080`](http://127.0.0.1:8080) | 🔌 | Sin login | Volúmenes, réplicas y discos del almacenamiento |
-| 🔧 | **vCluster Platform** | [`https://vcluster.homelab.local`](https://vcluster.homelab.local) | 🌐 | SSO con GitHub | Clústeres virtuales. Se activa en la Fase 5; sin ella la URL responde 404 |
+| 🔧 | **vCluster** (CLI `vcluster`) | `vcluster connect <nombre> -n vcluster-<nombre>` | 💻 | El `kubeconfig` con GitHub ([guía](acceso-kubernetes.md)) | Clústeres virtuales (opcional, Fase 5); sin URL ni interfaz web ([operaciones](vcluster.md)) |
 
 ### 2. Observabilidad
 
@@ -84,8 +84,8 @@ Piezas de las que dependen las demás. Sirven para diagnosticar.
 
 | Prioridad | Producto | Dirección | Cómo se entra | Acceso | Para qué |
 |---|---|---|---|---|---|
-| 🔍 | **Dex** (SSO) | [`https://argocd.homelab.local/api/dex`](https://argocd.homelab.local/api/dex/.well-known/openid-configuration) | 🌐 | Sin interfaz propia | Emisor OIDC: lo usan Argo CD, Incus UI, vCluster, Grafana y el SSH con `opkssh` |
-| 🔍 | **Gateway** (Kong) | `192.168.23.200` | 💻 | — | Recibe el tráfico de `argocd`, `grafana`, `vcluster`, `api`, `open-webui` y `ollama` |
+| 🔍 | **Dex** (SSO) | [`https://argocd.homelab.local/api/dex`](https://argocd.homelab.local/api/dex/.well-known/openid-configuration) | 🌐 | Sin interfaz propia | Emisor OIDC: lo usan Argo CD, Incus UI, Grafana, Open WebUI, `kubectl` y el SSH con `opkssh` |
+| 🔍 | **Gateway** (Kong) | `192.168.23.200` | 💻 | — | Recibe el tráfico de `argocd`, `grafana`, `api`, `open-webui` y `ollama` |
 | 🔍 | **Ollama** (API de IA) | `https://ollama.homelab.local` | 💻 | Token Bearer (un token por cliente) | Router único de los nodos de Ollama; solo HTTPS. Dentro del clúster: `http://ollama-router.ai.svc`. La usan Open WebUI, K8sGPT, los reportes y la traducción ([guía](ia-ollama.md), [agregar un nodo](agregar-nodo-ollama.md)) |
 | 🔍 | **DNS** (BIND) | `192.168.20.5` | 💻 | — | Zonas `homelab.local` y `mco.local` |
 
@@ -99,9 +99,9 @@ Piezas de las que dependen las demás. Sirven para diagnosticar.
 | 🔍 | **Pipelines reutilizables** | [`maceosoft/core-pipelines`](https://github.com/maceosoft/core-pipelines) |
 
 !!! note "Cada nombre tiene su registro en BIND"
-    La zona `homelab.local` apunta `argocd`, `vcluster`, `api`, `grafana`, `open-webui` y `ollama` a la IP del Gateway (`192.168.23.200`), `incus` al líder del clúster
+    La zona `homelab.local` apunta `argocd`, `api`, `grafana`, `open-webui` y `ollama` a la IP del Gateway (`192.168.23.200`), `incus` al líder del clúster
     (`invincible`, `192.168.20.6`) y cada servidor (`invincible`, `oliver`, `deborah`) a su propia IP. No hay comodín: un nombre
-    nuevo no resuelve hasta que se añade su registro. Solo tienen ruta en el Gateway Argo CD, Grafana, Open WebUI y Ollama; por eso `vcluster.homelab.local` resuelve pero responde 404.
+    nuevo no resuelve hasta que se añade su registro. Solo tienen ruta en el Gateway Argo CD, Grafana, Open WebUI y Ollama.
 
 !!! info "Si añades una interfaz nueva"
     Documéntala aquí en el mismo cambio: una fila en el grupo que corresponda (con su prioridad y cómo se entra) y, si no está publicada, su comando
@@ -188,10 +188,12 @@ Cada uno necesita su propia terminal, y el puerto de `vmalert` es `8880` para no
 
 Qué se vigila y qué hacer ante cada aviso: [Monitoreo y alertas](monitoreo.md).
 
-## vCluster Platform
+## vCluster
 
-Su dirección es [`https://vcluster.homelab.local`](https://vcluster.homelab.local), pero **no se despliega por defecto**: su Application está en
-`gitops/bootstrap/components/apagadas/` y no hay `HTTPRoute`, así que hasta activarla en la [Fase 5](../implementacion/fase-5-vcluster.md) la URL responde 404.
+No tiene dirección ni interfaz web: cada clúster virtual se crea con el CLI `vcluster` (o con la Application de ejemplo
+`vcluster-demo`, en `gitops/bootstrap/components/apagadas/`) y se entra con `vcluster connect <nombre> -n vcluster-<nombre>`,
+que abre un túnel (`port-forward`) usando tu [`kubeconfig` con GitHub](acceso-kubernetes.md). Ver la
+[Fase 5](../implementacion/fase-5-vcluster.md) y [Operaciones frecuentes de vCluster](vcluster.md).
 
 ## Sin interfaz propia
 

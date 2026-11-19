@@ -123,20 +123,20 @@ incus cluster group assign eve x86-nodes,default
 
 ## Protect oliver RAM (manual scheduler)
 
-oliver has 7.7 GB measured, so it stays as a lightweight node for Incus
+oliver has 7.7 GB measured, so it stays as a light node for Incus
 quorum without automatic instances:
 
 ```bash
 incus cluster set oliver scheduler.instance manual
 ```
-Excludes `oliver` from automatic scheduling; it only receives instances if
-explicitly targeted with `--target=oliver`. It still counts as a quorum vote.
+Excludes `oliver` from automatic scheduling; only receives instances if
+explicitly targeted with `--target=oliver`. Still counts as a quorum vote.
 
 ## Virtual machines (VM)
 
 ### Which nodes can run VMs
 
-A VM needs KVM (Kernel-based Virtual Machine, hardware virtualization from the kernel), the kernel module `vhost_vsock` and the Incus driver `qemu`. Here is the status per node:
+A VM needs KVM (Kernel-based Virtual Machine, hardware virtualization by the kernel), the kernel module `vhost_vsock` and the Incus driver `qemu`. Here is each node:
 
 | Node | Architecture | Runs VMs? | Reason |
 |---|---|---|---|
@@ -153,7 +153,7 @@ incus launch images:debian/12 mi-vm --vm --target invincible
 ```
 
 In the UI, on the creation form, choose the image first (until then **Instance type**, **Target**, and
-**Profiles** are disabled), then **Virtual machine**, and in **Target** an x86 node (invincible or oliver).
+**Profiles** are disabled), then **Virtual machine** and in **Target** an x86 node (invincible or oliver).
 
 ### `cloud` images and the agent disk
 
@@ -169,7 +169,7 @@ won't boot:
 Error: This virtual machine image requires an agent:config disk be added
 ```
 
-The `default` profile does not include it (nor should it: it is shared by containers and `agent:config` only applies to VMs).
+The `default` profile doesn't include it (nor should it: it's shared by containers and `agent:config` only applies to VMs).
 Add it to the VM:
 
 === "🖱️ From the UI"
@@ -203,8 +203,8 @@ incus launch images:almalinux/8/cloud mi-vm --vm -p default -p vm-agent --target
 ## Admin UI
 
 Incus exposes a **native web UI** (`incus-ui-canonical`) to manage
-instances, profiles, networks, and the cluster. It does not use kubeconfig; initial
-authentication is by **client certificate** and, after Phase 4, by **OIDC (OpenID Connect)** (Dex → GitHub).
+instances, profiles, networks, and the cluster. It does not use kubeconfig; initial authentication
+is by **client certificate** and, after Phase 4, by **OIDC (OpenID Connect)** (Dex → GitHub).
 
 ### Installation (Ansible or manual)
 
@@ -252,8 +252,8 @@ With OIDC configured, the UI login screen offers **Login with SSO** (single sign
 ??? note "View screenshot: Incus UI access"
     ![Incus UI login screen with "Login with SSO" and "Login with TLS" options](../assets/screenshots/incus-ui-login.jpg){ loading=lazy }
 
-After [Phase 4 — Incus UI OIDC](../implementacion/fase-4-gitops.md#incus-ui-oidc), with the HomeLab
-CA (certificate authority) already installed on the node (see the warning below):
+After [Phase 4 — Incus UI OIDC](../implementacion/fase-4-gitops.md#incus-ui-oidc), with the HomeLab CA (Certificate Authority)
+already installed on the node (see the warning below):
 
 ```bash
 incus config set oidc.issuer=https://argocd.homelab.local/api/dex
@@ -265,8 +265,8 @@ Incus (7.x) only knows five OIDC keys: `oidc.issuer`, `oidc.client.id`, `oidc.au
 a secret, so in Dex the client `incus-ui` is **public** (PKCE —Proof Key for Code Exchange—, `public: true`).
 
 !!! warning "Incus must trust the HomeLab CA"
-    The Dex certificate is signed by the HomeLab's own CA (cert-manager). If the
-    node does not know it, Incus cannot validate the identity provider and login fails. The
+    The Dex certificate is signed by the HomeLab's own CA (cert-manager). If the node
+    does not know it, Incus cannot validate the identity provider and login fails. The
     playbook (`--tags incus`, or just `--tags incus_ca`) installs it in `invincible` and
     restarts `incus`. Manually, on the node:
 
@@ -287,8 +287,8 @@ Incus 7.x does **not** ship with `incus auth` (groups and `identity-provider-gro
 
 | Scenario | Result |
 |---|---|
-| Member of team `devops` in org `maceosoft` | Dex lets them through and, with Incus default config, they have **full access** |
-| Account not in that team | Dex rejects login: never reaches Incus |
+| Member of team `devops` in org `maceosoft` | Dex allows them in and, with Incus default config, they have **full access** |
+| Account not in that team | Dex rejects the login: never reaches Incus |
 
 Access control is therefore membership in team `devops` (filter `orgs`/`teams` of the
 GitHub connector in `dex.config`). For granular permissions (per project, read-only) Incus
@@ -303,7 +303,7 @@ References:
 
 Incus has network load balancers (`incus network load-balancer`) and port forwards (`incus network forward`), but
 **network load balancers only exist on OVN networks** (Open Virtual Network, software-defined virtual network). In the
-HomeLab **OVN** is deployed (see [Deploy OVN and segments](#deploy-ovn-and-segments)):
+HomeLab **OVN** is deployed (see [Deploy OVN and segments](#deploy-ovn-and-the-segments)):
 `br0` remains an unmanaged bridge for existing instances, and the uplink network `UPLINK` and the OVN network `ovn-lan` are created,
 making network load balancers available.
 
@@ -314,50 +314,51 @@ making network load balancers available.
 | What is balanced | Who does it | Where |
 |---|---|---|
 | Kubernetes applications (Services `LoadBalancer`) | **MetalLB**, with the `192.168.23.200–.220` IPs (the Kong Gateway uses `.200`) | [GitOps Catalog](../gitops/index.md) |
-| Control plane of Cluster API clusters | **CAPN**, with its own load balancer (`LOAD_BALANCER='lxc: {}'`, a container inside Incus) | [Phase 6 — CAPN](../implementacion/fase-6-capn.md) |
+| Cluster API cluster control planes | **CAPN**, with its own load balancer (`LOAD_BALANCER='lxc: {}'`, a container inside Incus) | [Phase 6 — CAPN](../implementacion/fase-6-capn.md) |
 | K3s API | The control plane IP (`kube-vip` is optional and disabled) | [Phase 3 — K3s](../implementacion/fase-3-k3s.md) |
 
-### Should You Enable OVN?
+### Should you enable OVN?
 
-What OVN requires and what it implies for the HomeLab. The segments and deployment are in [Deploy OVN and Segments](#deploy-ovn-and-segments).
+What OVN requires and what it implies for the HomeLab. The segments and deployment are in [Deploy OVN and the segments](#deploy-ovn-and-the-segments).
 
-| OVN Requirement | HomeLab Status |
+| OVN Requirement | Status in the HomeLab |
 |---|---|
 | Packages `ovn-central` (3 nodes, HA database), `ovn-host` and `openvswitch-switch` | Present in Debian on all four nodes, with OVN 25.03 and Open vSwitch 3.5 on Debian 13 (`invincible`, `oliver`, `eve`); `deborah` remains on Debian 12 until [updated](../operacion/actualizar-debian-deborah.md), and until then its versions do not match |
 | Shared Layer 2 network between nodes | Yes: all four are on the same LAN via `br0` |
 | Uplink: an unmanaged bridge or a spare NIC | `br0` works; no need to rebuild it |
-| Reserved IP range outside DHCP for OVN router and virtual IPs | Defined: `192.168.23.224/28` (LB) and `192.168.23.240–.249` (OVN external), outside DHCP and MetalLB. See [Deploy OVN and Segments](#deploy-ovn-and-segments) |
+| Reserved IP range outside DHCP for the OVN router and virtual IPs | Defined: `192.168.23.224/28` (LB) and `192.168.23.240–.249` (OVN external), outside DHCP and MetalLB. See [Deploy OVN and the segments](#deploy-ovn-and-the-segments) |
 | Instances inside an OVN network | Instances hanging off `br0` (such as `lb01`, `test` and `vm01`) have LAN IPs: to use OVN they must be connected to `ovn-lan` |
-| Memory per node (OVS, `ovn-controller` and central database) | `oliver` has 7.7 GB: advisable to measure OVN consumption there |
+| Memory per node (OVS, `ovn-controller` and the central database) | `oliver` has 7.7 GB: advisable to measure OVN consumption there |
 
 | Pros | Cons |
 |---|---|
 | Native load balancers and forwards in Incus | Three new components per node and a distributed database to operate |
 | Isolated virtual networks per project or cluster, with ACLs | Must reserve a new IP range and move instances that want to use them |
-| `LOAD_BALANCER: ovn` in CAPN for Phase 6 clusters | Only benefits instances that move to an OVN network; K3s runs on hosts and does not benefit |
+| `LOAD_BALANCER: ovn` in CAPN for Phase 6 clusters | Only benefits instances that move to an OVN network; K3s runs on the hosts and does not benefit |
 
-### Deploy OVN and Segments
+### Deploy OVN and the segments
 
 The role [`incus_ovn`](https://github.com/maceosoft/homelab/blob/main/ansible/roles/incus_ovn/README.md), inside
 [`playbook-incus-cluster.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-incus-cluster.yml), installs OVN on all
 nodes: the HA database (`ovn-central`) goes only on the three in `incus_ovn_db_hosts` (`invincible` creates it and
-`oliver` and `deborah` join) and the rest, like `eve`, carry only `ovn-host`. It also configures Incus and creates the *uplink* network over `br0` and an OVN network. It is **safe by default**: without `-e incus_ovn_confirm=true` it only runs the preflight (Incus version,
+`oliver` and `deborah` join) and the rest, like `eve`, carry only `ovn-host`. It also configures Incus and creates the
+*uplink* network over `br0` and an OVN network. It is **safe by default**: without `-e incus_ovn_confirm=true` it only runs the preflight (Incus version,
 packages, free memory, that `br0` exists and that reserved IPs do not respond) and installs nothing. With
 `incus_ovn_enabled: false` (the default value) the cluster playbook does not even touch it.
 
-| Segment | Value | Where Configured | Variable |
+| Segment | Value | Where configured | Variable |
 |---|---|---|---|
-| **LB** (IP for load balancers and forwards) | `192.168.23.224/28` | `ipv4.routes` of the uplink | `incus_ovn_lb_routes` |
+| **LB** (IPs for load balancers and forwards) | `192.168.23.224/28` | `ipv4.routes` of the uplink | `incus_ovn_lb_routes` |
 | **OVN external** (one IP per virtual router) | `192.168.23.240–192.168.23.249` | `ipv4.ovn.ranges` of the uplink | `incus_ovn_external_ranges` |
 | **OVN internal** (private subnet, with NAT) | `192.168.19.1/24` | `ipv4.address` of the `ovn-lan` network | `incus_ovn_internal_cidr` |
 
 The first two are from the LAN (`192.168.20.0/22`) and must remain **outside the router's DHCP** (`192.168.20.31–192.168.23.191`) and the
-MetalLB pool (`192.168.23.200–.220`). The allocation of the free high zone of the LAN:
+MetalLB pool (`192.168.23.200–.220`). The allocation of the LAN's upper free zone:
 
 | Range | Use |
 |---|---|
 | `192.168.23.192–.199` | Free |
-| `192.168.23.200–.220` | **MetalLB** (21 IPs; Kong Gateway uses `.200`) |
+| `192.168.23.200–.220` | **MetalLB** (21 IPs; the Kong Gateway uses `.200`) |
 | `192.168.23.221–.223` | Free |
 | `192.168.23.224/28` (`.224–.239`) | **Incus LB** (16 IPs) |
 | `192.168.23.240–.249` | **OVN external** (10 IPs, one virtual router per OVN network) |
@@ -377,25 +378,25 @@ ansible-playbook -i inventory.ini playbook-incus-cluster.yml --tags ovn --skip-t
 Then, a network load balancer is created with `incus network load-balancer create ovn-lan 192.168.23.225` and its configuration.
 The listen address must be in the `ipv4.routes` of the uplink and not overlap with another network in use.
 
-**Verify deployment:** `ovn-central` active on the three database nodes, `ovn-controller` and Open vSwitch on all; the Northbound database clustered
-with leader (`ovn-appctl -t /var/run/ovn/ovnnb_db.ctl cluster/status OVN_Northbound`); one Geneve *chassis* per node (`ovn-sbctl show`); and
+**Verify the deployment:** `ovn-central` active on the three database nodes, `ovn-controller` and Open vSwitch on all; the Northbound database clustered
+with a leader (`ovn-appctl -t /var/run/ovn/ovnnb_db.ctl cluster/status OVN_Northbound`); one Geneve *chassis* per node (`ovn-sbctl show`); and
 `UPLINK` and `ovn-lan` in `Created` state (`incus network list`).
 
-!!! warning "OVN Database Is Not Encrypted"
+!!! warning "The OVN database is not encrypted"
     Following the Incus guide, the playbook exposes the OVN databases via `tcp` without SSL (Secure Sockets Layer) on the nodes' LAN.
-    Acceptable in a lab; for production you would need to enable SSL in OVN.
+    This is acceptable in a lab; for production you would need to enable SSL in OVN.
 
 **Alternatives without OVN:** MetalLB for applications, the CAPN (Cluster API Provider for Incus) load balancer for new clusters, and a container with
 HAProxy or nginx plus `keepalived` if a virtual IP for instances is needed.
 
-## Update or Uninstall Incus
+## Update or uninstall Incus
 
 Both playbooks are **safe by default**: without the confirmation variable they only show what they would do.
 
 | What | Playbook | Confirmation | Effect |
 |---|---|---|---|
-| Update Incus to latest repository version | [`playbook-upgrade-incus.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-upgrade-incus.yml) | `-e incus_upgrade_confirm=true` | Updates `incus*` packages node by node and waits for all members to be `ONLINE`. Does not delete instances |
-| Uninstall cluster (to rebuild) | [`playbook-uninstall-incus.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-uninstall-incus.yml) | `-e incus_uninstall_confirm=true` | **Destructive:** deletes instances, images, managed networks, the pool and packages. Does not touch `br0`, K3s or BIND |
+| Update Incus to the latest version from the repository | [`playbook-upgrade-incus.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-upgrade-incus.yml) | `-e incus_upgrade_confirm=true` | Updates the `incus*` packages node by node and waits for all members to be `ONLINE`. Does not delete instances |
+| Uninstall the cluster (to rebuild it) | [`playbook-uninstall-incus.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-uninstall-incus.yml) | `-e incus_uninstall_confirm=true` | **Destructive:** deletes instances, images, managed networks, the pool and the packages. Does not touch `br0`, K3s or BIND |
 
 The cluster requires **the same Incus version on all members**: while they differ, the API remains blocked on the
 already updated ones until the others catch up. That is why the update playbook walks all nodes sequentially and
@@ -403,7 +404,7 @@ verifies at the end. To rebuild the cluster after uninstalling: `playbook-bootst
 
 ## S3 Buckets
 
-Incus provides S3 buckets (Simple Storage Service, Amazon's object protocol) in the pool `local`. Each bucket lives only on the member where it was created (today `backup`, `test`, and `postgres-backups`, all in `invincible`) and only that member serves it. S3 is not exposed directly: Incus listens on loopback (`core.storage_buckets_address` on `127.0.0.1:8556`, only on `invincible`) and HAProxy publishes it on `https://192.168.20.6:8555` with a certificate from the HomeLab CA (certificate authority), to avoid changing the Incus API certificate. Why, how it is renewed, and the commands: [PostgreSQL and backups in Incus](../storage/postgres.md#the-s3-endpoint-certificate).
+Incus provides S3 buckets (Simple Storage Service, Amazon's object protocol) in the pool `local`. Each bucket lives only on the member where it was created (today `backup`, `test`, and `postgres-backups`, all in `invincible`) and only that member serves it. S3 is not exposed directly: Incus listens on loopback (`core.storage_buckets_address` on `127.0.0.1:8556`, only on `invincible`) and HAProxy publishes it on `https://s3.homelab.local:8555` (`192.168.20.6`) with a certificate from the HomeLab CA (certificate authority), to avoid changing the Incus API certificate. Why, how it's renewed, and the commands: [PostgreSQL and backups in Incus](../storage/postgres.md#the-s3-endpoint-certificate).
 
 ## Backup and snapshots (optional)
 
@@ -441,4 +442,4 @@ incus admin sql global .dump > /backup/incus-global.sql
 - In a cluster, schedule backups on the node hosting the instance or use `incus copy --refresh` to another Incus server for offsite copies.
 - For CAPN/critical workloads, combine snapshots with periodic export or replication.
 
-Official docs: [Instance backup](https://linuxcontainers.org/incus/docs/main/howto/instances_backup/), [Server backup](https://linuxcontainers.org/incus/docs/main/backup/).
+Official docs: [Backup instances](https://linuxcontainers.org/incus/docs/main/howto/instances_backup/), [Backup server](https://linuxcontainers.org/incus/docs/main/backup/).

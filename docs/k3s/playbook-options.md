@@ -201,7 +201,7 @@ Catálogo completo y guía paso a paso en [Fase 4 — GitOps](../implementacion/
 | Longhorn | `longhorn` | auto (wave 1) |
 | Argo CD Dex/ruta | `argocd-route`, `argocd` | auto (wave 2) |
 | K3s upgrades | `k3s-upgrade` | auto (wave 3) |
-| vCluster Platform | `vcluster-platform` | manual |
+| vCluster (ejemplo) | `vcluster-demo` | manual |
 | CAPN demo | `capn-demo` | manual |
 | CNI Calico | `calico-operator`, `calico-config` | manual (activas) |
 | CNI alternativos (opcional) | `canal`, `cilium` | manual |
@@ -222,24 +222,21 @@ Continúa en [Fase 4 — GitOps](../implementacion/fase-4-gitops.md).
 ## Playbook OAuth Dex (Fase 4)
 
 [`playbook-dex-oauth-secrets.yml`](https://github.com/maceosoft/homelab/blob/main/ansible/playbook-dex-oauth-secrets.yml) —
-genera `VCLUSTER_CLIENT_SECRET` en 1Password si falta,
+lee de 1Password las credenciales de GitHub,
 aplica `argocd-secret` y configura Incus OIDC (OpenID Connect) en invincible. Necesita
 `KUBECONFIG` exportado y la app de 1Password desbloqueada.
 
 | Tag | Qué hace |
 |---|---|
-| `ensure` | Genera en 1Password el secreto que falte (`VCLUSTER_CLIENT_SECRET`) |
+| `ensure` | Genera en 1Password los campos de `dex_oauth_generated_fields` que falten (hoy ninguno: los clientes de Dex son públicos) |
 | `argocd` | Aplica las claves `dex.*` en `argocd-secret` y reinicia Dex |
 | `incus` | Instala la CA del HomeLab en invincible, **reinicia `incus`** (si la CA cambió) y configura `oidc.issuer` y `oidc.client.id` |
 | `incus_ca` | Solo instala la CA del HomeLab en invincible (y reinicia `incus` si cambió) |
-| `vcluster` | Aplica `VCLUSTER_CLIENT_SECRET` en vCluster Platform (requiere `apply_vcluster: true`) |
 
 ```bash
 cd ansible
 ansible-playbook -i inventory.ini playbook-dex-oauth-secrets.yml --tags ensure,argocd,incus
 ansible-playbook -i inventory.ini playbook-dex-oauth-secrets.yml --tags incus_ca
-ansible-playbook -i inventory.ini playbook-dex-oauth-secrets.yml --tags vcluster \
-  -e dex_oauth.apply_vcluster=true
 ```
 
 `apply_incus` está en `true` por defecto en `group_vars`.

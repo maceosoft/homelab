@@ -56,9 +56,11 @@ updates:
     cooldown:
       default-days: 7
 
-  # OpenTofu: provider lxc/incus (opentofu/main.tf y su .terraform.lock.hcl, del registro de OpenTofu).
+  # OpenTofu: provider lxc/incus de cada ejemplo (opentofu/<ejemplo>/main.tf y su .terraform.lock.hcl, del registro
+  # de OpenTofu).
   - package-ecosystem: "opentofu"
-    directory: "/opentofu"
+    directories:
+      - "/opentofu/*"
     multi-ecosystem-group: "todas"
     patterns: ["*"]
     cooldown:

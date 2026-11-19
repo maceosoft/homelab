@@ -1,0 +1,44 @@
+---
+# En el líder del clúster Incus. Perfil para las instancias de la red OVN: la NIC en la red y el MTU del DHCP.
+# Incus no deja fijar "mtu" en una NIC con "network", y QEMU no recibe el MTU del host: en las VMs lo aplica cloud-init.
+- name: Exigir la red OVN
+  ansible.builtin.command: "incus network show {{ incus_ovn_network_name }}"
+  changed_when: false
+  check_mode: false
+  when: incus_ovn_confirm | bool
+
+- name: Perfiles de Incus existentes
+  ansible.builtin.command: incus profile list --format csv -c n
+  register: incus_ovn_profiles
+  changed_when: false
+  check_mode: false
+  when: incus_ovn_confirm | bool
+
+- name: Crear el perfil
+  ansible.builtin.command: "incus profile create {{ incus_ovn_profile_name }}"
+  when:
+    - incus_ovn_confirm | bool
+    - incus_ovn_profile_name not in incus_ovn_profiles.stdout_lines
+  changed_when: true
+
+- name: Perfil actual
+  ansible.builtin.command: "incus profile show {{ incus_ovn_profile_name }}"
+  register: incus_ovn_profile_current
+  changed_when: false
+  check_mode: false
+  failed_when: false
+  when: incus_ovn_confirm | bool
+
+- name: Aplicar el perfil (NIC en la red OVN y MTU del DHCP)
+  ansible.builtin.command: "incus profile edit {{ incus_ovn_profile_name }}"
+  args:
+    stdin: "{{ incus_ovn_profile_desired | to_nice_yaml }}"
+  vars:
+    incus_ovn_profile_desired: "{{ lookup('ansible.builtin.template', 'ovn-lan-profile.yaml.j2') | from_yaml }}"
+    incus_ovn_profile_now: "{{ incus_ovn_profile_current.stdout | default('{}', true) | from_yaml }}"
+  when:
+    - incus_ovn_confirm | bool
+    - incus_ovn_profile_now.description | default('') != incus_ovn_profile_desired.description
+      or incus_ovn_profile_now.config | default({}) != incus_ovn_profile_desired.config
+      or incus_ovn_profile_now.devices | default({}) != incus_ovn_profile_desired.devices
+  changed_when: true

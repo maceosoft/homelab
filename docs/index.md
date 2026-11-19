@@ -25,8 +25,8 @@ los grandes proveedores.
 - **Cómo lo vas a aprender:** cada paso explica qué se hace, por qué se hace así y cómo comprobar que funcionó. Las
   instalaciones están automatizadas con Ansible, así que puedes repetirlas las veces que necesites.
 - **Con qué:** casi todo es software libre y de código abierto, sin licencias que pagar. Las excepciones son pocas:
-  1Password, el gestor de contraseñas (de pago) donde guardo los secretos y que vas a usar desde la Fase 0; Open
-  WebUI, gratis pero con licencia propia, y vCluster Platform, que tiene planes de pago.
+  1Password, el gestor de contraseñas (de pago) donde guardo los secretos y que vas a usar desde la Fase 0, y Open
+  WebUI, gratis pero con licencia propia.
 - **Con un tutor gratuito:** junto al título de cada paso de la guía hay un botón **Aprende con IA**. Elige
   *Explícamelo*, *Hazme un quiz* o *Algo me falló*: el botón copia una pregunta con el contexto de ese paso y abre un
   cuaderno de NotebookLM que responde solo con esta documentación. [Cómo se usa](aprende.md).
@@ -93,7 +93,7 @@ Estas son las piezas que vas a ir montando, cada una con su analogía para que n
 | **cert-manager** | La oficina que emite los carnets | Emite certificados TLS con una CA propia del HomeLab |
 | **Longhorn y OpenEBS** | Bodegas: una rápida y otra con copia de seguridad | Almacenamiento local y replicado entre nodos |
 | **Argo CD (GitOps)** | El inspector que compara el edificio con el plano | Sincroniza el clúster con lo que declara Git |
-| **Dex** | El mostrador de identificación | SSO: inicia sesión con GitHub en Argo CD, Grafana, Open WebUI, vCluster, Incus y SSH |
+| **Dex** | El mostrador de identificación | SSO: inicia sesión con GitHub en Argo CD, Grafana, Open WebUI, Incus, K3s y SSH |
 | **Ollama + router** | El asistente y su recepción | Modelos de lenguaje locales en varios nodos; un router con token elige el nodo según el modelo |
 | **Open WebUI y Open Terminal** | La sala de consulta y el taller | Chat con el asistente (entrada con Dex) y un terminal aislado donde el asistente ejecuta código |
 | **Vector, VictoriaLogs y Grafana** | El archivo central y sus pantallas | Junta los logs de nodos y pods, los guarda 30 días y los muestra; reportes con IA en Discord |
