@@ -3,7 +3,7 @@
 
 provider "registry.opentofu.org/lxc/incus" {
   version     = "1.2.1"
-  constraints = "~> 0.5"
+  constraints = "~> 1.2"
   hashes = [
     "h1:6BB9+vwDInIK9CpAq0dxgotDU/Vw6mxopFeK3RtGO9w=",
     "h1:E41sOS/oSVQcMpk0TmhYSfHt/O3dAU5X3eS9WW+zCfg=",

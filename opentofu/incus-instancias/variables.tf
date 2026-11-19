@@ -23,7 +23,13 @@ variable "prefix" {
 }
 
 variable "network" {
-  description = "Red de Incus de las instancias (OVN aislada: se llega a ellas desde la LAN solo por el balanceador)"
+  description = "Red OVN del balanceador: la misma del perfil (aislada: desde la LAN solo se llega por el balanceador)"
+  type        = string
+  default     = "ovn-lan"
+}
+
+variable "profile" {
+  description = "Perfil de Incus de las instancias: NIC en la red OVN y MTU del DHCP (lo crea el rol incus_ovn de Ansible)"
   type        = string
   default     = "ovn-lan"
 }

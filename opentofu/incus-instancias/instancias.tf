@@ -5,19 +5,13 @@ resource "incus_instance" "vm" {
   type   = "virtual-machine"
   target = var.vm_target
 
-  config = {
-    "limits.cpu"                = "1"
-    "limits.memory"             = "1GiB"
-    "cloud-init.user-data"      = templatefile("${path.module}/plantillas/vm-cloud-init.yaml", { prefix = var.prefix })
-    "cloud-init.network-config" = file("${path.module}/plantillas/vm-network-config.yaml")
-  }
+  # El perfil ovn-lan (rol incus_ovn de Ansible) pone la NIC en la red OVN y le pide a cloud-init el MTU del DHCP.
+  profiles = ["default", var.profile]
 
-  device {
-    name = "eth0"
-    type = "nic"
-    properties = {
-      network = var.network
-    }
+  config = {
+    "limits.cpu"           = "1"
+    "limits.memory"        = "1GiB"
+    "cloud-init.user-data" = templatefile("${path.module}/plantillas/vm-cloud-init.yaml", { prefix = var.prefix })
   }
 
   # El contenedor necesita la IP de la VM, y los comandos de exec, su agente.
@@ -45,13 +39,7 @@ resource "incus_instance" "web" {
   type   = "container"
   target = var.web_target
 
-  device {
-    name = "eth0"
-    type = "nic"
-    properties = {
-      network = var.network
-    }
-  }
+  profiles = ["default", var.profile]
 
   file {
     target_path = "/usr/share/nginx/html/index.html"
