@@ -26,4 +26,4 @@ tofu plan
 El `plan` propone **agregar las descripciones** (Ansible los creó sin descripción): `0 to add, 2 to change`. Con
 `tofu apply` quedan puestas. Probado el 18 nov 2026 (import y plan).
 
-Con SSO: `-parallelism=1` en cada comando (ver [../README.md](../README.md)).
+En macOS: `export GODEBUG=netdns=go` antes de cada comando (ver [../README.md](../README.md#sso-personas)).
