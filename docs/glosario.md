@@ -69,7 +69,7 @@ paréntesis.
 | **K8s** | [Kubernetes](https://kubernetes.io/) | Abreviatura de Kubernetes: la K, las 8 letras del medio y la s. |
 | **KIC** | [Kong Ingress Controller](https://developer.konghq.com/kubernetes-ingress-controller/) | Controlador de Kong para Kubernetes; aquí implementa Gateway API. |
 | **Kubernetes** | [Kubernetes](https://kubernetes.io/) (K8s) | Plataforma que orquesta contenedores: decide en qué nodo corre cada pod, lo reinicia si falla y le da red y almacenamiento. En este HomeLab corre como K3s. |
-| **KVM** | [Kernel-based Virtual Machine](https://linux-kvm.org/) | Virtualización por hardware integrada en el kernel de Linux; la usan las VMs de Incus. |
+| **KVM** | [Kernel-based Virtual Machine](https://docs.kernel.org/virt/kvm/index.html) | Virtualización por hardware integrada en el kernel de Linux; la usan las VMs de Incus. |
 | **L2** | capa 2 del modelo OSI | Capa de enlace del modelo OSI: tráfico dentro de la misma red local (MAC, ARP). |
 | **L3** | capa 3 del modelo OSI | Capa de red del modelo OSI: IPs y ruteo. |
 | **L7** | capa 7 del modelo OSI | Capa de aplicación del modelo OSI: HTTP y similares. |
