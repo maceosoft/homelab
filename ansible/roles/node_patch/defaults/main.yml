@@ -25,7 +25,13 @@ node_patch_autoremove: false
 # Drain, reinicio y espera.
 node_patch_drain_timeout: 10m
 node_patch_reboot_timeout: 1200
-node_patch_ready_timeout: 10m
+# Segundos que se espera, tras el reinicio, a que la API responda y el nodo vuelva Ready con un
+# arranque nuevo. Generoso por deborah: es el control-plane y K3s tarda en levantar la API.
+node_patch_ready_timeout_seconds: 900
+
+# apt: segundos que se espera el candado de dpkg si unattended-upgrades (03:30 a 04:00) o
+# node-apt-metrics están corriendo en ese momento.
+node_patch_apt_lock_timeout: 600
 
 # Post-chequeo: reintentos cada node_patch_postcheck_delay segundos durante
 # node_patch_postcheck_minutes minutos antes de pasar al siguiente nodo.
@@ -37,3 +43,8 @@ node_patch_postcheck_delay: 20
 node_patch_longhorn_bad_states:
   - degraded
   - faulted
+
+# Al terminar cada nodo, recalcular sus métricas de paquetes (rol node_apt_metrics) para que las
+# alertas ReinicioPendiente y ParchesDeSeguridadPendientes se resuelvan ya y no en hasta 6 horas.
+# Si el nodo no tiene el servicio, se omite.
+node_patch_refresh_apt_metrics: true

@@ -37,4 +37,5 @@
 - name: Comprobar las fuentes nuevas (apt-get update)
   ansible.builtin.apt:
     update_cache: true
+    lock_timeout: "{{ node_patch_apt_lock_timeout }}"
   when: node_patch_sources_file is changed or node_patch_sources_list is changed

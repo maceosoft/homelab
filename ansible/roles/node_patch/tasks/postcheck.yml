@@ -27,6 +27,21 @@
   delay: "{{ node_patch_postcheck_delay }}"
   until: node_patch_post_node.rc == 0 and node_patch_post_node.stdout in ['True/', 'True/false']
 
+# Longhorn vuelve a contar con el nodo (longhorn-manager arriba). Sin esto, el siguiente nodo
+# podría reiniciarse antes de que Longhorn note que este volvió y empiece a reconstruir réplicas.
+- name: "Post-chequeo: nodo Ready en Longhorn"
+  ansible.builtin.command: >-
+    kubectl --kubeconfig {{ node_patch_kubeconfig }} -n longhorn-system get nodes.longhorn.io {{ node_patch_k8s_node }}
+    -o 'jsonpath={.status.conditions[?(@.type=="Ready")].status}'
+  register: node_patch_post_lh_node
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  check_mode: false
+  retries: "{{ (node_patch_postcheck_minutes | int * 60 / node_patch_postcheck_delay | int) | int }}"
+  delay: "{{ node_patch_postcheck_delay }}"
+  until: node_patch_post_lh_node.rc == 0 and node_patch_post_lh_node.stdout == 'True'
+
 - name: "Post-chequeo: salud general del clúster"
   ansible.builtin.import_tasks: cluster_health.yml
 
@@ -35,3 +50,21 @@
     that: node_patch_health_ok | bool
     fail_msg: "{{ inventory_hostname }} parcheado pero el clúster no está sano: {{ node_patch_health_msg }}. Se detiene aquí."
     success_msg: "{{ inventory_hostname }} listo: {{ node_patch_health_msg }}"
+
+# Recalcula las métricas de paquetes del nodo (rol node_apt_metrics) para que las alertas de
+# parches y de reinicio se resuelvan ahora y no en la próxima pasada del temporizador (6 h).
+- name: "Post-chequeo: ¿está el servicio de métricas de paquetes?"
+  ansible.builtin.stat:
+    path: /etc/systemd/system/node-apt-metrics.service
+  register: node_patch_apt_metrics_unit
+  when: node_patch_refresh_apt_metrics | bool
+
+- name: "Post-chequeo: recalcular las métricas de paquetes"
+  ansible.builtin.systemd_service:
+    name: node-apt-metrics.service
+    state: started
+  changed_when: false
+  when:
+    - node_patch_refresh_apt_metrics | bool
+    - node_patch_apt_metrics_unit.stat.exists | default(false)
+    - not ansible_check_mode

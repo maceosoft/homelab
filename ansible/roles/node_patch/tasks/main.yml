@@ -1,6 +1,6 @@
 ---
 # node_patch — parches de Debian en un nodo, con chequeos del clúster antes y después.
-# Lo invoca playbook-parchear.yml (serial: 1). Tags: precheck, sources, upgrade, reboot, postcheck.
+# Lo invoca playbook-parchear.yml (un play por nodo, en orden). Tags: precheck, sources, upgrade, reboot, postcheck.
 - name: Pre-chequeo
   ansible.builtin.import_tasks: precheck.yml
   tags: [precheck]
