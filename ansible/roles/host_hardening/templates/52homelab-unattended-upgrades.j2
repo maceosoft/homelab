@@ -11,6 +11,9 @@ Unattended-Upgrade::Package-Blacklist {
 {% endfor %}
 };
 {% endif %}
+// El paquete orangepi-bsp-cli de deborah trae 02-orangepi-periodic con Enable "0": apt.systemd.daily sale sin
+// hacer nada y nunca se instalan los parches de seguridad. Este archivo se lee despues y lo vuelve a activar.
+APT::Periodic::Enable "1";
 APT::Periodic::Update-Package-Lists "1";
 APT::Periodic::Unattended-Upgrade "1";
 Unattended-Upgrade::Remove-Unused-Dependencies "true";
